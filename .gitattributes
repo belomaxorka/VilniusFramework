@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.css diff=css
+*.twig diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+CLAUDE.md export-ignore
+LICENSE export-ignore
+README.md export-ignore
