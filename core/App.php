@@ -9,7 +9,7 @@ class App
     public static function init(): void
     {
         // Load configuration files
-        foreach (glob(__DIR__ . '/../config/*.php') as $file) {
+        foreach (glob(ROOT . '/config/*.php') as $file) {
             $key = basename($file, '.php');
             self::$config[$key] = require $file;
         }

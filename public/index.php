@@ -1,16 +1,20 @@
 <?php
 
-use Core\App;
-use Core\Router;
+// Define root path
+define('ROOT', realpath(__DIR__ . '/../'));
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Load composer
+require_once ROOT . '/vendor/autoload.php';
 
-App::init();
+// Initialize app
+\Core\App::init();
 
-$router = new Router();
+// Initialize router
+$router = new \Core\Router();
 
-// Пример маршрутов
+// Routes
 $router->get('', [\App\Controllers\HomeController::class, 'index']);
 $router->get('about', fn() => print "About page");
 
+// Run
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
