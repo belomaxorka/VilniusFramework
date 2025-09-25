@@ -18,8 +18,17 @@ class Router
 
     protected function addRoute(string $method, string $uri, callable|array $action): void
     {
-        // Преобразуем {param} в regex
-        $pattern = preg_replace('#\{([^/]+)\}#', '(?P<\1>[^/]+)', $uri);
+        // Преобразуем {param:regex} в (?P<param>regex)
+        $pattern = preg_replace_callback(
+            '#\{(\w+)(?::([^}]+))?\}#',
+            function ($matches) {
+                $name = $matches[1];
+                $regex = $matches[2] ?? '[^/]+';
+                return '(?P<' . $name . '>' . $regex . ')';
+            },
+            $uri
+        );
+
         $pattern = '#^' . trim($pattern, '/') . '$#';
 
         $this->routes[$method][] = [
