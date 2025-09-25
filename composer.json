@@ -1,0 +1,41 @@
+{
+  "name": "belomaxorka/framework",
+  "description": "Lightweight PHP CMS Framework",
+  "type": "project",
+  "homepage": "https://github.com/belomaxorka/framework",
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "belomaxorka",
+      "email": "roman25052006.kelesh@gmail.com",
+      "homepage": "https://github.com/belomaxorka"
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "symfony/var-dumper": "^6.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/",
+      "Core\\": "core/"
+    },
+    "files": [
+      "core/helpers.php"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "scripts": {
+    "post-create-project-cmd": [
+      "php -r \"copy('.env.example', '.env');\""
+    ]
+  }
+}

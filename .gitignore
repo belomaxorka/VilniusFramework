@@ -1,7 +1,6 @@
-### IDE ###
 .idea
 .vscode
-
-### TorrentPier ###
 *.log
+*.phar
 .env
+vendor
