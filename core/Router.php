@@ -8,33 +8,51 @@ class Router
 
     public function get(string $uri, callable|array $action): void
     {
-        $this->routes['GET'][$uri] = $action;
+        $this->addRoute('GET', $uri, $action);
     }
 
     public function post(string $uri, callable|array $action): void
     {
-        $this->routes['POST'][$uri] = $action;
+        $this->addRoute('POST', $uri, $action);
+    }
+
+    protected function addRoute(string $method, string $uri, callable|array $action): void
+    {
+        // Преобразуем {param} в regex
+        $pattern = preg_replace('#\{([^/]+)\}#', '(?P<\1>[^/]+)', $uri);
+        $pattern = '#^' . trim($pattern, '/') . '$#';
+
+        $this->routes[$method][] = [
+            'pattern' => $pattern,
+            'action' => $action,
+        ];
     }
 
     public function dispatch(string $method, string $uri): void
     {
         $uri = trim(parse_url($uri, PHP_URL_PATH), '/');
+        $uri = preg_replace('#^index\.php/?#', '', $uri);
 
-        $action = $this->routes[$method][$uri] ?? null;
+        foreach ($this->routes[$method] ?? [] as $route) {
+            if (preg_match($route['pattern'], $uri, $matches)) {
+                $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
-        if (!$action) {
-            http_response_code(404);
-            echo "404 Not Found";
-            return;
-        }
+                $action = $route['action'];
 
-        if (is_array($action)) {
-            [$controller, $method] = $action;
-            if (!class_exists($controller)) {
-                $controller = "App\\Controllers\\{$controller}";
+                if (is_array($action)) {
+                    [$controller, $method] = $action;
+                    if (!class_exists($controller)) {
+                        $controller = "App\\Controllers\\{$controller}";
+                    }
+                    (new $controller())->$method(...array_values($params));
+                } else {
+                    $action(...array_values($params));
+                }
+                return;
             }
-            (new $controller())->$method();
         }
 
+        http_response_code(404);
+        echo "404 Not Found: [$uri]";
     }
 }
