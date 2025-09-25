@@ -34,7 +34,7 @@
     "sort-packages": true
   },
   "scripts": {
-    "post-create-project-cmd": [
+    "post-create-project": [
       "php -r \"copy('.env.example', '.env');\""
     ]
   }
