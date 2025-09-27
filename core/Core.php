@@ -8,6 +8,7 @@ final class Core
     {
         self::initConfigLoader();
         self::initializeLangManager();
+        self::initializeDatabase();
     }
 
     private static function initConfigLoader(): void
@@ -18,5 +19,10 @@ final class Core
     private static function initializeLangManager(): void
     {
         LanguageManager::init();
+    }
+
+    private static function initializeDatabase(): void
+    {
+        Database::init();
     }
 }
