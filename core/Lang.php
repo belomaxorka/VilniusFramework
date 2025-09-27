@@ -48,7 +48,7 @@ class Lang
             return; // already loaded
         }
 
-        $file = ROOT . "/lang/$lang.php";
+        $file = LANG_DIR . "/$lang.php";
         if (is_file($file)) {
             self::$messages[$lang] = include $file;
         } else {
