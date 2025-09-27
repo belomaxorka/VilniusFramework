@@ -48,49 +48,12 @@ class LanguageManager
 
         // Priority 3: Auto-detection or specific default
         if ($defaultLang === 'auto') {
-            $detectedLang = self::detectBrowserLanguage();
-            if ($detectedLang && self::isValidLanguage($detectedLang)) {
-                return $detectedLang;
-            }
+            return null; // Let Lang::setLang() handle auto-detection
         } elseif (self::isValidLanguage($defaultLang)) {
             return $defaultLang;
         }
 
-        return null;
-    }
-
-    /**
-     * Detect browser language from HTTP headers
-     *
-     * @return string|null Detected language code
-     */
-    protected static function detectBrowserLanguage(): ?string
-    {
-        if (empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-            return null;
-        }
-
-        $acceptLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
-        $languages = [];
-
-        preg_match_all('/([a-z]{1,8}(?:-[a-z]{1,8})?)\s*(?:;\s*q\s*=\s*(1\.0{0,3}|0\.\d{0,3}))?/i', $acceptLanguages, $matches);
-
-        if (!empty($matches[1])) {
-            foreach ($matches[1] as $i => $lang) {
-                $quality = isset($matches[2][$i]) && $matches[2][$i] !== '' ? (float)$matches[2][$i] : 1.0;
-                $languages[strtolower(substr($lang, 0, 2))] = $quality;
-            }
-
-            arsort($languages);
-
-            foreach (array_keys($languages) as $lang) {
-                if (self::isValidLanguage($lang)) {
-                    return $lang;
-                }
-            }
-        }
-
-        return null;
+        return null; // Use Lang class fallback
     }
 
     /**
