@@ -30,8 +30,8 @@ class Lang
      */
     protected static function detectUserLang(): string
     {
-        if (!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-            // Parse Accept-Language header with quality values
+        $autoDetectEnabled = Config::get('language.auto_detect');
+        if ($autoDetectEnabled && !empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
             $acceptLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
             $languages = [];
 
@@ -50,20 +50,20 @@ class Lang
                 // Sort by quality (highest first)
                 arsort($languages);
 
-                // Check if Config class exists and has supported languages
-                if (class_exists('Core\Config')) {
-                    $supportedLanguages = Config::get('config.supported_languages', []);
-                    if (!empty($supportedLanguages)) {
-                        // Return first supported language
-                        foreach (array_keys($languages) as $lang) {
-                            if (in_array($lang, $supportedLanguages, true)) {
-                                return $lang;
-                            }
+                $supportedLanguages = Config::get('language.supported');
+                if (!empty($supportedLanguages)) {
+                    $supportedCodes = is_array($supportedLanguages) && isset($supportedLanguages[0])
+                        ? $supportedLanguages
+                        : array_keys($supportedLanguages);
+
+                    // Return first supported language
+                    foreach (array_keys($languages) as $lang) {
+                        if (in_array($lang, $supportedCodes, true)) {
+                            return $lang;
                         }
                     }
                 }
 
-                // If no Config or no supported languages defined, return first valid language
                 if (!empty($languages)) {
                     return array_key_first($languages);
                 }
@@ -148,6 +148,18 @@ class Lang
     public static function getCurrentLang(): string
     {
         return self::$currentLang;
+    }
+
+    /**
+     * Get all loaded languages
+     *
+     * Returns an array of all language codes that have been loaded.
+     *
+     * @return array<string> Array of loaded language codes
+     */
+    public static function getLoadedLanguages(): array
+    {
+        return array_keys(self::$messages);
     }
 
     public static function has(string $key): bool
