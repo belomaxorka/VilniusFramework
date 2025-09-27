@@ -8,7 +8,6 @@ repo = "Framework"
 [changelog]
 # template for the changelog header
 header = """
-# 📖 Change Log\n
 """
 # template for the changelog body
 # https://keats.github.io/tera/docs/#introduction
@@ -16,25 +15,12 @@ body = """
 {%- macro remote_url() -%}
   https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
 {%- endmacro -%}
-
 {% macro print_commit(commit) -%}
     - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
         {% if commit.breaking %}[**breaking**] {% endif %}\
         {{ commit.message | upper_first }} - \
         ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))\
 {% endmacro -%}
-
-{% if version %}\
-    {% if previous.version %}\
-        ## [{{ version }}]\
-          ({{ self::remote_url() }}/compare/{{ previous.version }}..{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
-    {% else %}\
-        ## {{ version }} ({{ timestamp | date(format="%Y-%m-%d") }})
-    {% endif %}\
-{% else %}\
-    ## Unreleased
-{% endif %}\
-
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in commits
@@ -59,8 +45,6 @@ body = """
     {%- endif %}
 {%- endfor -%}
 {%- endif %}
-
-
 """
 # template for the changelog footer
 footer = """
