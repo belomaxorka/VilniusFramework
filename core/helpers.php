@@ -6,20 +6,13 @@ function config(string $key, $default = null): mixed
 }
 
 /**
- * Retrieves a translated string for the current locale.
+ * Get translated string (shortcut for Core\Lang::get)
  *
- * This helper is a shortcut for `Lang::get()`.
- * If the translation key is not found, it returns the default value or the key itself.
- *
- * Usage example:
- * echo __('welcome'); // Outputs: Welcome
- *
- * @param string $key The translation key (e.g., 'welcome', 'login')
- * @param string $default The default value to return if the key is not found (default is an empty string)
- * @return string The translated string or the default value
+ * @param string $key Translation key
+ * @param array $params Optional placeholders
+ * @return string
  */
-function __(string $key, string $default = ''): string
+function __(string $key, array $params = []): string
 {
-    return Lang::get($key, $default);
+    return \Core\Lang::get($key, $params);
 }
-
