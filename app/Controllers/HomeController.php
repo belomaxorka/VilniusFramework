@@ -8,5 +8,9 @@ class HomeController
     {
         echo "Hello from HomeController!";
     }
-}
 
+    public function name(string $name): void
+    {
+        echo __('hello', ['name' => $name]);
+    }
+}
