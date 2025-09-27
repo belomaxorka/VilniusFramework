@@ -8,5 +8,8 @@ class App
     {
         // Load configuration files
         Config::load(CONFIG_DIR);
+
+        // Initialize language system
+        LanguageManager::init();
     }
 }
