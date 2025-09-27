@@ -18,8 +18,8 @@ class LanguageManager
      */
     public static function init(): void
     {
-        $defaultLang = Config::get('config.default_language', 'en');
-        $fallbackLang = Config::get('config.fallback_language', 'en');
+        $defaultLang = Config::get('language.default', 'en');
+        $fallbackLang = Config::get('language.fallback', 'en');
 
         Lang::setFallbackLang($fallbackLang);
 
@@ -47,9 +47,10 @@ class LanguageManager
         // }
 
         // Priority 3: Auto-detection or specific default
-        if ($defaultLang === 'auto') {
+        if ($defaultLang === 'auto' && Config::get('language.auto_detect', true)) {
+            // Use Lang class auto-detection
             return null; // Let Lang::setLang() handle auto-detection
-        } elseif (self::isValidLanguage($defaultLang)) {
+        } elseif ($defaultLang !== 'auto' && self::isValidLanguage($defaultLang)) {
             return $defaultLang;
         }
 
@@ -68,7 +69,7 @@ class LanguageManager
             return false;
         }
 
-        $supportedLanguages = Config::get('config.supported_languages', ['en']);
+        $supportedLanguages = array_keys(Config::get('language.supported', ['en' => 'English']));
         return in_array($lang, $supportedLanguages, true);
     }
 
@@ -107,6 +108,41 @@ class LanguageManager
      */
     public static function getSupportedLanguages(): array
     {
-        return Config::get('config.supported_languages', ['en']);
+        return array_keys(Config::get('language.supported', ['en' => 'English']));
+    }
+
+    /**
+     * Get supported languages with names
+     *
+     * @return array<string, string> Language codes with display names
+     */
+    public static function getSupportedLanguagesWithNames(): array
+    {
+        return Config::get('language.supported', ['en' => 'English']);
+    }
+
+    /**
+     * Get language display name
+     *
+     * @param string $lang Language code
+     * @return string Display name
+     */
+    public static function getLanguageName(string $lang): string
+    {
+        $languages = Config::get('language.supported', ['en' => 'English']);
+        return $languages[$lang] ?? $lang;
+    }
+
+    /**
+     * Check if language is RTL (Right-to-Left)
+     *
+     * @param string|null $lang Language code (null = current language)
+     * @return bool
+     */
+    public static function isRTL(?string $lang = null): bool
+    {
+        $lang = $lang ?? self::getCurrentLanguage();
+        $rtlLanguages = Config::get('language.rtl_languages', []);
+        return in_array($lang, $rtlLanguages, true);
     }
 }

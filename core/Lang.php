@@ -17,6 +17,7 @@ class Lang
     {
         self::$currentLang = $lang ?? self::detectUserLang();
         self::loadMessages(self::$currentLang);
+
         if (self::$currentLang !== self::$fallbackLang) {
             self::loadMessages(self::$fallbackLang); // preload fallback
         }
@@ -30,8 +31,43 @@ class Lang
     protected static function detectUserLang(): string
     {
         if (!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-            $langs = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
-            return strtolower(substr($langs[0], 0, 2));
+            // Parse Accept-Language header with quality values
+            $acceptLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
+            $languages = [];
+
+            preg_match_all('/([a-z]{1,8}(?:-[a-z]{1,8})?)\s*(?:;\s*q\s*=\s*(1\.0{0,3}|0\.\d{0,3}))?/i', $acceptLanguages, $matches);
+
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $i => $lang) {
+                    $quality = isset($matches[2][$i]) && $matches[2][$i] !== '' ? (float)$matches[2][$i] : 1.0;
+                    $langCode = strtolower(substr($lang, 0, 2));
+
+                    if (preg_match('/^[a-z]{2}$/', $langCode)) {
+                        $languages[$langCode] = $quality;
+                    }
+                }
+
+                // Sort by quality (highest first)
+                arsort($languages);
+
+                // Check if Config class exists and has supported languages
+                if (class_exists('Core\Config')) {
+                    $supportedLanguages = Config::get('config.supported_languages', []);
+                    if (!empty($supportedLanguages)) {
+                        // Return first supported language
+                        foreach (array_keys($languages) as $lang) {
+                            if (in_array($lang, $supportedLanguages, true)) {
+                                return $lang;
+                            }
+                        }
+                    }
+                }
+
+                // If no Config or no supported languages defined, return first valid language
+                if (!empty($languages)) {
+                    return array_key_first($languages);
+                }
+            }
         }
 
         return self::$fallbackLang;
@@ -48,9 +84,15 @@ class Lang
             return; // already loaded
         }
 
+        if (!preg_match('/^[a-z]{2}$/', $lang)) {
+            self::$messages[$lang] = [];
+            return;
+        }
+
         $file = LANG_DIR . "/$lang.php";
         if (is_file($file)) {
-            self::$messages[$lang] = include $file;
+            $messages = include $file;
+            self::$messages[$lang] = is_array($messages) ? $messages : [];
         } else {
             self::$messages[$lang] = [];
         }
@@ -65,16 +107,37 @@ class Lang
      */
     public static function get(string $key, array $params = []): string
     {
-        $message = self::$messages[self::$currentLang][$key]
-            ?? self::$messages[self::$fallbackLang][$key]
+        if (!isset(self::$messages[self::$currentLang][$key]) && !isset(self::$messages[self::$fallbackLang][$key])) {
+            // TODO: Log missing language keys
+        }
+
+        $message = self::getNestedValue(self::$messages[self::$currentLang], $key)
+            ?? self::getNestedValue(self::$messages[self::$fallbackLang], $key)
             ?? $key;
 
         // Replace placeholders
-        foreach ($params as $k => $v) {
-            $message = str_replace(":$k", $v, $message);
+        if (!empty($params)) {
+            $search = array_map(fn($k) => ":$k", array_keys($params));
+            $replace = array_values($params);
+            $message = str_replace($search, $replace, $message);
         }
 
         return $message;
+    }
+
+    private static function getNestedValue(array $array, string $key)
+    {
+        $keys = explode('.', $key);
+        $value = $array;
+
+        foreach ($keys as $k) {
+            if (!is_array($value) || !array_key_exists($k, $value)) {
+                return null;
+            }
+            $value = $value[$k];
+        }
+
+        return $value;
     }
 
     /**
@@ -85,5 +148,26 @@ class Lang
     public static function getCurrentLang(): string
     {
         return self::$currentLang;
+    }
+
+    public static function has(string $key): bool
+    {
+        return isset(self::$messages[self::$currentLang][$key])
+            || isset(self::$messages[self::$fallbackLang][$key]);
+    }
+
+    public static function all(): array
+    {
+        return self::$messages[self::$currentLang] ?? [];
+    }
+
+    public static function getFallbackLang(): string
+    {
+        return self::$fallbackLang;
+    }
+
+    public static function setFallbackLang(string $lang): void
+    {
+        self::$fallbackLang = $lang;
     }
 }
