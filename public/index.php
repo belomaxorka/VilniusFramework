@@ -19,7 +19,7 @@ $router = new \Core\Router();
 
 // Routes
 $router->get('', [\App\Controllers\HomeController::class, 'index']);
-$router->get('about', fn() => print "About page");
+$router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name']);
 
 // Let the Magic begin!
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
