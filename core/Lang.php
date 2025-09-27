@@ -81,7 +81,7 @@ final class Lang
     protected static function loadMessages(string $lang): void
     {
         if (isset(self::$messages[$lang])) {
-            return;
+            return; // already loaded
         }
 
         if (!preg_match('/^[a-z]{2}$/', $lang)) {
@@ -115,6 +115,7 @@ final class Lang
             ?? self::getNestedValue(self::$messages[self::$fallbackLang], $key)
             ?? $key;
 
+        // Replace placeholders
         if (!empty($params)) {
             $search = array_map(fn($k) => ":$k", array_keys($params));
             $replace = array_values($params);
