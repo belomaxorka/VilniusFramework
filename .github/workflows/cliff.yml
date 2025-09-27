@@ -45,15 +45,11 @@ jobs:
         if: ${{ !contains(github.ref, '-') }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          name: "v${{ env.RELEASE_VERSION }}"
           body: "${{ needs.generate-changelog.outputs.release_body }}"
 
       - name: Publish to GitHub (pre-release)
         if: ${{ contains(github.ref, '-') }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          name: "v${{ env.RELEASE_VERSION }}"
           body: "${{ needs.generate-changelog.outputs.release_body }}"
           prerelease: true
