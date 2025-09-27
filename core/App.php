@@ -2,14 +2,24 @@
 
 namespace Core;
 
-class App
+final class App
 {
     public static function init(): void
     {
         // Load configuration files
-        Config::load(CONFIG_DIR);
+        self::initConfigLoader();
 
         // Initialize language system
+        self::initializeLangManager();
+    }
+
+    private static function initConfigLoader(): void
+    {
+        Config::load(CONFIG_DIR);
+    }
+
+    private static function initializeLangManager(): void
+    {
         LanguageManager::init();
     }
 }
