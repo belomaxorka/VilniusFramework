@@ -17,6 +17,7 @@ class Lang
     {
         self::$currentLang = $lang ?? self::detectUserLang();
         self::loadMessages(self::$currentLang);
+
         if (self::$currentLang !== self::$fallbackLang) {
             self::loadMessages(self::$fallbackLang); // preload fallback
         }
@@ -57,7 +58,7 @@ class Lang
             return;
         }
 
-        $file = ROOT . "/lang/$lang.php";
+        $file = LANG_DIR . "/$lang.php";
         if (is_file($file)) {
             $messages = include $file;
             self::$messages[$lang] = is_array($messages) ? $messages : [];
@@ -75,10 +76,7 @@ class Lang
      */
     public static function get(string $key, array $params = []): string
     {
-        $currentExists = isset(self::$messages[self::$currentLang][$key]);
-        $fallbackExists = isset(self::$messages[self::$fallbackLang][$key]);
-
-        if (!$currentExists && !$fallbackExists) {
+        if (!isset(self::$messages[self::$currentLang][$key]) && !isset(self::$messages[self::$fallbackLang][$key])) {
             // TODO: Log missing language keys
         }
 
@@ -129,6 +127,11 @@ class Lang
     public static function all(): array
     {
         return self::$messages[self::$currentLang] ?? [];
+    }
+
+    public static function getFallbackLang(): string
+    {
+        return self::$fallbackLang;
     }
 
     public static function setFallbackLang(string $lang): void
