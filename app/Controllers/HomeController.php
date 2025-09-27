@@ -6,7 +6,8 @@ class HomeController
 {
     public function index(): void
     {
-        echo "Hello from HomeController!";
+        echo "Hello from HomeController!\n";
+        echo __('hello', ['name' => 'John']);
     }
 }
 
