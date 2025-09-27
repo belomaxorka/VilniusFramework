@@ -31,11 +31,42 @@ final class Lang
     protected static function detectUserLang(): string
     {
         if (!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-            $langs = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
-            $detected = strtolower(substr(trim($langs[0]), 0, 2));
+            // Parse Accept-Language header with quality values
+            $acceptLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
+            $languages = [];
 
-            if (preg_match('/^[a-z]{2}$/', $detected)) {
-                return $detected;
+            preg_match_all('/([a-z]{1,8}(?:-[a-z]{1,8})?)\s*(?:;\s*q\s*=\s*(1\.0{0,3}|0\.\d{0,3}))?/i', $acceptLanguages, $matches);
+
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $i => $lang) {
+                    $quality = isset($matches[2][$i]) && $matches[2][$i] !== '' ? (float)$matches[2][$i] : 1.0;
+                    $langCode = strtolower(substr($lang, 0, 2));
+
+                    if (preg_match('/^[a-z]{2}$/', $langCode)) {
+                        $languages[$langCode] = $quality;
+                    }
+                }
+
+                // Sort by quality (highest first)
+                arsort($languages);
+
+                // Check if Config class exists and has supported languages
+                if (class_exists('Core\Config')) {
+                    $supportedLanguages = Config::get('app.supported_languages', []);
+                    if (!empty($supportedLanguages)) {
+                        // Return first supported language
+                        foreach (array_keys($languages) as $lang) {
+                            if (in_array($lang, $supportedLanguages, true)) {
+                                return $lang;
+                            }
+                        }
+                    }
+                }
+
+                // If no Config or no supported languages defined, return first valid language
+                if (!empty($languages)) {
+                    return array_key_first($languages);
+                }
             }
         }
 
