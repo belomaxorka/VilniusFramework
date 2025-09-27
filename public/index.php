@@ -6,13 +6,13 @@ define('CONFIG_DIR', ROOT . '/config');
 define('LANG_DIR', ROOT . '/lang');
 define('STORAGE_DIR', ROOT . '/storage');
 define('CACHE_DIR', STORAGE_DIR . '/cache');
-define('LOGS_DIR', STORAGE_DIR . '/logs');
+define('LOG_DIR', STORAGE_DIR . '/logs');
 
 // Load composer
 require_once ROOT . '/vendor/autoload.php';
 
 // Initialize app
-\Core\App::init();
+\Core\Core::init();
 
 // Initialize router
 $router = new \Core\Router();
