@@ -14,11 +14,11 @@
 ## Пример использования
 
 ```php
-use Core\App;
+use Core\Core;
 use Core\Config;
 
 // Инициализация приложения
-App::init();
+Core::init();
 
 // Получение параметров
 $dbHost = config('database.host');
