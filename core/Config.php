@@ -2,7 +2,7 @@
 
 namespace Core;
 
-class Config
+final class Config
 {
     protected static array $items = [];
 

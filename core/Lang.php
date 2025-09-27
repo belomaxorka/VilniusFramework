@@ -2,7 +2,7 @@
 
 namespace Core;
 
-class Lang
+final class Lang
 {
     protected static array $messages = [];
     protected static string $currentLang = 'en';
