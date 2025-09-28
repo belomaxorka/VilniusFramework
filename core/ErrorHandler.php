@@ -196,6 +196,9 @@ class ErrorHandler
         
         // Получаем полное имя класса исключения
         $exceptionClass = $error['exception_class'] ?? $error['type'];
+        
+        // Получаем текущее окружение
+        $currentEnvironment = Environment::get();
 
         return <<<HTML
 <!DOCTYPE html>
@@ -242,7 +245,7 @@ class ErrorHandler
                 <dd>{$error['timestamp']}</dd>
 
                 <dt>Environment:</dt>
-                <dd>{Environment::get()}</dd>
+                <dd>{$currentEnvironment}</dd>
                 
                 <dt>Exception Class:</dt>
                 <dd><span style="color: #6f42c1; font-family: monospace;">{$exceptionClass}</span></dd>
