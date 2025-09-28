@@ -31,6 +31,16 @@ class ErrorHandler
     }
 
     /**
+     * Сбросить состояние обработчика ошибок (для тестов)
+     */
+    public static function reset(): void
+    {
+        self::$registered = false;
+        restore_error_handler();
+        restore_exception_handler();
+    }
+
+    /**
      * Обработчик ошибок
      */
     public static function handleError(int $severity, string $message, string $file, int $line): bool

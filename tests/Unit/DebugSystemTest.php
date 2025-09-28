@@ -7,6 +7,9 @@ use Core\ErrorHandler;
 beforeEach(function () {
     // Устанавливаем тестовое окружение
     Environment::set(Environment::TESTING);
+    
+    // Сбрасываем состояние обработчика ошибок перед каждым тестом
+    ErrorHandler::reset();
 });
 
 test('environment detection works correctly', function () {
@@ -67,4 +70,7 @@ test('error handler can be registered', function () {
     expect(function () {
         ErrorHandler::register();
     })->not->toThrow(Exception::class);
+    
+    // Сбрасываем состояние после теста
+    ErrorHandler::reset();
 });
