@@ -39,7 +39,39 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function createTempConfigDir(array $files): string
 {
-    // ..
+    $base = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
+    $dir = $base . DIRECTORY_SEPARATOR . 'cfg_' . uniqid('', true);
+    if (!mkdir($dir) && !is_dir($dir)) {
+        throw new RuntimeException('Failed to create temp directory');
+    }
+
+    foreach ($files as $name => $data) {
+        $path = $dir . DIRECTORY_SEPARATOR . $name;
+        $php = '<?php return ' . var_export($data, true) . ';';
+        file_put_contents($path, $php);
+    }
+
+    return $dir;
+}
+
+function deleteDir(string $dir): void
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+    $items = scandir($dir) ?: [];
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($path)) {
+            deleteDir($path);
+        } else {
+            @unlink($path);
+        }
+    }
+    @rmdir($dir);
 }
