@@ -55,4 +55,3 @@ class Logger
         self::$minLevel = $level;
     }
 }
-
