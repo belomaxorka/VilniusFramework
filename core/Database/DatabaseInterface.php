@@ -6,7 +6,7 @@ use PDO;
 
 interface DatabaseInterface
 {
-    public function connection(string $name = null): PDO;
+    public function connection(?string $name = null): PDO;
 
     public function select(string $query, array $bindings = []): array;
 
