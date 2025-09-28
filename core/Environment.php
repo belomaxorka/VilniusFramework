@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use InvalidArgumentException;
+
 class Environment
 {
     public const string DEVELOPMENT = 'development';
@@ -28,7 +30,7 @@ class Environment
     public static function set(string $environment): void
     {
         if (!in_array($environment, [self::DEVELOPMENT, self::PRODUCTION, self::TESTING])) {
-            throw new \InvalidArgumentException("Invalid environment: {$environment}");
+            throw new InvalidArgumentException("Invalid environment: $environment");
         }
 
         self::$environment = $environment;
