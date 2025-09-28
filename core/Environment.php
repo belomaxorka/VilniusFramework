@@ -4,9 +4,9 @@ namespace Core;
 
 class Environment
 {
-    public const DEVELOPMENT = 'development';
-    public const PRODUCTION = 'production';
-    public const TESTING = 'testing';
+    public const string DEVELOPMENT = 'development';
+    public const string PRODUCTION = 'production';
+    public const string TESTING = 'testing';
 
     private static ?string $environment = null;
 
@@ -87,14 +87,12 @@ class Environment
      */
     public static function getConfig(): array
     {
-        $config = [
+        return [
             'debug' => self::isDebug(),
             'error_reporting' => self::isDevelopment() ? E_ALL : 0,
             'display_errors' => self::isDevelopment() ? 1 : 0,
             'log_errors' => 1,
             'log_level' => self::isDevelopment() ? 'debug' : 'error',
         ];
-
-        return $config;
     }
 }
