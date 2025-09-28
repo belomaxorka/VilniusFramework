@@ -188,19 +188,19 @@ describe('SqliteDriver', function (): void {
         ];
 
         $pdo = $driver->connect($config);
-        
+
         // Создаем таблицу
         $pdo->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-        
+
         // Вставляем данные
         $stmt = $pdo->prepare('INSERT INTO test (name) VALUES (?)');
         $stmt->execute(['test_value']);
-        
+
         // Проверяем данные
         $stmt = $pdo->prepare('SELECT * FROM test WHERE name = ?');
         $stmt->execute(['test_value']);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         expect($result['name'])->toBe('test_value');
     });
 });
@@ -210,18 +210,18 @@ describe('DatabaseDriverInterface', function (): void {
         $reflection = new ReflectionClass(DatabaseDriverInterface::class);
         $methods = $reflection->getMethods();
         $methodNames = array_map(fn($method) => $method->getName(), $methods);
-        
+
         expect($methodNames)->toContain('connect');
         expect($methodNames)->toContain('buildDsn');
     });
 
     it('has correct method signatures', function (): void {
         $reflection = new ReflectionClass(DatabaseDriverInterface::class);
-        
+
         $connectMethod = $reflection->getMethod('connect');
         expect($connectMethod->getParameters())->toHaveCount(1);
         expect($connectMethod->getReturnType()->getName())->toBe('PDO');
-        
+
         $buildDsnMethod = $reflection->getMethod('buildDsn');
         expect($buildDsnMethod->getParameters())->toHaveCount(1);
         expect($buildDsnMethod->getReturnType()->getName())->toBe('string');

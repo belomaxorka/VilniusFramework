@@ -13,7 +13,7 @@ describe('DatabaseException', function (): void {
     it('can be instantiated with message', function (): void {
         $message = 'Database error occurred';
         $exception = new DatabaseException($message);
-        
+
         expect($exception->getMessage())->toBe($message);
     });
 
@@ -21,7 +21,7 @@ describe('DatabaseException', function (): void {
         $message = 'Database error occurred';
         $code = 500;
         $exception = new DatabaseException($message, $code);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
     });
@@ -31,7 +31,7 @@ describe('DatabaseException', function (): void {
         $message = 'Database error occurred';
         $code = 500;
         $exception = new DatabaseException($message, $code, $previousException);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
         expect($exception->getPrevious())->toBe($previousException);
@@ -57,7 +57,7 @@ describe('ConnectionException', function (): void {
     it('can be instantiated with message', function (): void {
         $message = 'Connection failed';
         $exception = new ConnectionException($message);
-        
+
         expect($exception->getMessage())->toBe($message);
     });
 
@@ -65,7 +65,7 @@ describe('ConnectionException', function (): void {
         $message = 'Connection failed';
         $code = 1001;
         $exception = new ConnectionException($message, $code);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
     });
@@ -75,7 +75,7 @@ describe('ConnectionException', function (): void {
         $message = 'Connection failed';
         $code = 1001;
         $exception = new ConnectionException($message, $code, $previousException);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
         expect($exception->getPrevious())->toBe($previousException);
@@ -106,14 +106,14 @@ describe('ConnectionException', function (): void {
 
     it('can be used with different exception types in catch blocks', function (): void {
         $caught = false;
-        
+
         try {
             throw new ConnectionException('Connection error');
         } catch (DatabaseException $e) {
             $caught = true;
             expect($e->getMessage())->toBe('Connection error');
         }
-        
+
         expect($caught)->toBeTrue();
     });
 });
@@ -127,7 +127,7 @@ describe('QueryException', function (): void {
     it('can be instantiated with message', function (): void {
         $message = 'Query execution failed';
         $exception = new QueryException($message);
-        
+
         expect($exception->getMessage())->toBe($message);
     });
 
@@ -135,7 +135,7 @@ describe('QueryException', function (): void {
         $message = 'Query execution failed';
         $code = 2001;
         $exception = new QueryException($message, $code);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
     });
@@ -145,7 +145,7 @@ describe('QueryException', function (): void {
         $message = 'Query execution failed';
         $code = 2001;
         $exception = new QueryException($message, $code, $previousException);
-        
+
         expect($exception->getMessage())->toBe($message);
         expect($exception->getCode())->toBe($code);
         expect($exception->getPrevious())->toBe($previousException);
@@ -176,14 +176,14 @@ describe('QueryException', function (): void {
 
     it('can be used with different exception types in catch blocks', function (): void {
         $caught = false;
-        
+
         try {
             throw new QueryException('Query error');
         } catch (DatabaseException $e) {
             $caught = true;
             expect($e->getMessage())->toBe('Query error');
         }
-        
+
         expect($caught)->toBeTrue();
     });
 });
@@ -192,11 +192,11 @@ describe('Exception hierarchy', function (): void {
     it('maintains proper inheritance chain', function (): void {
         $connectionException = new ConnectionException('Connection error');
         $queryException = new QueryException('Query error');
-        
+
         // ConnectionException should be instanceof DatabaseException and Exception
         expect($connectionException)->toBeInstanceOf(DatabaseException::class);
         expect($connectionException)->toBeInstanceOf(Exception::class);
-        
+
         // QueryException should be instanceof DatabaseException and Exception
         expect($queryException)->toBeInstanceOf(DatabaseException::class);
         expect($queryException)->toBeInstanceOf(Exception::class);
@@ -207,17 +207,17 @@ describe('Exception hierarchy', function (): void {
             new ConnectionException('Connection failed'),
             new QueryException('Query failed'),
         ];
-        
+
         foreach ($exceptions as $exception) {
             $caught = false;
-            
+
             try {
                 throw $exception;
             } catch (DatabaseException $e) {
                 $caught = true;
                 expect($e)->toBeInstanceOf(DatabaseException::class);
             }
-            
+
             expect($caught)->toBeTrue();
         }
     });
@@ -228,17 +228,17 @@ describe('Exception hierarchy', function (): void {
             new ConnectionException('Connection error'),
             new QueryException('Query error'),
         ];
-        
+
         foreach ($exceptions as $exception) {
             $caught = false;
-            
+
             try {
                 throw $exception;
             } catch (Exception $e) {
                 $caught = true;
                 expect($e)->toBeInstanceOf(Exception::class);
             }
-            
+
             expect($caught)->toBeTrue();
         }
     });
@@ -253,7 +253,7 @@ describe('Exception messages and context', function (): void {
             'Table does not exist',
             'Access denied',
         ];
-        
+
         foreach ($messages as $message) {
             $exception = new DatabaseException($message);
             expect($exception->getMessage())->toBe($message);
@@ -262,7 +262,7 @@ describe('Exception messages and context', function (): void {
 
     it('preserves exception codes', function (): void {
         $codes = [100, 200, 300, 404, 500];
-        
+
         foreach ($codes as $code) {
             $exception = new DatabaseException('Test error', $code);
             expect($exception->getCode())->toBe($code);
@@ -272,7 +272,7 @@ describe('Exception messages and context', function (): void {
     it('preserves previous exceptions', function (): void {
         $originalException = new Exception('Original error');
         $databaseException = new DatabaseException('Database error', 0, $originalException);
-        
+
         expect($databaseException->getPrevious())->toBe($originalException);
         expect($databaseException->getPrevious()->getMessage())->toBe('Original error');
     });
@@ -281,7 +281,7 @@ describe('Exception messages and context', function (): void {
         $originalException = new Exception('Original error');
         $connectionException = new ConnectionException('Connection error', 0, $originalException);
         $queryException = new QueryException('Query error', 0, $connectionException);
-        
+
         expect($queryException->getPrevious())->toBe($connectionException);
         expect($queryException->getPrevious()->getPrevious())->toBe($originalException);
     });

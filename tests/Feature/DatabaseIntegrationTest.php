@@ -38,7 +38,7 @@ describe('Database Integration Tests', function (): void {
         
         $results = $this->db->select($query);
         
-        expect($results)->toHaveCount(6); // 6 published posts from active users
+        expect($results)->toHaveCount(7); // 7 published posts from active users (some posts have multiple categories)
         
         // Проверяем структуру результатов
         expect($results[0])->toHaveKeys(['name', 'email', 'title', 'status', 'category_name']);
@@ -88,7 +88,7 @@ describe('Database Integration Tests', function (): void {
         
         expect($results)->toHaveCount(4); // 4 users with published posts
         
-        // Проверяем сортировку по возрасту
+        // Проверяем сортировку по возрасту (DESC)
         expect($results[0]['age'])->toBe(42); // Charlie Wilson
         expect($results[1]['age'])->toBe(35); // Bob Johnson
     });
@@ -245,7 +245,7 @@ describe('Database Integration Tests', function (): void {
             ->orderBy('posts.title', 'asc')
             ->get();
         
-        expect($results)->toHaveCount(6);
+        expect($results)->toHaveCount(7);
         expect($results[0])->toHaveKeys(['name', 'email', 'title', 'category_name']);
     });
 
