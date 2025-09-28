@@ -20,6 +20,9 @@ $router = new \Core\Router();
 // Routes
 $router->get('', [\App\Controllers\HomeController::class, 'index']);
 $router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name']);
+$router->get('debug', [\App\Controllers\HomeController::class, 'debug']);
+
+Debug::dump(['test' => 'data'], 'Test');
 
 // Let the Magic begin!
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
