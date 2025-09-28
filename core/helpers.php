@@ -16,3 +16,8 @@ function __(string $key, array $params = []): string
 {
     return \Core\Lang::get($key, $params);
 }
+
+function env(string $key, mixed $default = null): mixed
+{
+    return \Core\Env::get($key, $default);
+}
