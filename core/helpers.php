@@ -35,7 +35,12 @@ function env(string $key, mixed $default = null): mixed
 {
     if (class_exists('\Core\Env')) {
         return \Core\Env::get($key, $default);
-    } else {
-        return $_SERVER[$key] ?? $default;
     }
+
+    $value = getenv($key);
+    if ($value !== false) {
+        return $value;
+    }
+
+    return $_SERVER[$key] ?? $default;
 }
