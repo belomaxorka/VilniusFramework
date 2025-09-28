@@ -6,6 +6,7 @@ final class Core
 {
     public static function init(): void
     {
+        HelperLoader::loadHelper('basic');
         self::initEnvironment();
         self::initDebugSystem();
         self::initConfigLoader();
@@ -20,8 +21,8 @@ final class Core
 
     private static function initDebugSystem(): void
     {
-        // Загружаем функции дебага
-        require_once __DIR__ . '/debug_functions.php';
+        // Загружаем дебаг хелпер
+        HelperLoader::loadHelper('debug');
 
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
