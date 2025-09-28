@@ -25,7 +25,7 @@ function __(string $key, array $params = []): string
 }
 
 /**
- * Get environment variable (shortcut for Core\Env::get or $_SERVER)
+ * Get environment variable (shortcut for Core\Env::get, getenv or $_SERVER)
  *
  * @param string $key Variable name
  * @param mixed $default Default value
