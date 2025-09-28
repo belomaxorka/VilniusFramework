@@ -19,5 +19,9 @@ function __(string $key, array $params = []): string
 
 function env(string $key, mixed $default = null): mixed
 {
-    return \Core\Env::get($key, $default);
+    if (class_exists('\Core\Env')) {
+        return \Core\Env::get($key, $default);
+    } else {
+        return $_SERVER[$key] ?? $default;
+    }
 }

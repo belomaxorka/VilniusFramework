@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use RuntimeException;
+
 class Env
 {
     /**
@@ -87,7 +89,7 @@ class Env
     /**
      * Загрузить .env файл
      */
-    public static function load(string $path = null): bool
+    public static function load(string $path = null, bool $required = false): bool
     {
         if (self::$loaded && $path === null) {
             return true;
@@ -95,7 +97,11 @@ class Env
 
         $envPath = $path ?? self::findEnvFile();
 
-        if (!$envPath || !file_exists($envPath)) {
+        if (!$envPath || !is_file($envPath)) {
+            if ($required) {
+                throw new RuntimeException("Required environment file not found: " . ($path ?? 'any .env file'));
+            }
+
             self::$loaded = true;
             return false;
         }
@@ -154,7 +160,7 @@ class Env
         ];
 
         foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
+            if (is_file($path)) {
                 return $path;
             }
         }
