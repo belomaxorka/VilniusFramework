@@ -193,6 +193,9 @@ class ErrorHandler
         
         // Получаем короткое имя класса для отображения
         $displayType = self::getDisplayType($error['type']);
+        
+        // Получаем полное имя класса исключения
+        $exceptionClass = $error['exception_class'] ?? $error['type'];
 
         return <<<HTML
 <!DOCTYPE html>
@@ -242,7 +245,7 @@ class ErrorHandler
                 <dd>{Environment::get()}</dd>
                 
                 <dt>Exception Class:</dt>
-                <dd><span style="color: #6f42c1; font-family: monospace;">{$error['exception_class'] ?? $error['type']}</span></dd>
+                <dd><span style="color: #6f42c1; font-family: monospace;">{$exceptionClass}</span></dd>
             </dl>
 
             <div class="backtrace">
