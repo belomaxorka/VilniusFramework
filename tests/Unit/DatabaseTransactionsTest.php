@@ -186,9 +186,9 @@ it('performs money transfer transaction', function (): void {
     // Проверяем балансы
     $fromBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 1')->fetchColumn();
     $toBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 2')->fetchColumn();
-
-    expect($fromBalance)->toBe(900.00); // 1000 - 100
-    expect($toBalance)->toBe(600.00);   // 500 + 100
+    
+    expect((float)$fromBalance)->toBe(900.00); // 1000 - 100
+    expect((float)$toBalance)->toBe(600.00);   // 500 + 100
 
     // Проверяем запись транзакции
     $transactionCount = $this->connection->query('SELECT COUNT(*) FROM transactions')->fetchColumn();
@@ -218,9 +218,9 @@ it('rolls back money transfer on insufficient funds', function (): void {
     // Проверяем, что балансы не изменились
     $fromBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 1')->fetchColumn();
     $toBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 2')->fetchColumn();
-
-    expect($fromBalance)->toBe(1000.00); // Не изменился
-    expect($toBalance)->toBe(500.00);    // Не изменился
+    
+    expect((float)$fromBalance)->toBe(1000.00); // Не изменился
+    expect((float)$toBalance)->toBe(500.00);    // Не изменился
 
     // Проверяем, что транзакция не записана
     $transactionCount = $this->connection->query('SELECT COUNT(*) FROM transactions')->fetchColumn();
@@ -248,11 +248,11 @@ it('handles multiple operations in transaction', function (): void {
     // Проверяем, что аккаунт создан с правильным балансом
     $account = $this->connection->query('SELECT * FROM accounts WHERE id = 4')->fetch(PDO::FETCH_ASSOC);
     expect($account['name'])->toBe('New Account');
-    expect($account['balance'])->toBe(500.00);
+    expect((float)$account['balance'])->toBe(500.00);
 
     // Проверяем транзакцию
     $transaction = $this->connection->query('SELECT * FROM transactions WHERE to_account_id = 4')->fetch(PDO::FETCH_ASSOC);
-    expect($transaction['amount'])->toBe(500.00);
+    expect((float)$transaction['amount'])->toBe(500.00);
     expect($transaction['description'])->toBe('Initial deposit');
 });
 
@@ -286,7 +286,7 @@ it('handles manual transaction management', function (): void {
 
     // Проверяем результат
     $account = $this->connection->query('SELECT * FROM accounts WHERE name = "Manual Account"')->fetch(PDO::FETCH_ASSOC);
-    expect($account['balance'])->toBe(200.00);
+    expect((float)$account['balance'])->toBe(200.00);
 });
 
 it('handles manual transaction rollback', function (): void {

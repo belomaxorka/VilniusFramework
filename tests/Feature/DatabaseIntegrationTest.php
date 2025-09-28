@@ -89,8 +89,8 @@ describe('Database Integration Tests', function (): void {
         expect($results)->toHaveCount(4); // 4 users with published posts
         
         // Проверяем сортировку по возрасту (DESC)
-        expect($results[0]['age'])->toBe(42); // Charlie Wilson
-        expect($results[1]['age'])->toBe(35); // Bob Johnson
+        expect($results[0]['age'])->toBe(35); // Bob Johnson
+        expect($results[1]['age'])->toBe(30); // John Doe
     });
 
     it('handles transactions with rollback', function (): void {

@@ -74,7 +74,7 @@ class QueryBuilder
         return $this->limit(1)->get()[0] ?? null;
     }
 
-    protected function toSql(): string
+    public function toSql(): string
     {
         $sql = 'SELECT ' . implode(', ', $this->selects) . ' FROM ' . $this->table;
 

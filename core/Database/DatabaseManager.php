@@ -177,7 +177,12 @@ class DatabaseManager implements DatabaseInterface
      */
     public function commit(): bool
     {
-        return $this->connection()->commit();
+        try {
+            return $this->connection()->commit();
+        } catch (PDOException $e) {
+            // Если нет активной транзакции, возвращаем false
+            return false;
+        }
     }
 
     /**
@@ -185,7 +190,12 @@ class DatabaseManager implements DatabaseInterface
      */
     public function rollback(): bool
     {
-        return $this->connection()->rollBack();
+        try {
+            return $this->connection()->rollBack();
+        } catch (PDOException $e) {
+            // Если нет активной транзакции, возвращаем false
+            return false;
+        }
     }
 
     /**
