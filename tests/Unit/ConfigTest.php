@@ -130,3 +130,35 @@ it('throws when configuration file does not return an array', function (): void 
         deleteDir($dir);
     }
 });
+
+it('clear() resets data and loaded paths enabling reload of same directory', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['providers' => ['A']],
+    ]);
+
+    try {
+        Config::load($dir);
+        expect(Config::get('app.providers'))->toBe(['A']);
+
+        // Change file contents after initial load
+        $file = $dir . DIRECTORY_SEPARATOR . 'app.php';
+        file_put_contents($file, '<?php return ' . var_export(['providers' => ['A', 'B']], true) . ';');
+
+        // Without clear(), load($dir) would be ignored due to loadedPaths deduplication
+        Config::clear();
+        Config::load($dir);
+        expect(Config::get('app.providers'))->toBe(['A', 'B']);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('has and forget work for top-level keys without dot notation', function (): void {
+    Config::set('top', 123);
+    expect(Config::has('top'))->toBeTrue();
+    expect(Config::get('top'))->toBe(123);
+    Config::forget('top');
+    expect(Config::has('top'))->toBeFalse();
+    expect(Config::get('top', 'default'))
+        ->toBe('default');
+});
