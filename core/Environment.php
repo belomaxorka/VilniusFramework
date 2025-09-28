@@ -68,33 +68,17 @@ class Environment
     }
 
     /**
-     * Автоматически определить окружение
+     * Определить окружение из переменных окружения
      */
     private static function detect(): string
     {
-        // Сначала проверяем переменную окружения
+        // Проверяем переменную окружения
         $env = Env::get('APP_ENV');
         if ($env && in_array($env, [self::DEVELOPMENT, self::PRODUCTION, self::TESTING])) {
             return $env;
         }
 
-        // Проверяем переменную SERVER_NAME для локальной разработки
-        $serverName = $_SERVER['SERVER_NAME'] ?? '';
-        if (in_array($serverName, ['localhost', '127.0.0.1', '::1']) || 
-            str_contains($serverName, '.local') || 
-            str_contains($serverName, '.dev')) {
-            return self::DEVELOPMENT;
-        }
-
-        // Проверяем переменную HTTP_HOST
-        $httpHost = $_SERVER['HTTP_HOST'] ?? '';
-        if (in_array($httpHost, ['localhost', '127.0.0.1', '::1']) || 
-            str_contains($httpHost, '.local') || 
-            str_contains($httpHost, '.dev')) {
-            return self::DEVELOPMENT;
-        }
-
-        // По умолчанию продакшен
+        // Если APP_ENV не установлен, по умолчанию продакшен
         return self::PRODUCTION;
     }
 
