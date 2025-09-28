@@ -48,12 +48,6 @@
 - Вложенные транзакции
 - Реальные сценарии (перевод денег между счетами)
 
-#### `DatabaseBasicTest.php`
-Базовые тесты для быстрой проверки работоспособности:
-- Создание менеджера БД
-- Подключение к SQLite
-- Выполнение простых запросов
-- Создание QueryBuilder
 
 ### Feature тесты (`tests/Feature/`)
 
@@ -94,6 +88,21 @@ php vendor/bin/pest tests/Unit/
 ### Запуск только feature тестов
 ```bash
 php vendor/bin/pest tests/Feature/
+```
+
+### Запуск тестов конкретного компонента
+```bash
+# Тесты DatabaseManager
+php vendor/bin/pest tests/Unit/DatabaseManagerTest.php
+
+# Тесты QueryBuilder
+php vendor/bin/pest tests/Unit/QueryBuilderTest.php
+
+# Тесты транзакций
+php vendor/bin/pest tests/Unit/DatabaseTransactionsTest.php
+
+# Интеграционные тесты
+php vendor/bin/pest tests/Feature/DatabaseIntegrationTest.php
 ```
 
 ## Покрытие тестами
@@ -167,3 +176,26 @@ php vendor/bin/pest tests/Feature/
 - Pest PHP
 - SQLite (для большинства тестов)
 - MySQL/PostgreSQL (для тестов драйверов, опционально)
+
+## Финальная структура тестов
+
+После очистки от проверочных тестов, у нас остались только основные тесты:
+
+### Unit тесты (`tests/Unit/`):
+- `ConfigTest.php` - тесты конфигурации (существующий)
+- `DatabaseManagerTest.php` - основные тесты менеджера БД
+- `DatabaseDriversTest.php` - тесты драйверов БД  
+- `DatabaseExceptionsTest.php` - тесты исключений
+- `DatabaseTransactionsTest.php` - тесты транзакций
+- `QueryBuilderTest.php` - тесты построителя запросов
+
+### Feature тесты (`tests/Feature/`):
+- `DatabaseIntegrationTest.php` - интеграционные тесты
+- `ExampleTest.php` - пример теста (существующий)
+
+### Удаленные проверочные тесты:
+- `DatabaseBasicTest.php` - базовые тесты (функциональность покрыта в основных тестах)
+- `DatabaseFixTest.php` - тесты исправлений (временный файл)
+- `DatabaseQuickTest.php` - быстрые тесты (функциональность покрыта в основных тестах)
+- `DatabaseTransactionSafetyTest.php` - тесты безопасности транзакций (функциональность покрыта в DatabaseTransactionsTest.php)
+- `QueryBuilderSqlTest.php` - тесты метода toSql() (функциональность покрыта в QueryBuilderTest.php)
