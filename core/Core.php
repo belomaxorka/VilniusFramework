@@ -14,7 +14,7 @@ final class Core
 
     private static function initEnvironment(): void
     {
-        Env::load(ROOT . '.env');
+        Env::load(ROOT . '/.env', true);
     }
 
     private static function initConfigLoader(): void

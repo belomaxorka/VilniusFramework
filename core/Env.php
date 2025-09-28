@@ -95,9 +95,7 @@ class Env
             return true;
         }
 
-        $envPath = $path ?? self::findEnvFile();
-
-        if (!$envPath || !is_file($envPath)) {
+        if (!$path || !is_file($path)) {
             if ($required) {
                 throw new RuntimeException("Required environment file not found: " . ($path ?? 'any .env file'));
             }
@@ -106,8 +104,7 @@ class Env
             return false;
         }
 
-        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         foreach ($lines as $line) {
             $line = trim($line);
 
@@ -144,28 +141,6 @@ class Env
     public static function clearCache(): void
     {
         self::$cache = [];
-    }
-
-    /**
-     * Найти .env файл
-     */
-    private static function findEnvFile(): ?string
-    {
-        $possiblePaths = [
-            getcwd() . '/.env',
-            __DIR__ . '/../.env',
-            __DIR__ . '/../../.env',
-            __DIR__ . '/../../../.env',
-            __DIR__ . '/../../../../.env',
-        ];
-
-        foreach ($possiblePaths as $path) {
-            if (is_file($path)) {
-                return $path;
-            }
-        }
-
-        return null;
     }
 
     /**
