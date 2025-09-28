@@ -89,7 +89,7 @@ class Env
     /**
      * Загрузить .env файл
      */
-    public static function load(string $path = null, bool $required = false): bool
+    public static function load(?string $path = null, bool $required = false): bool
     {
         if (self::$loaded && $path === null) {
             return true;
@@ -97,7 +97,7 @@ class Env
 
         if (!$path || !is_file($path)) {
             if ($required) {
-                throw new RuntimeException("Required environment file not found: " . ($path ?? 'any .env file'));
+                throw new RuntimeException("Environment file not found: " . ($path ?? 'any .env file'));
             }
 
             self::$loaded = true;
