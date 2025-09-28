@@ -22,16 +22,16 @@ final class Core
     {
         // Загружаем функции дебага
         require_once __DIR__ . '/debug_functions.php';
-        
+
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
-        
+
         // Настраиваем логгер для дебага
         $logFile = LOG_DIR . '/debug.log';
         if (!is_dir(LOG_DIR)) {
             mkdir(LOG_DIR, 0755, true);
         }
-        
+
         Logger::addHandler(new Logger\FileHandler($logFile));
         Logger::setMinLevel(Environment::getConfig()['log_level']);
     }
