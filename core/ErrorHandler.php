@@ -81,7 +81,7 @@ class ErrorHandler
     public static function handleShutdown(): void
     {
         $error = error_get_last();
-        
+
         if ($error && in_array($error['type'], self::$fatalErrors)) {
             $errorData = [
                 'type' => 'Fatal Error',
@@ -222,21 +222,21 @@ class ErrorHandler
             <div class="error-message">
                 <strong>Message:</strong> {$error['message']}
             </div>
-            
+
             <dl class="error-details">
                 <dt>File:</dt>
                 <dd><span class="file-path">{$error['file']}</span></dd>
-                
+
                 <dt>Line:</dt>
                 <dd><span class="line-number">{$error['line']}</span></dd>
-                
+
                 <dt>Time:</dt>
                 <dd>{$error['timestamp']}</dd>
-                
+
                 <dt>Environment:</dt>
                 <dd>{Environment::get()}</dd>
             </dl>
-            
+
             <div class="backtrace">
                 <h3>Stack Trace</h3>
                 <pre>{$backtrace}</pre>
@@ -303,11 +303,15 @@ HTML;
             E_USER_ERROR => 'User Error',
             E_USER_WARNING => 'User Warning',
             E_USER_NOTICE => 'User Notice',
-            E_STRICT => 'Strict Notice',
             E_RECOVERABLE_ERROR => 'Recoverable Error',
             E_DEPRECATED => 'Deprecated',
             E_USER_DEPRECATED => 'User Deprecated',
         ];
+
+        // TODO: Remove after drop PHP 8.3 support
+        if (version_compare(PHP_VERSION, '8.4.0', '<')) {
+            $severities[E_STRICT] = 'Strict Notice';
+        }
 
         return $severities[$severity] ?? 'Unknown Error';
     }
@@ -324,10 +328,10 @@ HTML;
             $function = $trace['function'] ?? 'unknown';
             $class = $trace['class'] ?? '';
             $type = $trace['type'] ?? '';
-            
+
             $formatted .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
         }
-        
+
         return $formatted;
     }
 
@@ -343,10 +347,10 @@ HTML;
             $function = $trace['function'] ?? 'unknown';
             $class = $trace['class'] ?? '';
             $type = $trace['type'] ?? '';
-            
+
             $formatted .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
         }
-        
+
         return htmlspecialchars($formatted);
     }
 }
