@@ -35,9 +35,12 @@ class ErrorHandler
      */
     public static function reset(): void
     {
-        self::$registered = false;
-        restore_error_handler();
-        restore_exception_handler();
+        // Сбрасываем только если мы зарегистрированы
+        if (self::$registered) {
+            self::$registered = false;
+            restore_error_handler();
+            restore_exception_handler();
+        }
     }
 
     /**
