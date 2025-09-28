@@ -6,8 +6,6 @@ use Core\Database\Exceptions\QueryException;
 use Core\Database\Drivers\MySqlDriver;
 use Core\Database\Drivers\SqliteDriver;
 use Core\Database\Drivers\PostgreSqlDriver;
-use PDO;
-use PDOStatement;
 
 beforeEach(function (): void {
     $this->config = [

@@ -2,7 +2,6 @@
 
 use Core\Database\DatabaseManager;
 use Core\Database\Exceptions\QueryException;
-use Exception;
 
 beforeEach(function (): void {
     $this->config = [

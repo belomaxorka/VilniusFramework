@@ -3,7 +3,6 @@
 use Core\Database\Exceptions\DatabaseException;
 use Core\Database\Exceptions\ConnectionException;
 use Core\Database\Exceptions\QueryException;
-use Exception;
 
 describe('DatabaseException', function (): void {
     it('extends Exception', function (): void {

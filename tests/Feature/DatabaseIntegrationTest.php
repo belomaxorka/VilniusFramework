@@ -4,7 +4,6 @@ use Core\Database\DatabaseManager;
 use Core\Database\QueryBuilder;
 use Core\Database\Exceptions\ConnectionException;
 use Core\Database\Exceptions\QueryException;
-use PDO;
 
 describe('Database Integration Tests', function (): void {
     beforeEach(function (): void {
@@ -22,99 +21,9 @@ describe('Database Integration Tests', function (): void {
         $this->connection = $this->db->connection();
         
         // Создаем тестовые таблицы
-        $this->setupTestTables();
-        $this->insertTestData();
+        setupTestTables($this->connection);
+        insertTestData($this->connection);
     });
-
-    function setupTestTables(): void {
-        $this->connection->exec('
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                age INTEGER,
-                is_active BOOLEAN DEFAULT 1,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ');
-        
-        $this->connection->exec('
-            CREATE TABLE posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                content TEXT,
-                status TEXT DEFAULT "draft",
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        ');
-        
-        $this->connection->exec('
-            CREATE TABLE categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                description TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ');
-        
-        $this->connection->exec('
-            CREATE TABLE post_categories (
-                post_id INTEGER NOT NULL,
-                category_id INTEGER NOT NULL,
-                PRIMARY KEY (post_id, category_id),
-                FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
-                FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
-            )
-        ');
-    }
-
-    function insertTestData(): void {
-        // Вставляем пользователей
-        $this->connection->exec("
-            INSERT INTO users (name, email, age, is_active) VALUES 
-            ('John Doe', 'john@example.com', 30, 1),
-            ('Jane Smith', 'jane@example.com', 25, 1),
-            ('Bob Johnson', 'bob@example.com', 35, 0),
-            ('Alice Brown', 'alice@example.com', 28, 1),
-            ('Charlie Wilson', 'charlie@example.com', 42, 1)
-        ");
-        
-        // Вставляем категории
-        $this->connection->exec("
-            INSERT INTO categories (name, description) VALUES 
-            ('Technology', 'Posts about technology and programming'),
-            ('Lifestyle', 'Posts about lifestyle and personal experiences'),
-            ('News', 'News and current events'),
-            ('Tutorials', 'Educational and tutorial content')
-        ");
-        
-        // Вставляем посты
-        $this->connection->exec("
-            INSERT INTO posts (user_id, title, content, status) VALUES 
-            (1, 'Introduction to PHP', 'This is a comprehensive guide to PHP programming.', 'published'),
-            (1, 'Database Design Best Practices', 'Learn how to design efficient databases.', 'published'),
-            (2, 'My Travel Experience', 'Sharing my recent travel experiences.', 'draft'),
-            (2, 'Healthy Living Tips', 'Tips for maintaining a healthy lifestyle.', 'published'),
-            (3, 'Breaking News Update', 'Latest news update on current events.', 'published'),
-            (4, 'JavaScript Tutorial', 'Learn JavaScript from scratch.', 'published'),
-            (5, 'Photography Tips', 'Professional photography techniques.', 'draft')
-        ");
-        
-        // Связываем посты с категориями
-        $this->connection->exec("
-            INSERT INTO post_categories (post_id, category_id) VALUES 
-            (1, 1), (1, 4),  -- PHP post -> Technology, Tutorials
-            (2, 1), (2, 4),  -- Database post -> Technology, Tutorials
-            (3, 2),          -- Travel post -> Lifestyle
-            (4, 2),          -- Health post -> Lifestyle
-            (5, 3),          -- News post -> News
-            (6, 1), (6, 4),  -- JavaScript post -> Technology, Tutorials
-            (7, 2)           -- Photography post -> Lifestyle
-        ");
-    }
 
     it('performs complex queries with joins', function (): void {
         $query = "
@@ -411,3 +320,93 @@ describe('Database Integration Tests', function (): void {
             ->toThrow(ConnectionException::class);
     });
 });
+
+function setupTestTables(PDO $connection): void {
+    $connection->exec('
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            age INTEGER,
+            is_active BOOLEAN DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+    
+    $connection->exec('
+        CREATE TABLE posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT,
+            status TEXT DEFAULT "draft",
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    ');
+    
+    $connection->exec('
+        CREATE TABLE categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+    
+    $connection->exec('
+        CREATE TABLE post_categories (
+            post_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            PRIMARY KEY (post_id, category_id),
+            FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+        )
+    ');
+}
+
+function insertTestData(PDO $connection): void {
+    // Вставляем пользователей
+    $connection->exec("
+        INSERT INTO users (name, email, age, is_active) VALUES 
+        ('John Doe', 'john@example.com', 30, 1),
+        ('Jane Smith', 'jane@example.com', 25, 1),
+        ('Bob Johnson', 'bob@example.com', 35, 0),
+        ('Alice Brown', 'alice@example.com', 28, 1),
+        ('Charlie Wilson', 'charlie@example.com', 42, 1)
+    ");
+    
+    // Вставляем категории
+    $connection->exec("
+        INSERT INTO categories (name, description) VALUES 
+        ('Technology', 'Posts about technology and programming'),
+        ('Lifestyle', 'Posts about lifestyle and personal experiences'),
+        ('News', 'News and current events'),
+        ('Tutorials', 'Educational and tutorial content')
+    ");
+    
+    // Вставляем посты
+    $connection->exec("
+        INSERT INTO posts (user_id, title, content, status) VALUES 
+        (1, 'Introduction to PHP', 'This is a comprehensive guide to PHP programming.', 'published'),
+        (1, 'Database Design Best Practices', 'Learn how to design efficient databases.', 'published'),
+        (2, 'My Travel Experience', 'Sharing my recent travel experiences.', 'draft'),
+        (2, 'Healthy Living Tips', 'Tips for maintaining a healthy lifestyle.', 'published'),
+        (3, 'Breaking News Update', 'Latest news update on current events.', 'published'),
+        (4, 'JavaScript Tutorial', 'Learn JavaScript from scratch.', 'published'),
+        (5, 'Photography Tips', 'Professional photography techniques.', 'draft')
+    ");
+    
+    // Связываем посты с категориями
+    $connection->exec("
+        INSERT INTO post_categories (post_id, category_id) VALUES 
+        (1, 1), (1, 4),  -- PHP post -> Technology, Tutorials
+        (2, 1), (2, 4),  -- Database post -> Technology, Tutorials
+        (3, 2),          -- Travel post -> Lifestyle
+        (4, 2),          -- Health post -> Lifestyle
+        (5, 3),          -- News post -> News
+        (6, 1), (6, 4),  -- JavaScript post -> Technology, Tutorials
+        (7, 2)           -- Photography post -> Lifestyle
+    ");
+}

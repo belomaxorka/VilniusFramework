@@ -4,7 +4,6 @@ use Core\Database\Drivers\MySqlDriver;
 use Core\Database\Drivers\PostgreSqlDriver;
 use Core\Database\Drivers\SqliteDriver;
 use Core\Database\DatabaseDriverInterface;
-use PDO;
 
 describe('MySqlDriver', function (): void {
     it('implements DatabaseDriverInterface', function (): void {
