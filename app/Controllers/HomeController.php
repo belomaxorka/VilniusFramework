@@ -2,13 +2,10 @@
 
 namespace App\Controllers;
 
-use Core\Database\Exceptions\ConnectionException;
-
 class HomeController
 {
     public function index(): void
     {
-        throw new ConnectionException('123');
         echo "Hello from HomeController!";
     }
 
