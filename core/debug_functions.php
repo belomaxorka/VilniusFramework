@@ -178,6 +178,9 @@ if (!function_exists('benchmark')) {
 
         $message = ($label ? "[{$label}] " : '') . "Execution time: {$time}ms";
         
+        // Добавляем в дебаг-бар
+        \Core\DebugBar::addPerformance($label ?? 'Anonymous', $end - $start, $message);
+        
         if (Environment::isDevelopment()) {
             echo '<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
             echo '<h4 style="color: #7b1fa2; margin-top: 0;">Benchmark</h4>';
@@ -188,5 +191,41 @@ if (!function_exists('benchmark')) {
         }
 
         return $result;
+    }
+}
+
+if (!function_exists('debug_bar_section')) {
+    /**
+     * Debug bar section - добавляет секцию в дебаг-бар
+     */
+    function debug_bar_section(string $name, mixed $data, ?string $icon = null): void
+    {
+        if (Environment::isDebug()) {
+            \Core\DebugBar::addSection($name, $data, $icon);
+        }
+    }
+}
+
+if (!function_exists('debug_bar_query')) {
+    /**
+     * Debug bar query - добавляет SQL запрос в дебаг-бар
+     */
+    function debug_bar_query(string $sql, float $time, array $bindings = []): void
+    {
+        if (Environment::isDebug()) {
+            \Core\DebugBar::addQuery($sql, $time, $bindings);
+        }
+    }
+}
+
+if (!function_exists('debug_bar_log')) {
+    /**
+     * Debug bar log - добавляет лог в дебаг-бар
+     */
+    function debug_bar_log(string $level, string $message, array $context = []): void
+    {
+        if (Environment::isDebug()) {
+            \Core\DebugBar::addLog($level, $message, $context);
+        }
     }
 }

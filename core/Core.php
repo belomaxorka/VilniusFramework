@@ -26,6 +26,11 @@ final class Core
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
 
+        // Инициализируем дебаг-бар
+        if (Environment::isDebug()) {
+            DebugBar::init();
+        }
+
         // Настраиваем логгер для дебага
         $logFile = LOG_DIR . '/debug.log';
         if (!is_dir(LOG_DIR)) {
