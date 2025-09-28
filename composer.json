@@ -46,9 +46,9 @@
     "init-project": [
       "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
     ],
-    "test": "pest",
-    "test-coverage": "pest --coverage",
-    "test-coverage-html": "pest --coverage-html=coverage"
+    "test": "@php ./vendor/bin/pest",
+    "test-coverage": "@php ./vendor/bin/pest --coverage",
+    "test-coverage-html": "@php ./vendor/bin/pest --coverage-html=coverage"
   },
   "minimum-stability": "stable",
   "prefer-stable": true
