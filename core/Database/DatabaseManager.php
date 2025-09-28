@@ -33,7 +33,7 @@ class DatabaseManager implements DatabaseInterface
     /**
      * Получить соединение с БД
      */
-    public function connection(string $name = null): PDO
+    public function connection(?string $name = null): PDO
     {
         $name = $name ?: $this->defaultConnection;
 
@@ -233,7 +233,7 @@ class DatabaseManager implements DatabaseInterface
     /**
      * Получить информацию о соединении
      */
-    public function getConnectionInfo(string $name = null): array
+    public function getConnectionInfo(?string $name = null): array
     {
         $name = $name ?: $this->defaultConnection;
         return $this->config['connections'][$name] ?? [];
