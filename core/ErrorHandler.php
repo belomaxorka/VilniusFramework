@@ -61,15 +61,17 @@ class ErrorHandler
      */
     public static function handleException(\Throwable $exception): void
     {
+        $exceptionClass = get_class($exception);
+        
         $error = [
-            'type' => 'Exception',
+            'type' => $exceptionClass,
             'severity' => E_ERROR,
             'message' => $exception->getMessage(),
             'file' => $exception->getFile(),
             'line' => $exception->getLine(),
             'backtrace' => $exception->getTrace(),
             'timestamp' => date('Y-m-d H:i:s'),
-            'exception_class' => get_class($exception),
+            'exception_class' => $exceptionClass,
         ];
 
         self::processError($error);
@@ -188,6 +190,9 @@ class ErrorHandler
     {
         $severityName = self::getSeverityName($error['severity']);
         $backtrace = self::formatBacktraceForDisplay($error['backtrace']);
+        
+        // Получаем короткое имя класса для отображения
+        $displayType = self::getDisplayType($error['type']);
 
         return <<<HTML
 <!DOCTYPE html>
@@ -195,7 +200,7 @@ class ErrorHandler
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error - {$error['type']}</title>
+    <title>Error - {$displayType}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
         .error-container { max-width: 1200px; margin: 0 auto; }
@@ -216,7 +221,7 @@ class ErrorHandler
 <body>
     <div class="error-container">
         <div class="error-header">
-            <h1 class="error-title">{$error['type']} - {$severityName}</h1>
+            <h1 class="error-title">{$displayType} - {$severityName}</h1>
         </div>
         <div class="error-body">
             <div class="error-message">
@@ -235,6 +240,9 @@ class ErrorHandler
 
                 <dt>Environment:</dt>
                 <dd>{Environment::get()}</dd>
+                
+                <dt>Exception Class:</dt>
+                <dd><span style="color: #6f42c1; font-family: monospace;">{$error['exception_class'] ?? $error['type']}</span></dd>
             </dl>
 
             <div class="backtrace">
@@ -352,5 +360,18 @@ HTML;
         }
 
         return htmlspecialchars($formatted);
+    }
+
+    /**
+     * Получить отображаемое имя типа ошибки
+     */
+    private static function getDisplayType(string $type): string
+    {
+        // Если это полное имя класса с namespace, берем только короткое имя
+        if (str_contains($type, '\\')) {
+            return basename(str_replace('\\', '/', $type));
+        }
+        
+        return $type;
     }
 }
