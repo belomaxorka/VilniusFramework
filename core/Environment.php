@@ -70,7 +70,7 @@ class Environment
         if (self::isDevelopment()) {
             return true;
         }
-        
+
         // В других режимах проверяем переменную APP_DEBUG
         return Env::get('APP_DEBUG', false) && !self::isProduction();
     }
