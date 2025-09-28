@@ -66,6 +66,12 @@ class Environment
      */
     public static function isDebug(): bool
     {
+        // В development режиме debug всегда включен
+        if (self::isDevelopment()) {
+            return true;
+        }
+        
+        // В других режимах проверяем переменную APP_DEBUG
         return Env::get('APP_DEBUG', false) && !self::isProduction();
     }
 
@@ -96,5 +102,14 @@ class Environment
             'log_errors' => 1,
             'log_level' => self::isDevelopment() ? 'debug' : 'error',
         ];
+    }
+
+    /**
+     * Очистить кеш окружения
+     */
+    public static function clearCache(): void
+    {
+        self::$environment = null;
+        Env::clearCache();
     }
 }

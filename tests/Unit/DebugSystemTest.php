@@ -66,5 +66,5 @@ test('error handler can be registered', function () {
     // Проверяем, что метод существует и может быть вызван
     expect(function () {
         ErrorHandler::register();
-    })->not->toThrow();
+    })->not->toThrow(Exception::class);
 });
