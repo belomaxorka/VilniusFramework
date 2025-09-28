@@ -17,6 +17,7 @@
     "ext-json": "*"
   },
   "require-dev": {
+    "pestphp/pest": "^4.1",
     "symfony/var-dumper": "^6.4"
   },
   "autoload": {
@@ -28,14 +29,27 @@
       "core/helpers.php"
     ]
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
   "config": {
     "optimize-autoloader": true,
     "preferred-install": "dist",
-    "sort-packages": true
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
   },
   "scripts": {
-    "post-create-project": [
-      "php -r \"copy('.env.example', '.env');\""
-    ]
-  }
+    "init-project": [
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+    ],
+    "test": "pest",
+    "test-coverage": "pest --coverage",
+    "test-coverage-html": "pest --coverage-html=coverage"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
 }

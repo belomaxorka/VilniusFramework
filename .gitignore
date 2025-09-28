@@ -1,7 +1,10 @@
-.idea
-.vscode
+/.idea
+/.vscode
+/.phpunit.cache
 *.log
 *.phar
 *.sqlite
+*.lock
+Thumbs.db
 .env
 vendor
