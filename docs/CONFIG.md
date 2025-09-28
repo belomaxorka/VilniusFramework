@@ -1,93 +1,247 @@
-# Класс `Config`
+## Config (Configuration Management)
 
-Класс `Config` отвечает за загрузку и управление конфигурационными файлами в фреймворке.
+The `Core\Config` class provides a simple, file-based configuration management system for PHP applications. It supports loading configuration files from directories, dot notation for nested values, and merging configurations with automatic deduplication of loaded paths.
 
-## Возможности
+### Key Features
+- Load configuration files from directories (all `*.php` files)
+- Dot notation support for nested configuration access
+- Automatic merging of duplicate configuration keys
+- Prevention of duplicate file loading
+- Runtime configuration modification
+- Full CRUD operations (create, read, update, delete)
 
-* Загрузка всех файлов конфигурации из указанной директории.
-* Доступ к параметрам через ключи (поддерживается точечная нотация: `database.host`).
-* Установка значений во время выполнения.
-* Получение всех конфигураций в виде массива.
-
----
-
-## Пример использования
+### Basic Usage
 
 ```php
-use Core\Core;
 use Core\Config;
 
-// Инициализация приложения
-Core::init();
+// 1) Load all .php config files from a directory
+Config::load(__DIR__ . '/config');
 
-// Получение параметров
-$dbHost = config('database.host');
-$debug  = config('app.debug', false);
+// 2) Access configuration values with dot notation
+$dbHost = Config::get('database.host', 'localhost');
+$appName = Config::get('app.name', 'MyApp');
+$debug = Config::get('app.debug', false);
 
-// Установка параметра на лету
-Config::set('app.debug', true);
+// 3) Set configuration values at runtime
+Config::set('app.environment', 'production');
+Config::set('cache.driver', 'redis');
 
-// Получение всех конфигов
-$all = Config::all();
+// 4) Check if configuration exists
+if (Config::has('database.connections.mysql')) {
+    // Database config exists
+}
+
+// 5) Remove configuration keys
+Config::forget('old.setting');
+
+// 6) Get all configuration data
+$allConfig = Config::all();
 ```
 
----
+### Configuration File Structure
 
-## Методы
+Configuration files should be placed in a directory and return an array. The filename (without `.php` extension) becomes the top-level configuration key.
 
-### `Config::load(string $path): void`
+**Example directory structure:**
+```
+config/
+├── app.php
+├── database.php
+└── cache.php
+```
 
-Загружает все конфигурационные файлы из указанной директории.
-Каждый файл должен возвращать массив. Имя файла используется как ключ верхнего уровня.
+**Example `config/app.php`:**
+```php
+<?php
+return [
+    'name' => 'My Application',
+    'debug' => true,
+    'environment' => 'local',
+    'providers' => [
+        'App\Providers\AppServiceProvider',
+        'App\Providers\RouteServiceProvider',
+    ],
+];
+```
 
-**Пример:**
+**Example `config/database.php`:**
+```php
+<?php
+return [
+    'default' => 'mysql',
+    'connections' => [
+        'mysql' => [
+            'host' => 'localhost',
+            'port' => 3306,
+            'database' => 'myapp',
+            'username' => 'root',
+            'password' => '',
+        ],
+        'sqlite' => [
+            'database' => ':memory:',
+        ],
+    ],
+];
+```
+
+### API Reference
+
+#### Config::load(string $path): void
+- Loads all `*.php` files from the specified directory
+- Each file must return an array
+- Filename (without `.php`) becomes the configuration key
+- Prevents loading the same directory multiple times
+- Throws `InvalidArgumentException` if path doesn't exist or isn't a directory
+- Throws `RuntimeException` if glob pattern fails
+
+#### Config::loadFile(string $filePath): void
+- Loads a single configuration file
+- File must return an array
+- If a configuration key already exists, arrays are merged recursively
+- Throws `InvalidArgumentException` if file doesn't exist or isn't readable
+- Throws `RuntimeException` if file doesn't return an array
+
+#### Config::get(string $key, mixed $default = null): mixed
+- Retrieves a configuration value using dot notation
+- Returns `$default` if key doesn't exist
+- Supports nested access: `'database.connections.mysql.host'`
+
+#### Config::set(string $key, mixed $value): void
+- Sets a configuration value using dot notation
+- Creates nested arrays automatically if they don't exist
+- Supports nested assignment: `'cache.redis.host'`
+
+#### Config::has(string $key): bool
+- Checks if a configuration key exists
+- Supports dot notation for nested keys
+- Returns `true` only if the complete path exists
+
+#### Config::forget(string $key): void
+- Removes a configuration key
+- Supports dot notation for nested keys
+- Safely handles non-existent paths
+
+#### Config::all(): array
+- Returns all configuration data as an array
+- Useful for debugging or exporting configuration
+
+#### Config::clear(): void
+- Clears all configuration data and loaded paths
+- Resets the class to its initial state
+
+### Dot Notation Examples
 
 ```php
-Config::load(ROOT . '/config');
+// Given this configuration structure:
+// [
+//     'app' => [
+//         'name' => 'MyApp',
+//         'debug' => true,
+//         'providers' => ['Provider1', 'Provider2']
+//     ],
+//     'database' => [
+//         'connections' => [
+//             'mysql' => ['host' => 'localhost']
+//         ]
+//     ]
+// ]
+
+// Access nested values
+$appName = Config::get('app.name');                    // 'MyApp'
+$debug = Config::get('app.debug');                     // true
+$providers = Config::get('app.providers');             // ['Provider1', 'Provider2']
+$dbHost = Config::get('database.connections.mysql.host'); // 'localhost'
+
+// Set nested values
+Config::set('app.environment', 'production');
+Config::set('database.connections.mysql.port', 3306);
+
+// Check existence
+Config::has('app.name');                               // true
+Config::has('app.nonexistent');                        // false
+Config::has('database.connections.mysql.host');        // true
+
+// Remove values
+Config::forget('app.debug');
+Config::forget('database.connections.sqlite');
 ```
 
----
+### Configuration Merging
 
-### `Config::get(string $key, mixed $default = null): mixed`
-
-Возвращает значение конфигурации по ключу.
-Если ключ не найден, возвращается значение по умолчанию.
-
-**Поддержка вложенных значений через точку:**
+When loading multiple files with the same configuration key, arrays are merged recursively:
 
 ```php
-Config::get('database.host');        // доступ к config/database.php['host']
-Config::get('app.debug', false);     // вернёт false, если нет параметра
+// First file: config/app.php
+return ['providers' => ['Provider1'], 'debug' => true];
+
+// Second file: config/app.php (loaded again)
+return ['providers' => ['Provider2'], 'environment' => 'prod'];
+
+// Result after merging:
+// [
+//     'providers' => ['Provider1', 'Provider2'],
+//     'debug' => true,
+//     'environment' => 'prod'
+// ]
 ```
 
----
+### Error Handling
 
-### `Config::set(string $key, mixed $value): void`
+The Config class throws specific exceptions for different error conditions:
 
-Устанавливает значение конфигурации на лету.
-Полезно для переопределения параметров во время выполнения.
+- `InvalidArgumentException`: Invalid paths, missing files, or unreadable files
+- `RuntimeException`: Configuration files that don't return arrays, or glob pattern failures
 
 ```php
-Config::set('app.debug', true);
+try {
+    Config::load('/nonexistent/path');
+} catch (InvalidArgumentException $e) {
+    // Handle invalid path
+}
+
+try {
+    Config::loadFile('/path/to/invalid.php');
+} catch (RuntimeException $e) {
+    // Handle file that doesn't return array
+}
 ```
 
----
+### Best Practices
 
-### `Config::all(): array`
+1. **File Organization**: Keep configuration files organized by feature or component
+2. **Naming Convention**: Use descriptive filenames that match your configuration structure
+3. **Default Values**: Always provide sensible defaults when using `Config::get()`
+4. **Environment-Specific**: Consider loading different configuration directories for different environments
+5. **Validation**: Validate configuration values after loading if needed
 
-Возвращает все загруженные конфигурации в виде массива.
+### Integration with Env Class
+
+The Config class works well with the `Core\Env` class for environment-based configuration:
 
 ```php
-$all = Config::all();
+use Core\Config;
+use Core\Env;
+
+// Load environment variables
+Env::load(__DIR__ . '/.env');
+
+// Load configuration files
+Config::load(__DIR__ . '/config');
+
+// Override config with environment variables
+Config::set('database.connections.mysql.host', Env::get('DB_HOST', 'localhost'));
+Config::set('database.connections.mysql.port', Env::get('DB_PORT', 3306));
+Config::set('app.debug', Env::get('APP_DEBUG', false));
 ```
 
----
+### Performance Considerations
 
-## Хелпер `config()`
+- Configuration files are loaded once per directory (duplicate loading is prevented)
+- All configuration data is stored in memory for fast access
+- Dot notation parsing is lightweight but consider caching frequently accessed values
+- Use `Config::clear()` in tests to ensure clean state between test runs
 
-Для удобства можно использовать глобальную функцию `config()`, определённую в `helpers.php`:
-
-```php
-config('database.host');      // аналог Config::get()
-config('app.debug', false);   // с дефолтным значением
-```
+### Namespace and Location
+- Class: `Core\Config`
+- File: `core/Config.php`

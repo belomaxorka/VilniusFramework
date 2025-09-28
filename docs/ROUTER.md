@@ -1,97 +1,131 @@
-# Router Documentation
+## Router (HTTP Routing)
 
-Минималистичный роутер для MyFramework (PHP 8.1+).  
-Поддерживает:
+The `Core\Router` class is a lightweight HTTP router that maps incoming requests to handlers. It supports GET and POST routes, URI parameters with optional regex constraints, and simple controller resolution by class name.
 
-- GET и POST маршруты
-- Динамические параметры `{param}`
-- Регулярные ограничения `{param:regex}`
-- Передачу параметров в контроллеры или замыкания
+### Key Features
+- Define routes for GET and POST methods
+- URI parameters with optional regex: `{id:\\d+}`
+- Named parameter extraction via PCRE named capture groups
+- Controller/action arrays or plain callables as route handlers
+- Automatic controller namespace fallback to `App\\Controllers`
+- Clean 404 handling with basic message output
 
----
-
-## 📌 Регистрация маршрутов
-
-### Статические маршруты
+### Basic Usage
 
 ```php
-$router->get('', [\App\Controllers\HomeController::class, 'index']);
-$router->get('about', fn() => print "About page");
+use Core\Router;
+
+$router = new Router();
+
+// 1) Simple GET route with a closure
+$router->get('/', function () {
+    echo 'Hello, world!';
+});
+
+// 2) Route with a named parameter (string by default)
+$router->get('/users/{username}', function (string $username) {
+    echo "Profile: {$username}";
+});
+
+// 3) Route with a constrained parameter (digits only)
+$router->get('/posts/{id:\\d+}', function (int $id) {
+    echo "Post #{$id}";
+});
+
+// 4) Route to a controller action (array form)
+$router->post('/login', ['AuthController', 'store']);
+
+// 5) Dispatch using the current request
+$router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');
 ```
 
-### Динамические маршруты с параметрами
+### Route Patterns and Parameters
+
+- Define dynamic segments using `{name}`. By default, `{name}` matches `[^/]+` (no slashes).
+- Add a regex constraint with `{name:regex}`. Example: `{id:\\d+}` for digits, `{slug:[a-z0-9-]+}` for slugs.
+- Internally, patterns are converted to named capture groups: `(?P<name>regex)` and wrapped with start/end anchors.
+- Extracted params are passed to your handler in the order they appear in the route.
+
+Examples:
 
 ```php
-$router->get('user/{id}', [UserController::class, 'show']);
+$router->get('/files/{path:.+}', function (string $path) { /* ... */ });
+$router->get('/tags/{slug:[a-z0-9-]+}', function (string $slug) { /* ... */ });
 ```
 
-> [!IMPORTANT]
-> {id} — любой сегмент URI, кроме /
+### Controllers and Actions
 
-> [!NOTE]
-> Передаётся в метод контроллера как аргумент $id
+- For array actions `['ControllerClass', 'method']`:
+  - If `ControllerClass` does not exist, `App\\Controllers\\ControllerClass` is attempted.
+  - The router instantiates the controller with `new` and invokes the method, spreading route params.
+- For callable actions, the callable is invoked directly with the params.
 
-## ⚡ Маршруты с регулярными ограничениями
+### URI Normalization
 
-Синтаксис: {param:regex}
+- The router trims leading/trailing slashes and strips an optional `index.php` prefix from the path.
+- Query strings are ignored (`parse_url($uri, PHP_URL_PATH)`).
 
+### 404 Handling
+
+- If no route matches, the router sets `http_response_code(404)` and echoes `"404 Not Found: [<uri>]"`.
+
+### API Reference
+
+#### Router::get(string $uri, callable|array $action): void
+- Registers a GET route.
+- `$action` may be a callable or an array `[ControllerClass, method]`.
+
+#### Router::post(string $uri, callable|array $action): void
+- Registers a POST route.
+- `$action` may be a callable or an array `[ControllerClass, method]`.
+
+#### Router::dispatch(string $method, string $uri): void
+- Normalizes the `$uri` and attempts to match against registered routes for `$method`.
+- On match: extracts named parameters and calls the handler.
+- On no match: returns a 404 response with a message.
+
+#### (Protected) Router::addRoute(string $method, string $uri, callable|array $action): void
+- Converts `{param}` and `{param:regex}` to a PCRE with named groups and stores the route.
+- Stored route shape: `['pattern' => '#^...$#', 'action' => $action]`.
+
+### Examples
+
+Controller example (`App\\Controllers\\AuthController`):
 ```php
-$router->get('user/{id:\d+}', [UserController::class, 'show']); 
-$router->get('post/{id:\d+}/{slug:[a-z\-]+}', [PostController::class, 'view']);
+<?php
+namespace App\Controllers;
 
-```
-
-Примеры:
-* `/user/42` → вызовет `UserController::show(42)` ✅
-* `/user/abc` → 404 ❌
-* `/post/123/hello-world` → вызовет `PostController::view(123, 'hello-world')` ✅
-* `/post/123/HelloWorld` → 404 ❌
-
-## 💡 Передача параметров в контроллеры
-
-Контроллер:
-
-```php
-class UserController
+class AuthController
 {
-    public function show($id): void
+    public function store(): void
     {
-        echo "User profile, id = " . htmlspecialchars($id);
+        echo 'Logged in';
     }
 }
-
-class PostController
-{
-    public function view($id, $slug): void
-    {
-        echo "Post $id — $slug";
-    }
-}
 ```
 
-> [!TIP]
-> Маршруты автоматически распознают параметры по имени и передают их как аргументы
-
-## 🔧 Поддержка замыканий (closures)
-
+Registering and dispatching:
 ```php
-$router->get('hello/{name}', fn($name) => print "Hello, $name!");
+use Core\Router;
+
+$router = new Router();
+$router->post('/login', ['AuthController', 'store']);
+
+$router->dispatch('POST', '/login'); // outputs: Logged in
 ```
 
-Запрос `/hello/John` → вывод: Hello, John!
-
-## 🛠️ Особенности
-
-* Поддержка нескольких параметров
-* Регулярные ограничения для валидации сегментов URI
-* Поддержка полного namespace класса или короткого имени контроллера
-* Возврат 404 для несоответствующих маршрутов
-
-## 📂 Пример использования
-
+Parameterized route with controller:
 ```php
-$router->get('', [HomeController::class, 'index']);
-$router->get('about', fn() => print "About page");
-$router->get('user/{id:\d+}', [UserController::class, 'show']);
-$router->get('post/{id:\d+}/{slug:[a-z\-]+}', [PostController::class, 'view']);
+$router->get('/users/{id:\\d+}', ['UserController', 'show']);
+// Will call App\\Controllers\\UserController->show($id)
 ```
+
+### Best Practices
+- Prefer explicit regex constraints for IDs and slugs to avoid ambiguous matches.
+- Keep route URIs consistent (lowercase, hyphen‑separated) for readability.
+- Extract common prefixes (e.g., `/api`) by convention in your route definitions.
+- Validate and sanitize inside controllers/handlers; the router only matches patterns.
+
+### Namespace and Location
+- Class: `Core\\Router`
+- File: `core/Router.php`
