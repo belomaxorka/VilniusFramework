@@ -216,6 +216,20 @@ class ErrorHandler
         // Сокращаем путь к файлу для лучшего отображения
         $shortFilePath = self::shortenFilePath($error['file']);
 
+        // Проверяем, есть ли данные для stack trace
+        $hasBacktrace = !empty($error['backtrace']) && !empty(trim($backtrace));
+
+        // Формируем HTML для stack trace только если он есть
+        $backtraceHtml = '';
+        if ($hasBacktrace) {
+            $backtraceHtml = <<<HTML
+            <div class="backtrace">
+                <h3>Stack Trace</h3>
+                <pre>{$backtrace}</pre>
+            </div>
+HTML;
+        }
+
         return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -374,10 +388,7 @@ class ErrorHandler
                 <dd><span style="color: #6f42c1; font-family: monospace;">{$exceptionClass}</span></dd>
             </dl>
 
-            <div class="backtrace">
-                <h3>Stack Trace</h3>
-                <pre>{$backtrace}</pre>
-            </div>
+            {$backtraceHtml}
         </div>
     </div>
 </body>
@@ -458,6 +469,10 @@ HTML;
      */
     private static function formatBacktrace(array $backtrace): string
     {
+        if (empty($backtrace)) {
+            return 'No stack trace available';
+        }
+
         $formatted = '';
         foreach ($backtrace as $index => $trace) {
             $file = $trace['file'] ?? 'unknown';
@@ -477,6 +492,10 @@ HTML;
      */
     private static function formatBacktraceForDisplay(array $backtrace): string
     {
+        if (empty($backtrace)) {
+            return '';
+        }
+
         $formatted = '';
         foreach ($backtrace as $index => $trace) {
             $file = $trace['file'] ?? 'unknown';
