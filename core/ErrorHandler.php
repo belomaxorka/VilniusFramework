@@ -199,6 +199,9 @@ class ErrorHandler
         
         // Получаем текущее окружение
         $currentEnvironment = Environment::get();
+        
+        // Сокращаем путь к файлу для лучшего отображения
+        $shortFilePath = self::shortenFilePath($error['file']);
 
         return <<<HTML
 <!DOCTYPE html>
@@ -208,20 +211,127 @@ class ErrorHandler
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error - {$displayType}</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
-        .error-container { max-width: 1200px; margin: 0 auto; }
-        .error-header { background: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-        .error-body { background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .error-title { margin: 0; font-size: 24px; }
-        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #dc3545; }
-        .error-details { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0; }
-        .error-details dt { font-weight: bold; color: #495057; }
-        .error-details dd { margin: 5px 0 15px 0; color: #6c757d; font-family: monospace; }
-        .backtrace { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0; }
-        .backtrace h3 { margin-top: 0; color: #495057; }
-        .backtrace pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
-        .file-path { color: #007bff; }
-        .line-number { color: #28a745; font-weight: bold; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 10px; 
+            background: #f8f9fa; 
+        }
+        .error-container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .error-header { 
+            background: #dc3545; 
+            color: white; 
+            padding: 15px; 
+            border-radius: 8px 8px 0 0; 
+        }
+        .error-body { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 0 0 8px 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .error-title { 
+            margin: 0; 
+            font-size: 20px; 
+            word-break: break-word; 
+        }
+        .error-message { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 15px 0; 
+            border-left: 4px solid #dc3545; 
+            word-break: break-word; 
+        }
+        .error-details { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 15px 0; 
+        }
+        .error-details dt { 
+            font-weight: bold; 
+            color: #495057; 
+            margin-top: 10px; 
+        }
+        .error-details dt:first-child { 
+            margin-top: 0; 
+        }
+        .error-details dd { 
+            margin: 5px 0 15px 0; 
+            color: #6c757d; 
+            font-family: monospace; 
+            word-break: break-all; 
+            overflow-wrap: break-word; 
+            hyphens: auto; 
+        }
+        .backtrace { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 15px 0; 
+        }
+        .backtrace h3 { 
+            margin-top: 0; 
+            color: #495057; 
+        }
+        .backtrace pre { 
+            background: #2d3748; 
+            color: #e2e8f0; 
+            padding: 15px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+            font-size: 12px; 
+            white-space: pre-wrap; 
+            word-break: break-word; 
+        }
+        .file-path { 
+            color: #007bff; 
+            word-break: break-all; 
+            overflow-wrap: break-word; 
+        }
+        .line-number { 
+            color: #28a745; 
+            font-weight: bold; 
+        }
+        
+        /* Мобильные устройства */
+        @media (max-width: 768px) {
+            body { 
+                padding: 5px; 
+            }
+            .error-header, .error-body { 
+                padding: 10px; 
+            }
+            .error-title { 
+                font-size: 18px; 
+            }
+            .error-details dd { 
+                font-size: 14px; 
+            }
+            .backtrace pre { 
+                font-size: 11px; 
+                padding: 10px; 
+            }
+        }
+        
+        /* Очень маленькие экраны */
+        @media (max-width: 480px) {
+            .error-title { 
+                font-size: 16px; 
+            }
+            .error-details dd { 
+                font-size: 13px; 
+            }
+            .backtrace pre { 
+                font-size: 10px; 
+                padding: 8px; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -236,7 +346,7 @@ class ErrorHandler
 
             <dl class="error-details">
                 <dt>File:</dt>
-                <dd><span class="file-path">{$error['file']}</span></dd>
+                <dd><span class="file-path" title="{$error['file']}">{$shortFilePath}</span></dd>
 
                 <dt>Line:</dt>
                 <dd><span class="line-number">{$error['line']}</span></dd>
@@ -379,5 +489,30 @@ HTML;
         }
         
         return $type;
+    }
+
+    /**
+     * Сократить путь к файлу для лучшего отображения
+     */
+    private static function shortenFilePath(string $filePath): string
+    {
+        // Если путь короткий, возвращаем как есть
+        if (strlen($filePath) <= 60) {
+            return $filePath;
+        }
+
+        // Разбиваем путь на части
+        $parts = explode(DIRECTORY_SEPARATOR, $filePath);
+        
+        // Если частей мало, просто обрезаем
+        if (count($parts) <= 3) {
+            return '...' . substr($filePath, -50);
+        }
+
+        // Берем последние 2 части (папка + файл)
+        $lastParts = array_slice($parts, -2);
+        
+        // Добавляем многоточие в начале
+        return '...' . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $lastParts);
     }
 }
