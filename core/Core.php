@@ -6,9 +6,15 @@ final class Core
 {
     public static function init(): void
     {
+        self::initEnvironment();
         self::initConfigLoader();
         self::initializeLangManager();
         self::initializeDatabase();
+    }
+
+    private static function initEnvironment(): void
+    {
+        Env::load(ROOT . '/.env', true);
     }
 
     private static function initConfigLoader(): void
