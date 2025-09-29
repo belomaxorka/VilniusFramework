@@ -186,7 +186,7 @@ it('performs money transfer transaction', function (): void {
     // Проверяем балансы
     $fromBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 1')->fetchColumn();
     $toBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 2')->fetchColumn();
-    
+
     expect((float)$fromBalance)->toBe(900.00); // 1000 - 100
     expect((float)$toBalance)->toBe(600.00);   // 500 + 100
 
@@ -218,7 +218,7 @@ it('rolls back money transfer on insufficient funds', function (): void {
     // Проверяем, что балансы не изменились
     $fromBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 1')->fetchColumn();
     $toBalance = $this->connection->query('SELECT balance FROM accounts WHERE id = 2')->fetchColumn();
-    
+
     expect((float)$fromBalance)->toBe(1000.00); // Не изменился
     expect((float)$toBalance)->toBe(500.00);    // Не изменился
 
