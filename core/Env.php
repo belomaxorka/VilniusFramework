@@ -58,8 +58,8 @@ class Env
         $_SERVER[$key] = $stringValue;
         putenv("$key=$stringValue");
 
-        // Обновляем кеш
-        self::$cache[$key] = $value;
+        // Обновляем кеш - сохраняем парсированное значение для консистентности
+        self::$cache[$key] = self::parseValue($stringValue);
     }
 
     /**
@@ -91,8 +91,25 @@ class Env
      */
     public static function load(?string $path = null, bool $required = false): bool
     {
+        // Если уже загружен и не указан конкретный путь, возвращаем true
         if (self::$loaded && $path === null) {
             return true;
+        }
+
+        // Если путь не указан, пытаемся найти .env файл в корне проекта
+        if (!$path) {
+            $possiblePaths = [
+                getcwd() . '/.env',
+                dirname(__DIR__) . '/.env',
+                __DIR__ . '/.env'
+            ];
+
+            foreach ($possiblePaths as $possiblePath) {
+                if (is_file($possiblePath)) {
+                    $path = $possiblePath;
+                    break;
+                }
+            }
         }
 
         if (!$path || !is_file($path)) {
@@ -144,12 +161,28 @@ class Env
     }
 
     /**
+     * Сбросить состояние класса (полезно для тестов)
+     */
+    public static function reset(): void
+    {
+        self::$cache = [];
+        self::$loaded = false;
+    }
+
+    /**
      * Удалить кавычки из значения
      */
     private static function removeQuotes(string $value): string
     {
-        if ((str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1) ||
-            (str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1)) {
+        $length = strlen($value);
+
+        // Проверяем двойные кавычки
+        if ($length >= 2 && str_starts_with($value, '"') && str_ends_with($value, '"')) {
+            return substr($value, 1, -1);
+        }
+
+        // Проверяем одинарные кавычки
+        if ($length >= 2 && str_starts_with($value, "'") && str_ends_with($value, "'")) {
             return substr($value, 1, -1);
         }
 
