@@ -18,7 +18,7 @@ class TemplateEngine
         $root = defined('ROOT') ? ROOT : dirname(__DIR__, 2);
         $this->templateDir = $templateDir ?? $root . '/resources/views';
         $this->cacheDir = $cacheDir ?? $root . '/storage/cache/templates';
-        
+
         // Создаем директорию кэша если её нет
         if (!is_dir($this->cacheDir)) {
             mkdir($this->cacheDir, 0755, true);
@@ -60,7 +60,7 @@ class TemplateEngine
     public function render(string $template, array $variables = []): string
     {
         $templatePath = $this->templateDir . '/' . $template;
-        
+
         if (!file_exists($templatePath)) {
             throw new \InvalidArgumentException("Template not found: {$template}");
         }
@@ -132,47 +132,49 @@ class TemplateEngine
     {
         // Удаляем комментарии {# comment #}
         $content = preg_replace('/\{#.*?#\}/s', '', $content);
-        
+
         // Экранируем PHP теги
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
 
-        // Обрабатываем переменные {{ variable }}
-        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function($matches) {
-            return '<?= htmlspecialchars(' . $this->processVariableInExpression($matches[1]) . ' ?? \'\', ENT_QUOTES, \'UTF-8\') ?>';
+        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
+        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
-
-        // Обрабатываем неэкранированные переменные {! variable !}
-        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function($matches) {
-            return '<?= ' . $this->processVariableInExpression($matches[1]) . ' ?? \'\' ?>';
-        }, $content);
-
-        // Обрабатываем условия {% if condition %}
-        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function($matches) {
-            return '<?php if (' . $this->processVariableInCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function($matches) {
-            return '<?php elseif (' . $this->processVariableInCondition($matches[1]) . '): ?>';
+        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
         // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function($matches) {
-            return '<?php foreach (' . $this->processVariableInCondition($matches[2]) . ' as $' . $matches[1] . '): ?>';
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
         // Обрабатываем циклы while {% while condition %}
-        $content = preg_replace('/\{\%\s*while\s+([^%]+)\s*\%\}/', '<?php while (\\1): ?>', $content);
+        $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
         $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
 
+        // Обрабатываем переменные {{ variable }}
+        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
+            return '<?= htmlspecialchars((string)(' . $this->processVariable($matches[1]) . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
+        }, $content);
+
+        // Обрабатываем неэкранированные переменные {! variable !}
+        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
+            return '<?= ' . $this->processVariable($matches[1]) . ' ?? \'\' ?>';
+        }, $content);
+
         // Обрабатываем включения {% include 'template.tpl' %}
-        $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function($matches) {
+        $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
             return $this->processInclude($matches[1]);
         }, $content);
 
         // Обрабатываем расширения {% extends 'base.tpl' %}
-        $content = preg_replace_callback('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function($matches) {
+        $content = preg_replace_callback('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
             return $this->processExtends($matches[1]);
         }, $content);
 
@@ -189,11 +191,21 @@ class TemplateEngine
     private function executeTemplate(string $compiledContent, array $variables): string
     {
         extract($variables);
-        
+
+        // Helper-функция для унифицированного доступа к массивам и объектам
+        $__getValue = function ($data, $key) {
+            if (is_array($data)) {
+                return $data[$key] ?? null;
+            } elseif (is_object($data)) {
+                return $data->$key ?? null;
+            }
+            return null;
+        };
+
         ob_start();
         eval('?>' . $compiledContent);
         $output = ob_get_clean();
-        
+
         return $output;
     }
 
@@ -203,7 +215,7 @@ class TemplateEngine
     private function getCachedContent(string $templatePath): ?string
     {
         $cacheFile = $this->getCacheFilePath($templatePath);
-        
+
         if (!file_exists($cacheFile)) {
             return null;
         }
@@ -247,7 +259,7 @@ class TemplateEngine
     private function processInclude(string $template): string
     {
         $includePath = $this->templateDir . '/' . $template;
-        
+
         if (!file_exists($includePath)) {
             Logger::warning("Include template not found: {$template}");
             return '';
@@ -263,7 +275,7 @@ class TemplateEngine
     private function processExtends(string $template): string
     {
         $extendsPath = $this->templateDir . '/' . $template;
-        
+
         if (!file_exists($extendsPath)) {
             Logger::warning("Extends template not found: {$template}");
             return '';
@@ -274,104 +286,130 @@ class TemplateEngine
     }
 
     /**
-     * Обрабатывает переменные в условиях и циклах
+     * Обрабатывает условия (для if, elseif, while)
      */
-    private function processVariableInCondition(string $condition): string
+    private function processCondition(string $condition): string
     {
-        // Сначала защищаем строки в кавычках
+        $condition = trim($condition);
+
+        // Защищаем строки в кавычках
         $strings = [];
-        $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function($matches) use (&$strings) {
+        $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
             $strings[] = $matches[0];
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
-        
-        // Затем обрабатываем доступ к свойствам объектов и элементам массивов
-        $condition = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$1["$2"]', $condition);
-        
-        // Защищаем слова внутри квадратных скобок
-        $brackets = [];
-        $condition = preg_replace_callback('/\["([^"]+)"\]/', function($matches) use (&$brackets) {
-            $brackets[] = $matches[0];
-            return '[___BRACKET_' . (count($brackets) - 1) . '___]';
-        }, $condition);
-        
-        // Теперь обрабатываем простые переменные
-        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'if', 'else', 'elseif', 'endif', 'for', 'endfor', 'while', 'endwhile'];
-        
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) use ($phpKeywords) {
+
+        // Обрабатываем комплексные выражения с точками и массивами
+        $condition = $this->processPropertyAccess($condition);
+
+        // Заменяем логические операторы
+        $condition = str_replace(' and ', ' && ', $condition);
+        $condition = str_replace(' or ', ' || ', $condition);
+        $condition = str_replace(' not ', ' ! ', $condition);
+
+        // Обрабатываем простые переменные (которые еще не обработаны)
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not'];
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
             $var = $matches[1];
-            if (in_array(strtolower($var), $phpKeywords)) {
-                return $var;
-            }
-            // Проверяем, не является ли это уже переменной PHP или обработанным выражением
-            if (strpos($var, '$') === 0 || strpos($var, '[') !== false) {
-                return $var;
-            }
-            // Исключаем защищенные строки
-            if (strpos($var, '___STRING_') === 0 || strpos($var, '___BRACKET_') === 0) {
+            // Пропускаем ключевые слова и уже обработанные переменные
+            if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0 || strpos($var, '$') === 0) {
                 return $var;
             }
             return '$' . $var;
         }, $condition);
-        
-        // Восстанавливаем скобки
-        foreach ($brackets as $index => $bracket) {
-            $condition = str_replace('[___BRACKET_' . $index . '___]', $bracket, $condition);
-        }
-        
+
         // Восстанавливаем строки
         foreach ($strings as $index => $string) {
             $condition = str_replace('___STRING_' . $index . '___', $string, $condition);
         }
-        
+
         return $condition;
     }
 
     /**
      * Обрабатывает переменные в выражениях (для {{ }} и {! !})
      */
-    private function processVariableInExpression(string $expression): string
+    private function processVariable(string $expression): string
     {
-        // Обрабатываем все переменные сразу, включая доступ к объектам и массивам
-        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[[^\]]+\])*/', function($matches) {
-            $variable = $matches[0];
+        $expression = trim($expression);
+
+        // Если это уже PHP-переменная, возвращаем как есть
+        if (strpos($expression, '$') === 0) {
+            return $expression;
+        }
+
+        // Защищаем строки в кавычках
+        $strings = [];
+        $expression = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
+            $strings[] = $matches[0];
+            return '___STRING_' . (count($strings) - 1) . '___';
+        }, $expression);
+
+        // Обрабатываем комплексные выражения с точками и массивами
+        $expression = $this->processPropertyAccess($expression);
+
+        // Обрабатываем простые переменные (которые еще не обработаны)
+        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) {
+            $var = $matches[1];
+            // Пропускаем защищенные строки и уже обработанные переменные
+            if (strpos($var, '___') === 0 || strpos($var, '$') === 0) {
+                return $var;
+            }
+            return '$' . $var;
+        }, $expression);
+
+        // Восстанавливаем строки
+        foreach ($strings as $index => $string) {
+            $expression = str_replace('___STRING_' . $index . '___', $string, $expression);
+        }
+
+        return $expression;
+    }
+
+    /**
+     * Обрабатывает доступ к свойствам и элементам (унифицированно для массивов и объектов)
+     */
+    private function processPropertyAccess(string $expression): string
+    {
+        // Регулярное выражение для поиска цепочек вида: variable.property[index].another
+        // Ищем паттерн: начало_имени[индекс или .свойство]*
+        $pattern = '/\b([a-zA-Z_][a-zA-Z0-9_]*)([.\[][\w\[\]."\']+)?/';
+        
+        $expression = preg_replace_callback($pattern, function ($matches) {
+            $baseName = $matches[1];
+            $accessors = $matches[2] ?? '';
             
-            // Разбираем переменную на части
-            $parts = preg_split('/(\.|\[|\])/', $variable, -1, PREG_SPLIT_DELIM_CAPTURE);
-            $result = '$' . $parts[0]; // Первая часть - имя переменной
+            if (empty($accessors)) {
+                // Простая переменная без доступа
+                return $matches[0];
+            }
             
-            for ($i = 1; $i < count($parts); $i += 2) {
-                if ($parts[$i] === '.') {
-                    // Доступ к свойству объекта - используем -> для объектов
-                    $result .= '->' . $parts[$i + 1];
-                } elseif ($parts[$i] === '[') {
-                    // Доступ к элементу массива
-                    $result .= '[' . $parts[$i + 1] . ']';
+            // Начинаем с базовой переменной
+            $result = '$' . $baseName;
+            
+            // Разбираем цепочку доступов
+            $remaining = $accessors;
+            while (!empty($remaining)) {
+                // Проверяем доступ через точку: .property
+                if (preg_match('/^\.([a-zA-Z_][a-zA-Z0-9_]*)/', $remaining, $propMatch)) {
+                    $property = $propMatch[1];
+                    $result = '$__getValue(' . $result . ', "' . $property . '")';
+                    $remaining = substr($remaining, strlen($propMatch[0]));
+                }
+                // Проверяем доступ через квадратные скобки: [index] или ["key"]
+                elseif (preg_match('/^\[([^\]]+)\]/', $remaining, $arrMatch)) {
+                    $index = $arrMatch[1];
+                    // Убираем кавычки если они есть, так как мы работаем с числами напрямую
+                    $result = $result . '[' . $index . ']';
+                    $remaining = substr($remaining, strlen($arrMatch[0]));
+                }
+                else {
+                    break;
                 }
             }
             
             return $result;
         }, $expression);
-        
-        return $expression;
-    }
-
-    /**
-     * Обрабатывает доступ к объектам и массивам
-     */
-    private function processObjectAndArrayAccess(string $expression): string
-    {
-        // Обрабатываем доступ к свойствам объектов через точку (например: user.name)
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$1["$2"]', $expression);
-        
-        // Обрабатываем доступ к элементам массива через квадратные скобки (например: items[0])
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*([^\]]+)\s*\]/', '$1[$2]', $expression);
-        
-        // Обрабатываем вложенный доступ (например: user["address"].city)
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*["\']([^"\']+)["\']\s*\]\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$1["$2"]["$3"]', $expression);
-        
-        // Обрабатываем смешанный доступ (например: users[0].name)
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*([^\]]+)\s*\]\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$1[$2]["$3"]', $expression);
         
         return $expression;
     }
