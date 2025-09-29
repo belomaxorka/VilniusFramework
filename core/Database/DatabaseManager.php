@@ -23,11 +23,15 @@ class DatabaseManager implements DatabaseInterface
         'sqlite' => SqliteDriver::class,
     ];
     protected ?string $defaultConnection = null;
+    protected array $queryLog = [];
+    protected bool $loggingQueries = false;
+    protected int $reconnectAttempts = 3;
 
     public function __construct(array $config)
     {
         $this->config = $config;
         $this->defaultConnection = $config['default'] ?? null;
+        $this->loggingQueries = $config['log_queries'] ?? false;
     }
 
     /**
@@ -71,17 +75,29 @@ class DatabaseManager implements DatabaseInterface
     }
 
     /**
+     * Переподключиться к базе данных
+     */
+    public function reconnect(?string $name = null): PDO
+    {
+        $name = $name ?: $this->defaultConnection;
+        
+        // Удаляем существующее соединение
+        unset($this->connections[$name]);
+        
+        // Создаем новое
+        return $this->connection($name);
+    }
+
+    /**
      * Выполнить SELECT запрос
      */
     public function select(string $query, array $bindings = []): array
     {
-        try {
+        return $this->run($query, $bindings, function ($query, $bindings) {
             $statement = $this->connection()->prepare($query);
             $statement->execute($bindings);
             return $statement->fetchAll();
-        } catch (PDOException $e) {
-            throw new QueryException("Query failed: " . $e->getMessage());
-        }
+        });
     }
 
     /**
@@ -98,12 +114,10 @@ class DatabaseManager implements DatabaseInterface
      */
     public function insert(string $query, array $bindings = []): bool
     {
-        try {
+        return $this->run($query, $bindings, function ($query, $bindings) {
             $statement = $this->connection()->prepare($query);
             return $statement->execute($bindings);
-        } catch (PDOException $e) {
-            throw new QueryException("Insert failed: " . $e->getMessage());
-        }
+        });
     }
 
     /**
@@ -111,13 +125,11 @@ class DatabaseManager implements DatabaseInterface
      */
     public function update(string $query, array $bindings = []): int
     {
-        try {
+        return $this->run($query, $bindings, function ($query, $bindings) {
             $statement = $this->connection()->prepare($query);
             $statement->execute($bindings);
             return $statement->rowCount();
-        } catch (PDOException $e) {
-            throw new QueryException("Update failed: " . $e->getMessage());
-        }
+        });
     }
 
     /**
@@ -125,13 +137,11 @@ class DatabaseManager implements DatabaseInterface
      */
     public function delete(string $query, array $bindings = []): int
     {
-        try {
+        return $this->run($query, $bindings, function ($query, $bindings) {
             $statement = $this->connection()->prepare($query);
             $statement->execute($bindings);
             return $statement->rowCount();
-        } catch (PDOException $e) {
-            throw new QueryException("Delete failed: " . $e->getMessage());
-        }
+        });
     }
 
     /**
@@ -139,12 +149,146 @@ class DatabaseManager implements DatabaseInterface
      */
     public function statement(string $query, array $bindings = []): bool
     {
-        try {
+        return $this->run($query, $bindings, function ($query, $bindings) {
             $statement = $this->connection()->prepare($query);
             return $statement->execute($bindings);
+        });
+    }
+
+    /**
+     * Выполнить запрос с логированием и обработкой ошибок
+     */
+    protected function run(string $query, array $bindings, callable $callback)
+    {
+        $start = microtime(true);
+        
+        try {
+            $result = $callback($query, $bindings);
+            
+            // Логируем успешный запрос
+            $this->logQuery($query, $bindings, microtime(true) - $start);
+            
+            return $result;
         } catch (PDOException $e) {
-            throw new QueryException("Statement failed: " . $e->getMessage());
+            // Логируем неудачный запрос
+            $this->logQuery($query, $bindings, microtime(true) - $start, $e->getMessage());
+            
+            // Пробуем переподключиться при потере соединения
+            if ($this->causedByLostConnection($e)) {
+                return $this->tryAgainIfCausedByLostConnection($e, $query, $bindings, $callback);
+            }
+            
+            throw new QueryException("Query failed: " . $e->getMessage() . " | SQL: " . $query);
         }
+    }
+
+    /**
+     * Попробовать выполнить запрос снова при потере соединения
+     */
+    protected function tryAgainIfCausedByLostConnection(PDOException $e, string $query, array $bindings, callable $callback)
+    {
+        for ($attempt = 1; $attempt <= $this->reconnectAttempts; $attempt++) {
+            try {
+                $this->reconnect();
+                return $callback($query, $bindings);
+            } catch (PDOException $e) {
+                if ($attempt >= $this->reconnectAttempts) {
+                    throw new QueryException("Query failed after {$this->reconnectAttempts} reconnection attempts: " . $e->getMessage());
+                }
+                
+                // Небольшая задержка перед следующей попыткой
+                usleep(100000 * $attempt); // 100ms, 200ms, 300ms...
+            }
+        }
+    }
+
+    /**
+     * Проверить, вызвана ли ошибка потерей соединения
+     */
+    protected function causedByLostConnection(PDOException $e): bool
+    {
+        $message = $e->getMessage();
+        
+        $lostConnectionMessages = [
+            'server has gone away',
+            'no connection to the server',
+            'Lost connection',
+            'is dead or not enabled',
+            'Error while sending',
+            'decryption failed or bad record mac',
+            'server closed the connection unexpectedly',
+            'SSL connection has been closed unexpectedly',
+            'Error writing data to the connection',
+            'Resource deadlock avoided',
+            'Transaction() on null',
+            'child connection forced to terminate due to client_idle_limit',
+        ];
+        
+        foreach ($lostConnectionMessages as $lostMessage) {
+            if (stripos($message, $lostMessage) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Логировать запрос
+     */
+    protected function logQuery(string $query, array $bindings, float $time, ?string $error = null): void
+    {
+        if (!$this->loggingQueries) {
+            return;
+        }
+        
+        $this->queryLog[] = [
+            'query' => $query,
+            'bindings' => $bindings,
+            'time' => round($time * 1000, 2), // в миллисекундах
+            'error' => $error,
+            'timestamp' => date('Y-m-d H:i:s')
+        ];
+    }
+
+    /**
+     * Включить логирование запросов
+     */
+    public function enableQueryLog(): void
+    {
+        $this->loggingQueries = true;
+    }
+
+    /**
+     * Выключить логирование запросов
+     */
+    public function disableQueryLog(): void
+    {
+        $this->loggingQueries = false;
+    }
+
+    /**
+     * Получить лог запросов
+     */
+    public function getQueryLog(): array
+    {
+        return $this->queryLog;
+    }
+
+    /**
+     * Очистить лог запросов
+     */
+    public function flushQueryLog(): void
+    {
+        $this->queryLog = [];
+    }
+
+    /**
+     * Получить последний выполненный запрос
+     */
+    public function getLastQuery(): ?array
+    {
+        return end($this->queryLog) ?: null;
     }
 
     /**
@@ -169,7 +313,18 @@ class DatabaseManager implements DatabaseInterface
      */
     public function beginTransaction(): bool
     {
-        return $this->connection()->beginTransaction();
+        try {
+            $pdo = $this->connection();
+            
+            // Проверяем, нет ли уже активной транзакции
+            if ($pdo->inTransaction()) {
+                return false;
+            }
+            
+            return $pdo->beginTransaction();
+        } catch (PDOException $e) {
+            throw new DatabaseException("Could not begin transaction: " . $e->getMessage());
+        }
     }
 
     /**
@@ -178,10 +333,15 @@ class DatabaseManager implements DatabaseInterface
     public function commit(): bool
     {
         try {
-            return $this->connection()->commit();
+            $pdo = $this->connection();
+            
+            if (!$pdo->inTransaction()) {
+                return false;
+            }
+            
+            return $pdo->commit();
         } catch (PDOException $e) {
-            // Если нет активной транзакции, возвращаем false
-            return false;
+            throw new DatabaseException("Could not commit transaction: " . $e->getMessage());
         }
     }
 
@@ -191,11 +351,24 @@ class DatabaseManager implements DatabaseInterface
     public function rollback(): bool
     {
         try {
-            return $this->connection()->rollBack();
+            $pdo = $this->connection();
+            
+            if (!$pdo->inTransaction()) {
+                return false;
+            }
+            
+            return $pdo->rollBack();
         } catch (PDOException $e) {
-            // Если нет активной транзакции, возвращаем false
-            return false;
+            throw new DatabaseException("Could not rollback transaction: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Проверить, активна ли транзакция
+     */
+    public function inTransaction(): bool
+    {
+        return $this->connection()->inTransaction();
     }
 
     /**
@@ -231,11 +404,151 @@ class DatabaseManager implements DatabaseInterface
     }
 
     /**
+     * Закрыть конкретное соединение
+     */
+    public function disconnectFrom(string $name): void
+    {
+        unset($this->connections[$name]);
+    }
+
+    /**
      * Получить информацию о соединении
      */
     public function getConnectionInfo(?string $name = null): array
     {
         $name = $name ?: $this->defaultConnection;
-        return $this->config['connections'][$name] ?? [];
+        $info = $this->config['connections'][$name] ?? [];
+        
+        // Скрываем пароль в информации о соединении
+        if (isset($info['password'])) {
+            $info['password'] = '******';
+        }
+        
+        return $info;
+    }
+
+    /**
+     * Получить имя драйвера для соединения
+     */
+    public function getDriverName(?string $name = null): string
+    {
+        $info = $this->getConnectionInfo($name);
+        return $info['driver'] ?? '';
+    }
+
+    /**
+     * Получить имя базы данных
+     */
+    public function getDatabaseName(?string $name = null): string
+    {
+        $info = $this->getConnectionInfo($name);
+        return $info['database'] ?? '';
+    }
+
+    /**
+     * Установить количество попыток переподключения
+     */
+    public function setReconnectAttempts(int $attempts): void
+    {
+        $this->reconnectAttempts = max(1, $attempts);
+    }
+
+    /**
+     * Получить таблицу через QueryBuilder
+     */
+    public function table(string $table): QueryBuilder
+    {
+        return (new QueryBuilder($this))->table($table);
+    }
+
+    /**
+     * Выполнить raw запрос (alias для statement)
+     */
+    public function raw(string $query, array $bindings = []): bool
+    {
+        return $this->statement($query, $bindings);
+    }
+
+    /**
+     * Получить список всех таблиц
+     */
+    public function getTables(): array
+    {
+        $driver = $this->getDriverName();
+        
+        $query = match($driver) {
+            'mysql' => "SHOW TABLES",
+            'pgsql' => "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'",
+            'sqlite' => "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+            default => throw new DatabaseException("Getting tables is not supported for driver: {$driver}")
+        };
+        
+        $results = $this->select($query);
+        
+        // Извлекаем имена таблиц из результата
+        return array_map(fn($row) => reset($row), $results);
+    }
+
+    /**
+     * Проверить существование таблицы
+     */
+    public function hasTable(string $table): bool
+    {
+        $tables = $this->getTables();
+        return in_array($table, $tables);
+    }
+
+    /**
+     * Получить колонки таблицы
+     */
+    public function getColumns(string $table): array
+    {
+        $driver = $this->getDriverName();
+        
+        $query = match($driver) {
+            'mysql' => "SHOW COLUMNS FROM {$table}",
+            'pgsql' => "SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}'",
+            'sqlite' => "PRAGMA table_info({$table})",
+            default => throw new DatabaseException("Getting columns is not supported for driver: {$driver}")
+        };
+        
+        return $this->select($query);
+    }
+
+    /**
+     * Получить статистику производительности
+     */
+    public function getQueryStats(): array
+    {
+        if (empty($this->queryLog)) {
+            return [
+                'total_queries' => 0,
+                'total_time' => 0,
+                'avg_time' => 0,
+                'max_time' => 0,
+                'min_time' => 0,
+                'failed_queries' => 0
+            ];
+        }
+        
+        $times = array_column($this->queryLog, 'time');
+        $failedCount = count(array_filter($this->queryLog, fn($log) => $log['error'] !== null));
+        
+        return [
+            'total_queries' => count($this->queryLog),
+            'total_time' => round(array_sum($times), 2),
+            'avg_time' => round(array_sum($times) / count($times), 2),
+            'max_time' => max($times),
+            'min_time' => min($times),
+            'failed_queries' => $failedCount
+        ];
+    }
+
+    /**
+     * Получить медленные запросы (больше указанного времени в мс)
+     */
+    public function getSlowQueries(float $threshold = 100): array
+    {
+        return array_filter($this->queryLog, fn($log) => $log['time'] > $threshold);
     }
 }
