@@ -302,17 +302,25 @@ class TemplateEngine
      */
     private function processVariableInExpression(string $expression): string
     {
-        // Обрабатываем доступ к объектам и массивам (например: user.name, items[0])
-        $expression = $this->processObjectAndArrayAccess($expression);
-        
-        // Затем обрабатываем простые переменные (исключаем уже обработанные)
-        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) {
-            $var = $matches[1];
-            // Проверяем, не является ли это уже переменной PHP или обработанным выражением
-            if (strpos($var, '$') === 0 || strpos($var, '[') !== false || strpos($var, '"') !== false) {
-                return $var;
+        // Обрабатываем все переменные сразу, включая доступ к объектам и массивам
+        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[[^\]]+\])*/', function($matches) {
+            $variable = $matches[0];
+            
+            // Разбираем переменную на части
+            $parts = preg_split('/(\.|\[|\])/', $variable, -1, PREG_SPLIT_DELIM_CAPTURE);
+            $result = '$' . $parts[0]; // Первая часть - имя переменной
+            
+            for ($i = 1; $i < count($parts); $i += 2) {
+                if ($parts[$i] === '.') {
+                    // Доступ к свойству объекта
+                    $result .= '["' . $parts[$i + 1] . '"]';
+                } elseif ($parts[$i] === '[') {
+                    // Доступ к элементу массива
+                    $result .= '[' . $parts[$i + 1] . ']';
+                }
             }
-            return '$' . $var;
+            
+            return $result;
         }, $expression);
         
         return $expression;
