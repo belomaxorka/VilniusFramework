@@ -351,7 +351,27 @@ test('can apply date filter with timestamp', function () {
     file_put_contents($templateFile, $templateContent);
     
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('date.tpl', ['timestamp' => 1234567890]);
     
-    expect($result)->toBe('2009-02-13');
+    // Используем текущую дату для надежности
+    $timestamp = strtotime('2024-01-15 00:00:00');
+    $expected = date('Y-m-d', $timestamp);
+    
+    $result = $engine->render('date.tpl', ['timestamp' => $timestamp]);
+    
+    expect($result)->toBe($expected);
+});
+
+test('can apply date filter with custom format', function () {
+    $templateContent = '{{ timestamp|date("d/m/Y H:i") }}';
+    $templateFile = $this->testTemplateDir . '/date_format.tpl';
+    file_put_contents($templateFile, $templateContent);
+    
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $timestamp = strtotime('2024-01-15 14:30:00');
+    $expected = date('d/m/Y H:i', $timestamp);
+    
+    $result = $engine->render('date_format.tpl', ['timestamp' => $timestamp]);
+    
+    expect($result)->toBe($expected);
 });

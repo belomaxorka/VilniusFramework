@@ -263,10 +263,13 @@ class TemplateEngine
         $__tpl = $this;
 
         ob_start();
-        eval('?>' . $compiledContent);
-        $output = ob_get_clean();
-
-        return $output;
+        try {
+            eval('?>' . $compiledContent);
+            return ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean(); // Очищаем буфер в случае ошибки
+            throw $e;
+        }
     }
 
     /**
