@@ -12,6 +12,7 @@ class TemplateEngine
     private array $variables = [];
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
+    private array $filters = [];
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
@@ -23,6 +24,9 @@ class TemplateEngine
         if (!is_dir($this->cacheDir)) {
             mkdir($this->cacheDir, 0755, true);
         }
+
+        // Регистрируем встроенные фильтры
+        $this->registerBuiltInFilters();
     }
 
     /**
@@ -126,6 +130,35 @@ class TemplateEngine
     }
 
     /**
+     * Регистрирует пользовательский фильтр
+     */
+    public function addFilter(string $name, callable $callback): self
+    {
+        $this->filters[$name] = $callback;
+        return $this;
+    }
+
+    /**
+     * Проверяет существование фильтра
+     */
+    public function hasFilter(string $name): bool
+    {
+        return isset($this->filters[$name]);
+    }
+
+    /**
+     * Применяет фильтр к значению
+     */
+    public function applyFilter(string $name, mixed $value, ...$args): mixed
+    {
+        if (!isset($this->filters[$name])) {
+            throw new \InvalidArgumentException("Filter '{$name}' not found");
+        }
+
+        return call_user_func($this->filters[$name], $value, ...$args);
+    }
+
+    /**
      * Компилирует шаблон в PHP код
      */
     private function compileTemplate(string $content): string
@@ -158,14 +191,48 @@ class TemplateEngine
         }, $content);
         $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
 
-        // Обрабатываем переменные {{ variable }}
+        // Обрабатываем переменные {{ variable }} с поддержкой фильтров
         $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
-            return '<?= htmlspecialchars((string)(' . $this->processVariable($matches[1]) . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
+            // Разделяем на переменную и фильтры
+            $parts = $this->splitByPipe($matches[1]);
+            $variable = $this->processVariable(array_shift($parts));
+            
+            // Применяем фильтры
+            $compiled = $variable;
+            foreach ($parts as $filter) {
+                $filter = trim($filter);
+                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                    $filterName = $filterMatches[1];
+                    $args = $filterMatches[2];
+                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+                } else {
+                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+                }
+            }
+            
+            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
         }, $content);
 
-        // Обрабатываем неэкранированные переменные {! variable !}
+        // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
         $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
-            return '<?= ' . $this->processVariable($matches[1]) . ' ?? \'\' ?>';
+            // Разделяем на переменную и фильтры
+            $parts = $this->splitByPipe($matches[1]);
+            $variable = $this->processVariable(array_shift($parts));
+            
+            // Применяем фильтры
+            $compiled = $variable;
+            foreach ($parts as $filter) {
+                $filter = trim($filter);
+                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                    $filterName = $filterMatches[1];
+                    $args = $filterMatches[2];
+                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+                } else {
+                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+                }
+            }
+            
+            return '<?= ' . $compiled . ' ?? \'\' ?>';
         }, $content);
 
         // Обрабатываем включения {% include 'template.tpl' %}
@@ -341,6 +408,66 @@ class TemplateEngine
     }
 
     /**
+     * Разделяет выражение по символу | с учетом строк и скобок
+     */
+    private function splitByPipe(string $expression): array
+    {
+        $parts = [];
+        $current = '';
+        $depth = 0;
+        $inString = false;
+        $stringChar = null;
+        $length = strlen($expression);
+        
+        for ($i = 0; $i < $length; $i++) {
+            $char = $expression[$i];
+            $prevChar = $i > 0 ? $expression[$i - 1] : '';
+            
+            // Проверяем открытие/закрытие строки
+            if (($char === '"' || $char === "'") && $prevChar !== '\\') {
+                if (!$inString) {
+                    $inString = true;
+                    $stringChar = $char;
+                } elseif ($char === $stringChar) {
+                    $inString = false;
+                    $stringChar = null;
+                }
+                $current .= $char;
+                continue;
+            }
+            
+            // Внутри строки просто добавляем символ
+            if ($inString) {
+                $current .= $char;
+                continue;
+            }
+            
+            // Отслеживаем вложенность скобок
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            }
+            
+            // Разделяем по | только на верхнем уровне
+            if ($char === '|' && $depth === 0) {
+                $parts[] = $current;
+                $current = '';
+                continue;
+            }
+            
+            $current .= $char;
+        }
+        
+        // Добавляем последнюю часть
+        if ($current !== '') {
+            $parts[] = $current;
+        }
+        
+        return $parts;
+    }
+
+    /**
      * Обрабатывает переменные в выражениях (для {{ }} и {! !})
      */
     private function processVariable(string $expression): string
@@ -441,5 +568,89 @@ class TemplateEngine
         
         // Возвращаем выражение вместе с защищенными фрагментами
         return ['expression' => $expression, 'protected' => $protected];
+    }
+
+    /**
+     * Регистрирует встроенные фильтры
+     */
+    private function registerBuiltInFilters(): void
+    {
+        // Фильтры для текста
+        $this->addFilter('upper', fn($value) => mb_strtoupper((string)$value, 'UTF-8'));
+        $this->addFilter('lower', fn($value) => mb_strtolower((string)$value, 'UTF-8'));
+        $this->addFilter('capitalize', fn($value) => mb_convert_case((string)$value, MB_CASE_TITLE, 'UTF-8'));
+        $this->addFilter('trim', fn($value) => trim((string)$value));
+        
+        // Фильтры для HTML
+        $this->addFilter('escape', fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'));
+        $this->addFilter('e', fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8')); // алиас
+        $this->addFilter('striptags', fn($value) => strip_tags((string)$value));
+        $this->addFilter('nl2br', fn($value) => nl2br((string)$value));
+        
+        // Фильтры для чисел
+        $this->addFilter('abs', fn($value) => abs((float)$value));
+        $this->addFilter('round', fn($value, $precision = 0) => round((float)$value, (int)$precision));
+        $this->addFilter('number_format', function($value, $decimals = 0, $decPoint = '.', $thousandsSep = ',') {
+            return number_format((float)$value, (int)$decimals, $decPoint, $thousandsSep);
+        });
+        
+        // Фильтры для массивов
+        $this->addFilter('length', function($value) {
+            if (is_array($value) || $value instanceof \Countable) {
+                return count($value);
+            }
+            return mb_strlen((string)$value, 'UTF-8');
+        });
+        $this->addFilter('count', fn($value) => is_array($value) || $value instanceof \Countable ? count($value) : 0);
+        $this->addFilter('join', fn($value, $separator = '') => is_array($value) ? implode($separator, $value) : $value);
+        $this->addFilter('first', fn($value) => is_array($value) && !empty($value) ? reset($value) : null);
+        $this->addFilter('last', fn($value) => is_array($value) && !empty($value) ? end($value) : null);
+        $this->addFilter('keys', fn($value) => is_array($value) ? array_keys($value) : []);
+        $this->addFilter('values', fn($value) => is_array($value) ? array_values($value) : []);
+        
+        // Фильтры для строк
+        $this->addFilter('truncate', function($value, $length = 80, $suffix = '...') {
+            $str = (string)$value;
+            if (mb_strlen($str, 'UTF-8') <= $length) {
+                return $str;
+            }
+            return mb_substr($str, 0, $length, 'UTF-8') . $suffix;
+        });
+        $this->addFilter('replace', fn($value, $search, $replace) => str_replace($search, $replace, (string)$value));
+        $this->addFilter('split', fn($value, $delimiter = ',') => explode($delimiter, (string)$value));
+        $this->addFilter('reverse', fn($value) => is_array($value) ? array_reverse($value) : strrev((string)$value));
+        
+        // Фильтры для форматирования
+        $this->addFilter('date', function($value, $format = 'Y-m-d H:i:s') {
+            if ($value instanceof \DateTimeInterface) {
+                return $value->format($format);
+            }
+            if (is_numeric($value)) {
+                return date($format, (int)$value);
+            }
+            if (is_string($value)) {
+                $timestamp = strtotime($value);
+                return $timestamp ? date($format, $timestamp) : $value;
+            }
+            return $value;
+        });
+        
+        // Фильтры для значений по умолчанию
+        $this->addFilter('default', fn($value, $default = '') => empty($value) ? $default : $value);
+        
+        // Фильтры для JSON
+        $this->addFilter('json', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $this->addFilter('json_decode', fn($value) => json_decode((string)$value, true));
+        
+        // Фильтры для URL
+        $this->addFilter('url_encode', fn($value) => urlencode((string)$value));
+        $this->addFilter('url_decode', fn($value) => urldecode((string)$value));
+        
+        // Фильтры для отладки
+        $this->addFilter('dump', function($value) {
+            ob_start();
+            var_dump($value);
+            return '<pre>' . htmlspecialchars(ob_get_clean(), ENT_QUOTES, 'UTF-8') . '</pre>';
+        });
     }
 }
