@@ -116,6 +116,7 @@ it('adds where conditions', function (): void {
         'column' => 'age',
         'operator' => '>',
         'value' => 30,
+        'boolean' => 'AND',
     ]);
 });
 
@@ -148,7 +149,7 @@ it('adds join conditions', function (): void {
 
     expect($joins)->toHaveCount(1);
     expect($joins[0])->toBe([
-        'type' => 'inner',
+        'type' => 'INNER',
         'table' => 'posts',
         'first' => 'users.id',
         'operator' => '=',
@@ -170,7 +171,7 @@ it('adds order by clauses', function (): void {
     expect($orders)->toHaveCount(1);
     expect($orders[0])->toBe([
         'column' => 'name',
-        'direction' => 'desc',
+        'direction' => 'DESC',
     ]);
 });
 
@@ -182,7 +183,7 @@ it('uses default order direction', function (): void {
     $ordersProperty->setAccessible(true);
     $orders = $ordersProperty->getValue($this->queryBuilder);
 
-    expect($orders[0]['direction'])->toBe('asc');
+    expect($orders[0]['direction'])->toBe('ASC');
 });
 
 it('sets limit', function (): void {
@@ -249,7 +250,7 @@ it('generates correct SQL with joins', function (): void {
         ->join('posts', 'users.id', '=', 'posts.user_id')
         ->toSql();
 
-    expect($sql)->toBe('SELECT * FROM users inner JOIN posts ON users.id = posts.user_id');
+    expect($sql)->toBe('SELECT * FROM users INNER JOIN posts ON users.id = posts.user_id');
 });
 
 it('generates correct SQL with order by', function (): void {
@@ -257,7 +258,7 @@ it('generates correct SQL with order by', function (): void {
         ->orderBy('name', 'desc')
         ->toSql();
 
-    expect($sql)->toBe('SELECT * FROM users ORDER BY name desc');
+    expect($sql)->toBe('SELECT * FROM users ORDER BY name DESC');
 });
 
 it('generates correct SQL with multiple order by clauses', function (): void {
@@ -266,7 +267,7 @@ it('generates correct SQL with multiple order by clauses', function (): void {
         ->orderBy('name', 'asc')
         ->toSql();
 
-    expect($sql)->toBe('SELECT * FROM users ORDER BY age desc, name asc');
+    expect($sql)->toBe('SELECT * FROM users ORDER BY age DESC, name ASC');
 });
 
 it('generates correct SQL with limit', function (): void {
@@ -303,7 +304,7 @@ it('generates complex SQL query', function (): void {
         ->limit(5)
         ->toSql();
 
-    expect($sql)->toBe('SELECT name, email FROM users inner JOIN posts ON users.id = posts.user_id WHERE age > ? ORDER BY name asc LIMIT 5');
+    expect($sql)->toBe('SELECT name, email FROM users INNER JOIN posts ON users.id = posts.user_id WHERE age > ? ORDER BY name ASC LIMIT 5');
 });
 
 it('executes get query and returns results', function (): void {
@@ -393,7 +394,8 @@ it('handles bindings correctly', function (): void {
     $bindingsProperty->setAccessible(true);
     $bindings = $bindingsProperty->getValue($this->queryBuilder);
 
-    expect($bindings)->toBe([30, 'Bob Johnson']);
+    // Биндинги теперь структурированы по типам
+    expect($bindings['where'])->toBe([30, 'Bob Johnson']);
 });
 
 it('executes query with correct bindings', function (): void {

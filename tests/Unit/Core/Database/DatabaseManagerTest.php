@@ -330,7 +330,10 @@ it('gets connection info', function (): void {
     expect($info)->toBe($this->config['connections']['test']);
 
     $info = $db->getConnectionInfo('mysql');
-    expect($info)->toBe($this->config['connections']['mysql']);
+    // Пароль теперь скрывается
+    $expected = $this->config['connections']['mysql'];
+    $expected['password'] = '******';
+    expect($info)->toBe($expected);
 });
 
 it('throws query exception on invalid sql', function (): void {
@@ -347,5 +350,5 @@ it('throws query exception on insert with invalid data', function (): void {
     $connection->exec('CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
 
     expect(fn() => $db->insert('INSERT INTO test_table (name) VALUES (?)', [null]))
-        ->toThrow(QueryException::class, 'Insert failed:');
+        ->toThrow(QueryException::class, 'Query failed:');
 });
