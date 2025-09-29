@@ -71,7 +71,10 @@ abstract class BaseModel
     public function fill(array $attributes): self
     {
         foreach ($attributes as $key => $value) {
-            $this->setAttribute($key, $value);
+            // Пропускаем числовые ключи
+            if (is_string($key)) {
+                $this->setAttribute($key, $value);
+            }
         }
         
         return $this;
