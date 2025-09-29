@@ -30,15 +30,20 @@ class TestUser extends BaseModel
         return strtolower($value);
     }
     
-    // Scope
-    public function scopeActive($query)
+    // Custom Scopes (не переопределяем scopeActive из BaseModel)
+    public function scopeVerified(QueryBuilder $query): QueryBuilder
     {
-        return $query->where('active', 1);
+        return $query->where('verified', 1);
     }
     
-    public function scopeInCountry($query, $country)
+    public function scopeInCountry(QueryBuilder $query, string $country): QueryBuilder
     {
         return $query->where('country', $country);
+    }
+    
+    public function scopeOlderThan(QueryBuilder $query, int $age): QueryBuilder
+    {
+        return $query->where('age', '>', $age);
     }
 }
 
@@ -411,10 +416,17 @@ it('checks existence', function (): void {
 // Scope Tests
 // ============================================================================
 
-it('applies local scope', function (): void {
+it('applies local scope from base model', function (): void {
+    // scopeActive уже определен в BaseModel
     $users = TestUser::active()->get();
     
-    expect($users)->toHaveCount(2);
+    expect($users)->toHaveCount(2); // active = 1
+});
+
+it('applies custom local scope', function (): void {
+    $users = TestUser::verified()->get();
+    
+    expect($users)->toHaveCount(3); // verified = 1
 });
 
 it('applies scope with parameters', function (): void {
@@ -423,10 +435,16 @@ it('applies scope with parameters', function (): void {
     expect($users)->toHaveCount(2);
 });
 
+it('applies scope with numeric parameter', function (): void {
+    $users = TestUser::olderThan(25)->get();
+    
+    expect($users)->toHaveCount(2); // age > 25: john(30), bob(35)
+});
+
 it('chains multiple scopes', function (): void {
     $users = TestUser::active()->inCountry('USA')->get();
     
-    expect($users)->toHaveCount(1);
+    expect($users)->toHaveCount(1); // active=1 AND country='USA'
 });
 
 // ============================================================================
