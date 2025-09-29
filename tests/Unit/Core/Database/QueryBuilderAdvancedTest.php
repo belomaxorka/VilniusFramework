@@ -160,7 +160,10 @@ it('handles orWhereNull', function (): void {
         ->orWhereNull('email_verified_at')
         ->get();
 
-    expect($results)->toHaveCount(4);
+    // country='USA': John, Bob (2)
+    // email_verified_at IS NULL: Bob, Charlie (2)
+    // Уникальных: John, Bob, Charlie = 3
+    expect($results)->toHaveCount(3);
 });
 
 it('handles orWhereNotNull', function (): void {
@@ -169,7 +172,10 @@ it('handles orWhereNotNull', function (): void {
         ->orWhereNotNull('email_verified_at')
         ->get();
 
-    expect($results)->toHaveCount(4);
+    // active=0: Alice (1)
+    // email_verified_at IS NOT NULL: John, Jane, Alice (3)
+    // Уникальных: 3 (Alice, John, Jane)
+    expect($results)->toHaveCount(3);
 });
 
 it('generates correct SQL for whereNull', function (): void {
@@ -369,22 +375,26 @@ it('handles groupBy with multiple columns', function (): void {
 });
 
 it('handles having', function (): void {
+    // В SQLite HAVING работает только с агрегатными функциями, не с алиасами
+    // posts: user_id=1 (2 posts), user_id=2 (1 post), user_id=3 (1 post)
+    // Только user_id=1 имеет COUNT(*) > 1
     $results = $this->queryBuilder->table('posts')
         ->select('user_id', 'COUNT(*) as post_count')
         ->groupBy('user_id')
-        ->having('post_count', '>', 1)
+        ->having('COUNT(*)', '>', 1)
         ->get();
 
     expect($results)->toHaveCount(1);
-    expect((int)$results[0]['post_count'])->toBeGreaterThan(1);
+    expect($results[0]['user_id'])->toBe(1);
+    expect((int)$results[0]['post_count'])->toBe(2);
 });
 
 it('handles orHaving', function (): void {
     $results = $this->queryBuilder->table('orders')
         ->select('user_id', 'COUNT(*) as order_count', 'SUM(total) as total_spent')
         ->groupBy('user_id')
-        ->having('order_count', '>', 2)
-        ->orHaving('total_spent', '>', 200)
+        ->having('COUNT(*)', '>', 2)
+        ->orHaving('SUM(total)', '>', 200)
         ->get();
 
     expect($results)->toBeArray();

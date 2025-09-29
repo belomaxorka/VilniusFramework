@@ -706,7 +706,15 @@ class QueryBuilder
      */
     public function truncate(): bool
     {
-        $sql = "TRUNCATE TABLE {$this->table}";
+        $driver = $this->db->getDriverName();
+        
+        // SQLite не поддерживает TRUNCATE, используем DELETE
+        if ($driver === 'sqlite') {
+            $sql = "DELETE FROM {$this->table}";
+        } else {
+            $sql = "TRUNCATE TABLE {$this->table}";
+        }
+        
         return $this->db->statement($sql);
     }
 

@@ -508,7 +508,15 @@ abstract class BaseModel
      */
     public static function truncate(): bool
     {
-        return (new static)->db->statement("TRUNCATE TABLE " . (new static)->table);
+        $model = new static;
+        $driver = $model->db->getDriverName();
+        
+        // SQLite не поддерживает TRUNCATE, используем DELETE
+        if ($driver === 'sqlite') {
+            return $model->db->statement("DELETE FROM " . $model->table);
+        }
+        
+        return $model->db->statement("TRUNCATE TABLE " . $model->table);
     }
 
     /**
