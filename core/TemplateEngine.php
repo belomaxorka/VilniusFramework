@@ -13,7 +13,7 @@ class TemplateEngine
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
 
-    public function __construct(string $templateDir = null, string $cacheDir = null)
+    public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
         $root = defined('ROOT') ? ROOT : dirname(__DIR__, 2);
         $this->templateDir = $templateDir ?? $root . '/resources/views';
