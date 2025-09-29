@@ -1,8 +1,8 @@
 {
-  "name": "belomaxorka/framework",
-  "description": "Lightweight PHP CMS Framework",
+  "name": "belomaxorka/vilnius-framework",
+  "description": "Lightweight PHP Framework",
   "type": "project",
-  "homepage": "https://github.com/belomaxorka/framework",
+  "homepage": "https://github.com/belomaxorka/VilniusFramework",
   "license": "Apache-2.0",
   "authors": [
     {
