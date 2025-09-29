@@ -1,5 +1,7 @@
 <?php declare(strict_types=1);
 
+define('VILNIUS_START', microtime(true));
+
 // Define paths
 define('ROOT', realpath(__DIR__ . '/../'));
 define('CONFIG_DIR', ROOT . '/config');
