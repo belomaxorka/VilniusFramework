@@ -114,13 +114,13 @@ it('creates model instance', function (): void {
 
 it('fills model with attributes', function (): void {
     $user = new TestUser([
-        'name' => 'Test User',
-        'email' => 'test@example.com',
+        'name' => 'test user',
+        'email' => 'TEST@EXAMPLE.COM',
         'age' => 40
     ]);
     
-    expect($user->name)->toBe('Test user'); // Accessor применен
-    expect($user->email)->toBe('test@example.com'); // Mutator применен
+    expect($user->name)->toBe('Test user'); // Accessor применен (ucfirst)
+    expect($user->email)->toBe('test@example.com'); // Mutator применен (strtolower)
     expect($user->age)->toBe(40);
 });
 
@@ -250,7 +250,7 @@ it('paginates results', function (): void {
 it('creates new record', function (): void {
     $id = TestUser::create([
         'name' => 'New User',
-        'email' => 'NEW@EXAMPLE.COM',
+        'email' => 'new@example.com',
         'age' => 28,
         'country' => 'UK'
     ]);
@@ -260,7 +260,7 @@ it('creates new record', function (): void {
     
     $user = TestUser::find($id);
     expect($user['name'])->toBe('New User');
-    expect($user['email'])->toBe('new@example.com'); // Mutator применен
+    expect($user['email'])->toBe('new@example.com');
 });
 
 it('respects fillable when creating', function (): void {
@@ -454,13 +454,23 @@ it('chains multiple scopes', function (): void {
 it('applies accessor when getting attribute', function (): void {
     $user = new TestUser(['name' => 'john']);
     
-    expect($user->name)->toBe('John'); // Первая буква заглавная
+    expect($user->name)->toBe('John'); // ucfirst - первая буква заглавная
 });
 
 it('applies mutator when setting attribute', function (): void {
     $user = new TestUser(['email' => 'TEST@EXAMPLE.COM']);
     
-    expect($user->email)->toBe('test@example.com'); // Lowercase
+    expect($user->email)->toBe('test@example.com'); // strtolower - все буквы маленькие
+});
+
+it('applies mutator and accessor together', function (): void {
+    $user = new TestUser([
+        'name' => 'test user',
+        'email' => 'USER@EXAMPLE.COM'
+    ]);
+    
+    expect($user->name)->toBe('Test user'); // Accessor: ucfirst
+    expect($user->email)->toBe('user@example.com'); // Mutator: strtolower
 });
 
 // ============================================================================
