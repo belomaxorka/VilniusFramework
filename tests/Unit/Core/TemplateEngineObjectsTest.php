@@ -40,9 +40,13 @@ test('can render template with object property access', function () {
     $templateFile = $this->testTemplateDir . '/object.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $user = new stdClass();
+    $user->name = 'John';
+    $user->email = 'john@example.com';
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('object.tpl', [
-        'user' => ['name' => 'John', 'email' => 'john@example.com']
+        'user' => $user
     ]);
     
     expect($result)->toBe('Hello John!');
@@ -66,15 +70,17 @@ test('can render template with nested object access', function () {
     $templateFile = $this->testTemplateDir . '/nested.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $address = new stdClass();
+    $address->city = 'New York';
+    $address->country = 'USA';
+    
+    $user = new stdClass();
+    $user->name = 'John';
+    $user->address = $address;
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('nested.tpl', [
-        'user' => [
-            'name' => 'John',
-            'address' => [
-                'city' => 'New York',
-                'country' => 'USA'
-            ]
-        ]
+        'user' => $user
     ]);
     
     expect($result)->toBe('City: New York');
@@ -85,12 +91,17 @@ test('can render template with mixed array and object access', function () {
     $templateFile = $this->testTemplateDir . '/mixed.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $user1 = new stdClass();
+    $user1->name = 'John';
+    $user1->email = 'john@example.com';
+    
+    $user2 = new stdClass();
+    $user2->name = 'Jane';
+    $user2->email = 'jane@example.com';
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('mixed.tpl', [
-        'users' => [
-            ['name' => 'John', 'email' => 'john@example.com'],
-            ['name' => 'Jane', 'email' => 'jane@example.com']
-        ]
+        'users' => [$user1, $user2]
     ]);
     
     expect($result)->toBe('Name: John, Email: jane@example.com');
@@ -101,12 +112,13 @@ test('can render template with array access using string key', function () {
     $templateFile = $this->testTemplateDir . '/string_key.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $config = new stdClass();
+    $config->status = 'active';
+    $config->version = '1.0';
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('string_key.tpl', [
-        'config' => [
-            'status' => 'active',
-            'version' => '1.0'
-        ]
+        'config' => $config
     ]);
     
     expect($result)->toBe('Status: active');
@@ -117,18 +129,19 @@ test('can render template with complex nested access', function () {
     $templateFile = $this->testTemplateDir . '/complex.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $profile = new stdClass();
+    $profile->name = 'John Doe';
+    $profile->age = 30;
+    
+    $user = new stdClass();
+    $user->profile = $profile;
+    
+    $data = new stdClass();
+    $data->users = [$user];
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('complex.tpl', [
-        'data' => [
-            'users' => [
-                [
-                    'profile' => [
-                        'name' => 'John Doe',
-                        'age' => 30
-                    ]
-                ]
-            ]
-        ]
+        'data' => $data
     ]);
     
     expect($result)->toBe('User: John Doe, Age: 30');
@@ -139,9 +152,12 @@ test('can handle undefined object properties gracefully', function () {
     $templateFile = $this->testTemplateDir . '/undefined.tpl';
     file_put_contents($templateFile, $templateContent);
     
+    $user = new stdClass();
+    $user->name = 'John';
+    
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $result = $engine->render('undefined.tpl', [
-        'user' => ['name' => 'John']
+        'user' => $user
     ]);
     
     expect($result)->toBe('Name: John, Missing: ');
