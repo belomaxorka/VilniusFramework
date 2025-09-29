@@ -191,22 +191,29 @@ class TemplateEngine
     private function executeTemplate(string $compiledContent, array $variables): string
     {
         extract($variables);
-
-        // Helper-функция для унифицированного доступа к массивам и объектам
-        $__getValue = function ($data, $key) {
-            if (is_array($data)) {
-                return $data[$key] ?? null;
-            } elseif (is_object($data)) {
-                return $data->$key ?? null;
-            }
-            return null;
-        };
+        
+        // Передаем ссылку на движок шаблонов для доступа к helper-методам
+        $__tpl = $this;
 
         ob_start();
         eval('?>' . $compiledContent);
         $output = ob_get_clean();
 
         return $output;
+    }
+
+    /**
+     * Унифицированный доступ к свойствам массивов и объектов
+     * Используется в скомпилированных шаблонах
+     */
+    private function getValue($data, $key)
+    {
+        if (is_array($data)) {
+            return $data[$key] ?? null;
+        } elseif (is_object($data)) {
+            return $data->$key ?? null;
+        }
+        return null;
     }
 
     /**
@@ -393,7 +400,7 @@ class TemplateEngine
                 // Проверяем доступ через точку: .property
                 if (preg_match('/^\.([a-zA-Z_][a-zA-Z0-9_]*)/', $remaining, $propMatch)) {
                     $property = $propMatch[1];
-                    $result = '$__getValue(' . $result . ', "' . $property . '")';
+                    $result = '$__tpl->getValue(' . $result . ', "' . $property . '")';
                     $remaining = substr($remaining, strlen($propMatch[0]));
                 }
                 // Проверяем доступ через квадратные скобки: [index] или ["key"]
