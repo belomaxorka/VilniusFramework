@@ -307,7 +307,9 @@ class TemplateEngine
         }, $condition);
 
         // Обрабатываем комплексные выражения с точками и массивами
-        $condition = $this->processPropertyAccess($condition);
+        $result = $this->processPropertyAccess($condition);
+        $condition = $result['expression'];
+        $protected = $result['protected'];
 
         // Заменяем логические операторы
         $condition = str_replace(' and ', ' && ', $condition);
@@ -318,12 +320,17 @@ class TemplateEngine
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not'];
         $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
             $var = $matches[1];
-            // Пропускаем ключевые слова и уже обработанные переменные
-            if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0 || strpos($var, '$') === 0) {
+            // Пропускаем ключевые слова и защищенные фрагменты
+            if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
             return '$' . $var;
         }, $condition);
+
+        // Восстанавливаем защищенные фрагменты
+        foreach ($protected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
 
         // Восстанавливаем строки
         foreach ($strings as $index => $string) {
@@ -353,17 +360,24 @@ class TemplateEngine
         }, $expression);
 
         // Обрабатываем комплексные выражения с точками и массивами
-        $expression = $this->processPropertyAccess($expression);
+        $result = $this->processPropertyAccess($expression);
+        $expression = $result['expression'];
+        $protected = $result['protected'];
 
         // Обрабатываем простые переменные (которые еще не обработаны)
         $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) {
             $var = $matches[1];
-            // Пропускаем защищенные строки и уже обработанные переменные
-            if (strpos($var, '___') === 0 || strpos($var, '$') === 0) {
+            // Пропускаем защищенные фрагменты и строки
+            if (strpos($var, '___') === 0) {
                 return $var;
             }
             return '$' . $var;
         }, $expression);
+
+        // Восстанавливаем защищенные фрагменты
+        foreach ($protected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
 
         // Восстанавливаем строки
         foreach ($strings as $index => $string) {
@@ -375,14 +389,18 @@ class TemplateEngine
 
     /**
      * Обрабатывает доступ к свойствам и элементам (унифицированно для массивов и объектов)
+     * @return array{expression: string, protected: array<string, string>}
      */
-    private function processPropertyAccess(string $expression): string
+    private function processPropertyAccess(string $expression): array
     {
+        // Массив для хранения защищенных фрагментов
+        $protected = [];
+        
         // Регулярное выражение для поиска цепочек вида: variable.property[index].another
         // Ищем паттерн: начало_имени[индекс или .свойство]*
         $pattern = '/\b([a-zA-Z_][a-zA-Z0-9_]*)([.\[][\w\[\]."\']+)?/';
         
-        $expression = preg_replace_callback($pattern, function ($matches) {
+        $expression = preg_replace_callback($pattern, function ($matches) use (&$protected) {
             $baseName = $matches[1];
             $accessors = $matches[2] ?? '';
             
@@ -415,9 +433,13 @@ class TemplateEngine
                 }
             }
             
-            return $result;
+            // Защищаем результат от дальнейшей обработки
+            $placeholder = '___PROTECTED_' . count($protected) . '___';
+            $protected[$placeholder] = $result;
+            return $placeholder;
         }, $expression);
         
-        return $expression;
+        // Возвращаем выражение вместе с защищенными фрагментами
+        return ['expression' => $expression, 'protected' => $protected];
     }
 }
