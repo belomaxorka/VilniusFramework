@@ -276,7 +276,7 @@ class TemplateEngine
     private function processVariableInCondition(string $condition): string
     {
         // Обрабатываем простые переменные (без точек и скобок)
-        // Исключаем ключевые слова PHP
+        // Исключаем ключевые слова PHP и уже обработанные переменные
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'if', 'else', 'elseif', 'endif', 'for', 'endfor', 'while', 'endwhile'];
         
         $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) use ($phpKeywords) {
@@ -284,7 +284,11 @@ class TemplateEngine
             if (in_array(strtolower($var), $phpKeywords)) {
                 return $var;
             }
-            return '$$' . $var;
+            // Проверяем, не является ли это уже переменной PHP
+            if (strpos($var, '$') === 0) {
+                return $var;
+            }
+            return '$' . $var;
         }, $condition);
         
         // Обрабатываем доступ к свойствам объектов и элементам массивов
@@ -301,8 +305,15 @@ class TemplateEngine
         // Обрабатываем доступ к свойствам объектов и элементам массивов через точку
         $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1["$2"]', $expression);
         
-        // Обрабатываем простые переменные
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1', $expression);
+        // Обрабатываем простые переменные (исключаем уже обработанные)
+        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) {
+            $var = $matches[1];
+            // Проверяем, не является ли это уже переменной PHP
+            if (strpos($var, '$') === 0) {
+                return $var;
+            }
+            return '$' . $var;
+        }, $expression);
         
         return $expression;
     }
