@@ -375,10 +375,22 @@ describe('Env edge cases', function () {
         
         Env::load($envFile);
         
-        expect(Env::get('EMPTY_VAR'))->toBe('');
-        expect(Env::get('SPACES_VAR'))->toBe('');
+        // Пустые значения парсятся как false согласно логике parseValue()
+        expect(Env::get('EMPTY_VAR'))->toBeFalse();
+        expect(Env::get('SPACES_VAR'))->toBeFalse();
         
         unlink($envFile);
+    });
+
+    test('can set empty string directly', function () {
+        // Метод set() позволяет установить пустую строку напрямую
+        Env::set('EMPTY_STRING', '');
+        expect(Env::get('EMPTY_STRING'))->toBe('');
+        
+        // Но если установить через $_ENV, то пустая строка будет парситься как false
+        $_ENV['EMPTY_FROM_ENV'] = '';
+        Env::clearCache();
+        expect(Env::get('EMPTY_FROM_ENV'))->toBeFalse();
     });
 
     test('handles variables with equals sign in value', function () {
