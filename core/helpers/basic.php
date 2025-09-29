@@ -44,3 +44,37 @@ function env(string $key, mixed $default = null): mixed
 
     return $_SERVER[$key] ?? $default;
 }
+
+/**
+ * Render template (shortcut for Core\TemplateEngine::getInstance()->render)
+ *
+ * @param string $template Template name
+ * @param array $variables Template variables
+ * @return string
+ */
+function view(string $template, array $variables = []): string
+{
+    return \Core\TemplateEngine::getInstance()->render($template, $variables);
+}
+
+/**
+ * Display template (shortcut for Core\TemplateEngine::getInstance()->display)
+ *
+ * @param string $template Template name
+ * @param array $variables Template variables
+ * @return void
+ */
+function display(string $template, array $variables = []): void
+{
+    \Core\TemplateEngine::getInstance()->display($template, $variables);
+}
+
+/**
+ * Get template engine instance (shortcut for Core\TemplateEngine::getInstance)
+ *
+ * @return \Core\TemplateEngine
+ */
+function template(): \Core\TemplateEngine
+{
+    return \Core\TemplateEngine::getInstance();
+}
