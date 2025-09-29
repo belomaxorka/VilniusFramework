@@ -6,11 +6,29 @@ class HomeController
 {
     public function index(): void
     {
-        echo "Hello from HomeController!";
+        $data = [
+            'title' => 'Welcome to TorrentPier',
+            'message' => 'Hello from HomeController!',
+            'users' => [
+                ['name' => 'John', 'email' => 'john@example.com'],
+                ['name' => 'Jane', 'email' => 'jane@example.com'],
+                ['name' => 'Bob', 'email' => 'bob@example.com']
+            ]
+        ];
+        
+        display('welcome.tpl', $data);
     }
 
     public function name(string $name): void
     {
-        echo __('hello', ['name' => $name]);
+        $data = [
+            'title' => 'Personal Greeting',
+            'name' => $name,
+            'greeting' => __('hello', ['name' => $name]),
+            'message' => "Welcome, {$name}!",
+            'users' => [] // Пустой массив пользователей
+        ];
+        
+        display('welcome.tpl', $data);
     }
 }

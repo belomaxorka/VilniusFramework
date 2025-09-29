@@ -12,6 +12,7 @@ final class Core
         self::initConfigLoader();
         self::initializeLangManager();
         self::initializeDatabase();
+        self::initializeTemplateEngine();
     }
 
     private static function initEnvironment(): void
@@ -50,5 +51,11 @@ final class Core
     private static function initializeDatabase(): void
     {
         Database::init();
+    }
+
+    private static function initializeTemplateEngine(): void
+    {
+        // Инициализация шаблонизатора будет происходить по требованию
+        // через статический метод TemplateEngine::getInstance()
     }
 }
