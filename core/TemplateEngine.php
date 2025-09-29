@@ -15,8 +15,9 @@ class TemplateEngine
 
     public function __construct(string $templateDir = null, string $cacheDir = null)
     {
-        $this->templateDir = $templateDir ?? ROOT . '/resources/views';
-        $this->cacheDir = $cacheDir ?? ROOT . '/storage/cache/templates';
+        $root = defined('ROOT') ? ROOT : dirname(__DIR__, 2);
+        $this->templateDir = $templateDir ?? $root . '/resources/views';
+        $this->cacheDir = $cacheDir ?? $root . '/storage/cache/templates';
         
         // Создаем директорию кэша если её нет
         if (!is_dir($this->cacheDir)) {
@@ -139,13 +140,19 @@ class TemplateEngine
         $content = preg_replace('/\{\!\s*([^}]+)\s*\!\}/', '<?= $\\1 ?? \'\' ?>', $content);
 
         // Обрабатываем условия {% if condition %}
-        $content = preg_replace('/\{\%\s*if\s+([^%]+)\s*\%\}/', '<?php if (\\1): ?>', $content);
-        $content = preg_replace('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', '<?php elseif (\\1): ?>', $content);
+        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function($matches) {
+            return '<?php if (' . $this->processVariableInCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function($matches) {
+            return '<?php elseif (' . $this->processVariableInCondition($matches[1]) . '): ?>';
+        }, $content);
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
         // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', '<?php foreach (\\2 as $\\1): ?>', $content);
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function($matches) {
+            return '<?php foreach (' . $this->processVariableInCondition($matches[2]) . ' as $' . $matches[1] . '): ?>';
+        }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
         // Обрабатываем циклы while {% while condition %}
@@ -257,5 +264,19 @@ class TemplateEngine
 
         $content = file_get_contents($extendsPath);
         return $this->compileTemplate($content);
+    }
+
+    /**
+     * Обрабатывает переменные в условиях и циклах
+     */
+    private function processVariableInCondition(string $condition): string
+    {
+        // Обрабатываем простые переменные (без точек и скобок)
+        $condition = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1', $condition);
+        
+        // Обрабатываем доступ к свойствам объектов и элементам массивов
+        $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$$1["$2"]', $condition);
+        
+        return $condition;
     }
 }

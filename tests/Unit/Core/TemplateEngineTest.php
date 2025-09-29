@@ -138,6 +138,12 @@ test('throws exception for non-existent template', function () {
 });
 
 test('can get singleton instance', function () {
+    // Сбрасываем singleton для теста
+    $reflection = new ReflectionClass(TemplateEngine::class);
+    $instanceProperty = $reflection->getProperty('instance');
+    $instanceProperty->setAccessible(true);
+    $instanceProperty->setValue(null);
+    
     $instance1 = TemplateEngine::getInstance();
     $instance2 = TemplateEngine::getInstance();
     
