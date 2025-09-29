@@ -142,7 +142,7 @@ test('can get singleton instance', function () {
     $reflection = new ReflectionClass(TemplateEngine::class);
     $instanceProperty = $reflection->getProperty('instance');
     $instanceProperty->setAccessible(true);
-    $instanceProperty->setValue(null);
+    $instanceProperty->setValue(null, null);
     
     $instance1 = TemplateEngine::getInstance();
     $instance2 = TemplateEngine::getInstance();
