@@ -272,7 +272,16 @@ class TemplateEngine
     private function processVariableInCondition(string $condition): string
     {
         // Обрабатываем простые переменные (без точек и скобок)
-        $condition = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1', $condition);
+        // Исключаем ключевые слова PHP
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'if', 'else', 'elseif', 'endif', 'for', 'endfor', 'while', 'endwhile'];
+        
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) use ($phpKeywords) {
+            $var = $matches[1];
+            if (in_array(strtolower($var), $phpKeywords)) {
+                return $var;
+            }
+            return '$$' . $var;
+        }, $condition);
         
         // Обрабатываем доступ к свойствам объектов и элементам массивов
         $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$$1["$2"]', $condition);

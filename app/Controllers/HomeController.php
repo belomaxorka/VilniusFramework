@@ -24,7 +24,8 @@ class HomeController
         $data = [
             'title' => 'Personal Greeting',
             'name' => $name,
-            'greeting' => __('hello', ['name' => $name])
+            'greeting' => __('hello', ['name' => $name]),
+            'message' => "Welcome, {$name}!"
         ];
         
         display('welcome.tpl', $data);
