@@ -302,18 +302,38 @@ class TemplateEngine
      */
     private function processVariableInExpression(string $expression): string
     {
-        // Обрабатываем доступ к свойствам объектов и элементам массивов через точку
-        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1["$2"]', $expression);
+        // Обрабатываем доступ к объектам и массивам (например: user.name, items[0])
+        $expression = $this->processObjectAndArrayAccess($expression);
         
-        // Обрабатываем простые переменные (исключаем уже обработанные)
+        // Затем обрабатываем простые переменные (исключаем уже обработанные)
         $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) {
             $var = $matches[1];
-            // Проверяем, не является ли это уже переменной PHP
-            if (strpos($var, '$') === 0) {
+            // Проверяем, не является ли это уже переменной PHP или обработанным выражением
+            if (strpos($var, '$') === 0 || strpos($var, '[') !== false || strpos($var, '"') !== false) {
                 return $var;
             }
             return '$' . $var;
         }, $expression);
+        
+        return $expression;
+    }
+
+    /**
+     * Обрабатывает доступ к объектам и массивам
+     */
+    private function processObjectAndArrayAccess(string $expression): string
+    {
+        // Обрабатываем доступ к свойствам объектов через точку (например: user.name)
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$1["$2"]', $expression);
+        
+        // Обрабатываем доступ к элементам массива через квадратные скобки (например: items[0])
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*([^\]]+)\s*\]/', '$1[$2]', $expression);
+        
+        // Обрабатываем вложенный доступ (например: user["address"].city)
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*["\']([^"\']+)["\']\s*\]\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$1["$2"]["$3"]', $expression);
+        
+        // Обрабатываем смешанный доступ (например: users[0].name)
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*([^\]]+)\s*\]\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$1[$2]["$3"]', $expression);
         
         return $expression;
     }
