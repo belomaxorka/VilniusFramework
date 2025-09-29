@@ -130,6 +130,9 @@ class TemplateEngine
      */
     private function compileTemplate(string $content): string
     {
+        // Удаляем комментарии {# comment #}
+        $content = preg_replace('/\{#.*?#\}/s', '', $content);
+        
         // Экранируем PHP теги
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
 
