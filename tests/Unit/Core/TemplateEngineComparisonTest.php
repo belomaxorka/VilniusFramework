@@ -146,7 +146,7 @@ test('can render template with string comparison', function () {
 });
 
 test('can render template with array property comparison', function () {
-    $templateContent = '{% if user.age >= 18 %}Welcome, {{ user.name }}!{% endif %}';
+    $templateContent = '{% if user.age >= 18 %}Adult user{% endif %}';
     $templateFile = $this->testTemplateDir . '/array_comparison.tpl';
     file_put_contents($templateFile, $templateContent);
 
@@ -155,9 +155,27 @@ test('can render template with array property comparison', function () {
     $result1 = $engine->render('array_comparison.tpl', [
         'user' => ['name' => 'John', 'age' => 20]
     ]);
-    expect($result1)->toBe('Welcome, John!');
+    expect($result1)->toBe('Adult user');
 
     $result2 = $engine->render('array_comparison.tpl', [
+        'user' => ['name' => 'Jane', 'age' => 16]
+    ]);
+    expect($result2)->toBe('');
+});
+
+test('can render template with array property in condition and output', function () {
+    $templateContent = '{% if user.age >= 18 %}{{ user.name }}{% endif %}';
+    $templateFile = $this->testTemplateDir . '/array_output_comparison.tpl';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('array_output_comparison.tpl', [
+        'user' => ['name' => 'John', 'age' => 20]
+    ]);
+    expect($result1)->toBe('John');
+
+    $result2 = $engine->render('array_output_comparison.tpl', [
         'user' => ['name' => 'Jane', 'age' => 16]
     ]);
     expect($result2)->toBe('');
