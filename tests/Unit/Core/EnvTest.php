@@ -10,6 +10,11 @@ beforeEach(function () {
     unset($_ENV['TEST_VAR']);
     unset($_SERVER['TEST_VAR']);
     putenv('TEST_VAR');
+    
+    // Очищаем другие тестовые переменные
+    unset($_ENV['NON_EXISTENT_VAR']);
+    unset($_SERVER['NON_EXISTENT_VAR']);
+    putenv('NON_EXISTENT_VAR');
 });
 
 describe('Env::get()', function () {
@@ -199,7 +204,8 @@ describe('Env value parsing', function () {
         $trueValues = ['true', 'TRUE', '1', 'yes', 'YES', 'on', 'ON'];
         
         foreach ($trueValues as $value) {
-            Env::set('TEST_VAR', $value);
+            $_ENV['TEST_VAR'] = $value;
+            Env::clearCache();
             expect(Env::get('TEST_VAR'))->toBeTrue();
         }
     });
@@ -208,7 +214,8 @@ describe('Env value parsing', function () {
         $falseValues = ['false', 'FALSE', '0', 'no', 'NO', 'off', 'OFF', ''];
         
         foreach ($falseValues as $value) {
-            Env::set('TEST_VAR', $value);
+            $_ENV['TEST_VAR'] = $value;
+            Env::clearCache();
             expect(Env::get('TEST_VAR'))->toBeFalse();
         }
     });
@@ -217,29 +224,35 @@ describe('Env value parsing', function () {
         $nullValues = ['null', 'NULL', 'nil', 'NIL'];
         
         foreach ($nullValues as $value) {
-            Env::set('TEST_VAR', $value);
+            $_ENV['TEST_VAR'] = $value;
+            Env::clearCache();
             expect(Env::get('TEST_VAR'))->toBeNull();
         }
     });
 
     test('parses integer values', function () {
-        Env::set('TEST_VAR', '123');
+        $_ENV['TEST_VAR'] = '123';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe(123);
         
-        Env::set('TEST_VAR', '-456');
+        $_ENV['TEST_VAR'] = '-456';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe(-456);
     });
 
     test('parses float values', function () {
-        Env::set('TEST_VAR', '123.45');
+        $_ENV['TEST_VAR'] = '123.45';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe(123.45);
         
-        Env::set('TEST_VAR', '-67.89');
+        $_ENV['TEST_VAR'] = '-67.89';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe(-67.89);
     });
 
     test('parses JSON objects', function () {
-        Env::set('TEST_VAR', '{"key": "value", "number": 123}');
+        $_ENV['TEST_VAR'] = '{"key": "value", "number": 123}';
+        Env::clearCache();
         $result = Env::get('TEST_VAR');
         
         expect($result)->toBeArray();
@@ -248,7 +261,8 @@ describe('Env value parsing', function () {
     });
 
     test('parses JSON arrays', function () {
-        Env::set('TEST_VAR', '[1, 2, 3, "test"]');
+        $_ENV['TEST_VAR'] = '[1, 2, 3, "test"]';
+        Env::clearCache();
         $result = Env::get('TEST_VAR');
         
         expect($result)->toBeArray();
@@ -256,17 +270,20 @@ describe('Env value parsing', function () {
     });
 
     test('returns string for invalid JSON', function () {
-        Env::set('TEST_VAR', '{invalid json}');
+        $_ENV['TEST_VAR'] = '{invalid json}';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe('{invalid json}');
     });
 
     test('returns string for regular text', function () {
-        Env::set('TEST_VAR', 'regular text');
+        $_ENV['TEST_VAR'] = 'regular text';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe('regular text');
     });
 
     test('trims whitespace from values', function () {
-        Env::set('TEST_VAR', '  test value  ');
+        $_ENV['TEST_VAR'] = '  test value  ';
+        Env::clearCache();
         expect(Env::get('TEST_VAR'))->toBe('test value');
     });
 });
