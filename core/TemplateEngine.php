@@ -278,8 +278,24 @@ class TemplateEngine
      */
     private function processVariableInCondition(string $condition): string
     {
-        // Обрабатываем простые переменные (без точек и скобок)
-        // Исключаем ключевые слова PHP и уже обработанные переменные
+        // Сначала защищаем строки в кавычках
+        $strings = [];
+        $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function($matches) use (&$strings) {
+            $strings[] = $matches[0];
+            return '___STRING_' . (count($strings) - 1) . '___';
+        }, $condition);
+        
+        // Затем обрабатываем доступ к свойствам объектов и элементам массивов
+        $condition = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$1["$2"]', $condition);
+        
+        // Защищаем слова внутри квадратных скобок
+        $brackets = [];
+        $condition = preg_replace_callback('/\["([^"]+)"\]/', function($matches) use (&$brackets) {
+            $brackets[] = $matches[0];
+            return '[___BRACKET_' . (count($brackets) - 1) . '___]';
+        }, $condition);
+        
+        // Теперь обрабатываем простые переменные
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'if', 'else', 'elseif', 'endif', 'for', 'endfor', 'while', 'endwhile'];
         
         $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) use ($phpKeywords) {
@@ -287,15 +303,26 @@ class TemplateEngine
             if (in_array(strtolower($var), $phpKeywords)) {
                 return $var;
             }
-            // Проверяем, не является ли это уже переменной PHP
-            if (strpos($var, '$') === 0) {
+            // Проверяем, не является ли это уже переменной PHP или обработанным выражением
+            if (strpos($var, '$') === 0 || strpos($var, '[') !== false) {
+                return $var;
+            }
+            // Исключаем защищенные строки
+            if (strpos($var, '___STRING_') === 0 || strpos($var, '___BRACKET_') === 0) {
                 return $var;
             }
             return '$' . $var;
         }, $condition);
         
-        // Обрабатываем доступ к свойствам объектов и элементам массивов
-        $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$$1["$2"]', $condition);
+        // Восстанавливаем скобки
+        foreach ($brackets as $index => $bracket) {
+            $condition = str_replace('[___BRACKET_' . $index . '___]', $bracket, $condition);
+        }
+        
+        // Восстанавливаем строки
+        foreach ($strings as $index => $string) {
+            $condition = str_replace('___STRING_' . $index . '___', $string, $condition);
+        }
         
         return $condition;
     }
