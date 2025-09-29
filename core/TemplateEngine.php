@@ -12,34 +12,6 @@ class TemplateEngine
     private array $variables = [];
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
-    
-    /**
-     * Доступные фильтры
-     */
-    private array $filters = [
-        'upper' => 'strtoupper',
-        'lower' => 'strtolower',
-        'capitalize' => 'ucfirst',
-        'title' => 'ucwords',
-        'trim' => 'trim',
-        'length' => 'strlen',
-        'reverse' => 'strrev',
-        'date' => 'date',
-        'number_format' => 'number_format',
-        'json_encode' => 'json_encode',
-        'json_decode' => 'json_decode',
-        'url_encode' => 'urlencode',
-        'url_decode' => 'urldecode',
-        'html_entities' => 'htmlentities',
-        'html_entity_decode' => 'html_entity_decode',
-        'nl2br' => 'nl2br',
-        'wordwrap' => 'wordwrap',
-        'substr' => 'substr',
-        'round' => 'round',
-        'abs' => 'abs',
-        'ceil' => 'ceil',
-        'floor' => 'floor',
-    ];
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
@@ -330,7 +302,10 @@ class TemplateEngine
      */
     private function processVariableInExpression(string $expression): string
     {
-        // Сначала обрабатываем простые переменные
+        // Обрабатываем доступ к свойствам объектов и элементам массивов через точку
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1["$2"]', $expression);
+        
+        // Обрабатываем простые переменные (исключаем уже обработанные)
         $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function($matches) {
             $var = $matches[1];
             // Проверяем, не является ли это уже переменной PHP
@@ -340,95 +315,6 @@ class TemplateEngine
             return '$' . $var;
         }, $expression);
         
-        // Затем обрабатываем фильтры (например: name|upper, date|date("Y-m-d"))
-        $expression = $this->processFilters($expression);
-        
-        // Обрабатываем доступ к свойствам объектов и элементам массивов через точку
-        $expression = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$$1["$2"]', $expression);
-        
         return $expression;
-    }
-
-    /**
-     * Обрабатывает фильтры в выражениях
-     */
-    private function processFilters(string $expression): string
-    {
-        // Обрабатываем цепочки фильтров (например: $name|upper|trim)
-        $expression = preg_replace_callback('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*(\|[^|]*(?:\|[^|]*)*)/', function($matches) {
-            $variable = $matches[1];
-            $filtersChain = $matches[2];
-            
-            // Разбираем цепочку фильтров
-            $filters = explode('|', $filtersChain);
-            $result = '$' . $variable;
-            
-            foreach ($filters as $filter) {
-                $filter = trim($filter);
-                if (empty($filter)) continue;
-                
-                // Обрабатываем фильтр с параметрами (например: date("Y-m-d"))
-                if (preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)$/', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $filterParams = $filterMatches[2];
-                    
-                    if (isset($this->filters[$filterName])) {
-                        $filterFunction = $this->filters[$filterName];
-                        if (is_callable($filterFunction)) {
-                            // Для callable фильтров создаем специальную конструкцию
-                            $result = '$this->applyFilter(' . var_export($filterFunction, true) . ', ' . $result . ', ' . $filterParams . ')';
-                        } else {
-                            $result = $filterFunction . '(' . $result . ', ' . $filterParams . ')';
-                        }
-                    } else {
-                        // Неизвестный фильтр - оставляем как есть
-                        $result = $filterName . '(' . $result . ', ' . $filterParams . ')';
-                    }
-                } else {
-                    // Простой фильтр без параметров
-                    if (isset($this->filters[$filter])) {
-                        $filterFunction = $this->filters[$filter];
-                        if (is_callable($filterFunction)) {
-                            // Для callable фильтров создаем специальную конструкцию
-                            $result = '$this->applyFilter(' . var_export($filterFunction, true) . ', ' . $result . ')';
-                        } else {
-                            $result = $filterFunction . '(' . $result . ')';
-                        }
-                    } else {
-                        // Неизвестный фильтр - оставляем как есть
-                        $result = $filter . '(' . $result . ')';
-                    }
-                }
-            }
-            
-            return $result;
-        }, $expression);
-        
-        return $expression;
-    }
-
-    /**
-     * Добавляет пользовательский фильтр
-     */
-    public function addFilter(string $name, callable $callback): self
-    {
-        $this->filters[$name] = $callback;
-        return $this;
-    }
-
-    /**
-     * Получает список доступных фильтров
-     */
-    public function getFilters(): array
-    {
-        return array_keys($this->filters);
-    }
-
-    /**
-     * Применяет фильтр к значению (для callable фильтров)
-     */
-    public function applyFilter(callable $filter, mixed $value, ...$params): mixed
-    {
-        return call_user_func($filter, $value, ...$params);
     }
 }
