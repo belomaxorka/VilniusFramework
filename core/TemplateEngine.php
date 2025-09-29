@@ -134,10 +134,14 @@ class TemplateEngine
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
 
         // Обрабатываем переменные {{ variable }}
-        $content = preg_replace('/\{\{\s*([^}]+)\s*\}\}/', '<?= htmlspecialchars($\\1 ?? \'\', ENT_QUOTES, \'UTF-8\') ?>', $content);
+        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function($matches) {
+            return '<?= htmlspecialchars(' . $this->processVariableInExpression($matches[1]) . ' ?? \'\', ENT_QUOTES, \'UTF-8\') ?>';
+        }, $content);
 
         // Обрабатываем неэкранированные переменные {! variable !}
-        $content = preg_replace('/\{\!\s*([^}]+)\s*\!\}/', '<?= $\\1 ?? \'\' ?>', $content);
+        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function($matches) {
+            return '<?= ' . $this->processVariableInExpression($matches[1]) . ' ?? \'\' ?>';
+        }, $content);
 
         // Обрабатываем условия {% if condition %}
         $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function($matches) {
@@ -287,5 +291,19 @@ class TemplateEngine
         $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)/', '$$1["$2"]', $condition);
         
         return $condition;
+    }
+
+    /**
+     * Обрабатывает переменные в выражениях (для {{ }} и {! !})
+     */
+    private function processVariableInExpression(string $expression): string
+    {
+        // Обрабатываем доступ к свойствам объектов и элементам массивов через точку
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1["$2"]', $expression);
+        
+        // Обрабатываем простые переменные
+        $expression = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', '$$1', $expression);
+        
+        return $expression;
     }
 }

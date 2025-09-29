@@ -25,7 +25,8 @@ class HomeController
             'title' => 'Personal Greeting',
             'name' => $name,
             'greeting' => __('hello', ['name' => $name]),
-            'message' => "Welcome, {$name}!"
+            'message' => "Welcome, {$name}!",
+            'users' => [] // Пустой массив пользователей
         ];
         
         display('welcome.tpl', $data);
