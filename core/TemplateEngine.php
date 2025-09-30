@@ -32,11 +32,14 @@ class TemplateEngine
 
     /**
      * Получает единственный экземпляр шаблонизатора (Singleton)
+     * 
+     * @param string|null $templateDir Директория шаблонов (используется только при первом вызове)
+     * @param string|null $cacheDir Директория кэша (используется только при первом вызове)
      */
-    public static function getInstance(): TemplateEngine
+    public static function getInstance(?string $templateDir = null, ?string $cacheDir = null): TemplateEngine
     {
         if (self::$instance === null) {
-            self::$instance = new self();
+            self::$instance = new self($templateDir, $cacheDir);
         }
         return self::$instance;
     }
