@@ -95,6 +95,27 @@ it('merges config when loading files with same key', function (): void {
     }
 });
 
+it('overwrites scalar values instead of creating arrays', function (): void {
+    $dir1 = createTempConfigDir([
+        'app.php' => ['name' => 'OldName', 'debug' => false],
+    ]);
+    $dir2 = createTempConfigDir([
+        'app.php' => ['name' => 'NewName', 'debug' => true],
+    ]);
+
+    try {
+        Config::loadFile($dir1 . DIRECTORY_SEPARATOR . 'app.php');
+        Config::loadFile($dir2 . DIRECTORY_SEPARATOR . 'app.php');
+
+        // Should overwrite, not create arrays
+        expect(Config::get('app.name'))->toBe('NewName');
+        expect(Config::get('app.debug'))->toBe(true);
+    } finally {
+        deleteDir($dir1);
+        deleteDir($dir2);
+    }
+});
+
 it('throws when loading non-existing directory', function (): void {
     expect(fn() => Config::load('Z:/definitely/nonexistent/path'))
         ->toThrow(InvalidArgumentException::class);
@@ -161,4 +182,765 @@ it('has and forget work for top-level keys without dot notation', function (): v
     expect(Config::has('top'))->toBeFalse();
     expect(Config::get('top', 'default'))
         ->toBe('default');
+});
+
+// === Cache Tests ===
+
+it('caches configuration to file', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::set('database.host', 'localhost');
+
+        expect(Config::cache($cachePath))->toBeTrue();
+        expect(file_exists($cachePath))->toBeTrue();
+
+        // Verify cache file content
+        $cached = require $cachePath;
+        expect($cached)->toBeArray();
+        expect($cached['items']['app']['name'])->toBe('TestApp');
+        expect($cached['items']['database']['host'])->toBe('localhost');
+        expect($cached['timestamp'])->toBeInt();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('loads configuration from cache', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::set('database.host', 'localhost');
+        Config::cache($cachePath);
+
+        Config::clear();
+        expect(Config::get('app.name'))->toBeNull();
+
+        expect(Config::loadCached($cachePath))->toBeTrue();
+        expect(Config::get('app.name'))->toBe('TestApp');
+        expect(Config::get('database.host'))->toBe('localhost');
+        expect(Config::isLoadedFromCache())->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('returns false when loading non-existent cache', function (): void {
+    expect(Config::loadCached('/nonexistent/cache.php'))->toBeFalse();
+});
+
+it('throws when cache file is corrupted', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        file_put_contents($cachePath, '<?php return "invalid";');
+        expect(fn() => Config::loadCached($cachePath))
+            ->toThrow(RuntimeException::class, 'corrupted or invalid');
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('checks if cache exists', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        expect(Config::isCached($cachePath))->toBeFalse();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        expect(Config::isCached($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('clears cache file', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+        expect(file_exists($cachePath))->toBeTrue();
+
+        expect(Config::clearCache($cachePath))->toBeTrue();
+        expect(file_exists($cachePath))->toBeFalse();
+
+        // Clearing non-existent cache should return true
+        expect(Config::clearCache($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('gets cache info', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        expect(Config::getCacheInfo($cachePath))->toBeNull();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        $info = Config::getCacheInfo($cachePath);
+        expect($info)->toBeArray();
+        expect($info['timestamp'])->toBeInt();
+        expect($info['size'])->toBeInt();
+        expect($info['size'])->toBeGreaterThan(0);
+        expect($info['created_at'])->toBeString();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('creates cache directory if not exists', function (): void {
+    $cacheDir = sys_get_temp_dir() . '/config_test_' . uniqid();
+    $cachePath = $cacheDir . '/cache.php';
+
+    try {
+        expect(is_dir($cacheDir))->toBeFalse();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        expect(is_dir($cacheDir))->toBeTrue();
+        expect(file_exists($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+        if (is_dir($cacheDir)) {
+            @rmdir($cacheDir);
+        }
+    }
+});
+
+it('clear() resets loadedFromCache flag', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        Config::clear();
+        Config::loadCached($cachePath);
+        expect(Config::isLoadedFromCache())->toBeTrue();
+
+        Config::clear();
+        expect(Config::isLoadedFromCache())->toBeFalse();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+// === Array Methods Tests ===
+
+it('pushes value to array', function (): void {
+    Config::set('app.providers', ['Provider1']);
+    Config::push('app.providers', 'Provider2');
+    Config::push('app.providers', 'Provider3');
+
+    expect(Config::get('app.providers'))->toBe(['Provider1', 'Provider2', 'Provider3']);
+});
+
+it('pushes to non-existent key creates array', function (): void {
+    Config::push('new.array', 'FirstValue');
+    expect(Config::get('new.array'))->toBe(['FirstValue']);
+});
+
+it('throws when pushing to non-array value', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(fn() => Config::push('app.name', 'value'))
+        ->toThrow(RuntimeException::class, 'not an array');
+});
+
+it('prepends value to array', function (): void {
+    Config::set('app.middleware', ['MiddlewareC']);
+    Config::prepend('app.middleware', 'MiddlewareB');
+    Config::prepend('app.middleware', 'MiddlewareA');
+
+    expect(Config::get('app.middleware'))->toBe(['MiddlewareA', 'MiddlewareB', 'MiddlewareC']);
+});
+
+it('prepends to non-existent key creates array', function (): void {
+    Config::prepend('new.array', 'FirstValue');
+    expect(Config::get('new.array'))->toBe(['FirstValue']);
+});
+
+it('throws when prepending to non-array value', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(fn() => Config::prepend('app.name', 'value'))
+        ->toThrow(RuntimeException::class, 'not an array');
+});
+
+it('pulls value and removes it', function (): void {
+    Config::set('temp.value', 'temporary');
+    
+    $value = Config::pull('temp.value');
+    
+    expect($value)->toBe('temporary');
+    expect(Config::has('temp.value'))->toBeFalse();
+});
+
+it('pulls with default when key missing', function (): void {
+    $value = Config::pull('nonexistent.key', 'default_value');
+    expect($value)->toBe('default_value');
+});
+
+it('pulls nested value', function (): void {
+    Config::set('app.temp.secret', 'sensitive_data');
+    
+    $value = Config::pull('app.temp.secret', null);
+    
+    expect($value)->toBe('sensitive_data');
+    expect(Config::has('app.temp.secret'))->toBeFalse();
+    expect(Config::has('app.temp'))->toBeTrue(); // Parent still exists
+});
+
+// === Macro Tests ===
+
+it('registers and resolves a macro', function (): void {
+    $counter = 0;
+    
+    Config::macro('app.timestamp', function () use (&$counter) {
+        $counter++;
+        return time();
+    });
+
+    expect(Config::isMacro('app.timestamp'))->toBeTrue();
+    
+    // Resolving should execute the callable
+    $result = Config::resolve('app.timestamp');
+    expect($result)->toBeInt();
+    expect($counter)->toBe(1);
+    
+    // Each resolve executes it again (not memoized by default)
+    Config::resolve('app.timestamp');
+    expect($counter)->toBe(2);
+});
+
+it('get returns callable without executing for macros', function (): void {
+    Config::macro('app.factory', fn() => 'created');
+    
+    $value = Config::get('app.factory');
+    expect($value)->toBeCallable();
+});
+
+it('resolve executes macro only if registered', function (): void {
+    // Regular callable set without macro() should NOT be executed
+    Config::set('app.callback', fn() => 'should-not-execute');
+    
+    $result = Config::resolve('app.callback');
+    expect($result)->toBeCallable(); // Returns the callable itself
+});
+
+it('resolves nested macro with dot notation', function (): void {
+    Config::macro('database.connection.factory', function () {
+        return [
+            'host' => 'localhost',
+            'port' => 3306,
+        ];
+    });
+
+    $result = Config::resolve('database.connection.factory');
+    expect($result)->toBe([
+        'host' => 'localhost',
+        'port' => 3306,
+    ]);
+});
+
+it('resolves all macros recursively', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::macro('app.version', fn() => '1.0.0');
+    Config::macro('database.host', fn() => 'localhost');
+    Config::set('database.port', 3306);
+
+    $resolved = Config::resolveAll();
+    
+    expect($resolved['app']['name'])->toBe('MyApp');
+    expect($resolved['app']['version'])->toBe('1.0.0');
+    expect($resolved['database']['host'])->toBe('localhost');
+    expect($resolved['database']['port'])->toBe(3306);
+});
+
+it('clear removes macros', function (): void {
+    Config::macro('app.factory', fn() => 'value');
+    expect(Config::isMacro('app.factory'))->toBeTrue();
+    
+    Config::clear();
+    expect(Config::isMacro('app.factory'))->toBeFalse();
+});
+
+it('macros are excluded from cache', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'MyApp');
+        Config::macro('app.factory', fn() => 'lazy-value');
+        Config::cache($cachePath);
+
+        Config::clear();
+        expect(Config::isMacro('app.factory'))->toBeFalse();
+
+        Config::loadCached($cachePath);
+        
+        // Regular config is restored
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Macros are NOT restored from cache
+        expect(Config::isMacro('app.factory'))->toBeFalse();
+        expect(Config::get('app.factory'))->toBeNull();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('resolves with default when macro does not exist', function (): void {
+    $result = Config::resolve('nonexistent.macro', 'default-value');
+    expect($result)->toBe('default-value');
+});
+
+it('macro can access external state', function (): void {
+    $externalValue = 'external';
+    
+    Config::macro('app.dynamic', function () use ($externalValue) {
+        return "Value: {$externalValue}";
+    });
+
+    expect(Config::resolve('app.dynamic'))->toBe('Value: external');
+});
+
+// === Environment-specific Config Tests ===
+
+it('loads environment-specific configs from subdirectory', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'debug' => false, 'version' => '1.0'],
+        'database.php' => ['host' => 'localhost', 'port' => 3306],
+    ]);
+
+    // Create production subdirectory with overrides
+    $prodDir = $dir . DIRECTORY_SEPARATOR . 'production';
+    mkdir($prodDir, 0755, true);
+    file_put_contents(
+        $prodDir . DIRECTORY_SEPARATOR . 'app.php',
+        '<?php return ' . var_export(['debug' => false, 'log_level' => 'error'], true) . ';'
+    );
+    file_put_contents(
+        $prodDir . DIRECTORY_SEPARATOR . 'database.php',
+        '<?php return ' . var_export(['host' => 'prod-server.com'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'production');
+
+        // Base config values
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.version'))->toBe('1.0');
+        
+        // Overridden by environment
+        expect(Config::get('app.debug'))->toBe(false);
+        expect(Config::get('app.log_level'))->toBe('error');
+        expect(Config::get('database.host'))->toBe('prod-server.com');
+        
+        // Not overridden
+        expect(Config::get('database.port'))->toBe(3306);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads environment-specific configs with suffix', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'debug' => true],
+        'database.php' => ['host' => 'localhost'],
+    ]);
+
+    // Create local environment files with suffix
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.local.php',
+        '<?php return ' . var_export(['debug' => true, 'dev_mode' => true], true) . ';'
+    );
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'database.local.php',
+        '<?php return ' . var_export(['host' => '127.0.0.1', 'logging' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'local');
+
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.debug'))->toBe(true);
+        expect(Config::get('app.dev_mode'))->toBe(true);
+        expect(Config::get('database.host'))->toBe('127.0.0.1');
+        expect(Config::get('database.logging'))->toBe(true);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads both subdirectory and suffix environment configs', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'priority' => 'base'],
+    ]);
+
+    // Subdirectory approach
+    $testDir = $dir . DIRECTORY_SEPARATOR . 'testing';
+    mkdir($testDir, 0755, true);
+    file_put_contents(
+        $testDir . DIRECTORY_SEPARATOR . 'app.php',
+        '<?php return ' . var_export(['priority' => 'subdirectory', 'from_dir' => true], true) . ';'
+    );
+
+    // Suffix approach (loaded after subdirectory, so has higher priority)
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.testing.php',
+        '<?php return ' . var_export(['priority' => 'suffix', 'from_suffix' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'testing');
+
+        // Suffix has priority (loaded last)
+        expect(Config::get('app.priority'))->toBe('suffix');
+        expect(Config::get('app.from_dir'))->toBe(true);
+        expect(Config::get('app.from_suffix'))->toBe(true);
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('works without environment parameter (backward compatible)', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    try {
+        Config::load($dir); // No environment parameter
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('ignores non-existent environment configs gracefully', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    try {
+        Config::load($dir, 'nonexistent-env');
+        // Should load base configs without errors
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+// === Immutable/Lock Tests ===
+
+it('locks configuration to prevent modifications', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(Config::isLocked())->toBeFalse();
+    
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    expect(fn() => Config::set('app.name', 'NewName'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents set() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    expect(fn() => Config::set('app.version', '2.0'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents forget() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    expect(fn() => Config::forget('app.name'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents push() when locked', function (): void {
+    Config::set('app.providers', ['Provider1']);
+    Config::lock();
+    
+    expect(fn() => Config::push('app.providers', 'Provider2'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents prepend() when locked', function (): void {
+    Config::set('app.middleware', ['Middleware1']);
+    Config::lock();
+    
+    expect(fn() => Config::prepend('app.middleware', 'Middleware0'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents pull() when locked', function (): void {
+    Config::set('temp.value', 'temporary');
+    Config::lock();
+    
+    expect(fn() => Config::pull('temp.value'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents macro() when locked', function (): void {
+    Config::lock();
+    
+    expect(fn() => Config::macro('app.factory', fn() => 'value'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('allows get() and has() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    // Read operations should work
+    expect(Config::get('app.name'))->toBe('MyApp');
+    expect(Config::has('app.name'))->toBeTrue();
+});
+
+it('allows resolve() when locked', function (): void {
+    Config::macro('app.factory', fn() => 'value');
+    Config::lock();
+    
+    // Resolving should work even when locked
+    expect(Config::resolve('app.factory'))->toBe('value');
+});
+
+it('unlocks configuration', function (): void {
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    Config::unlock();
+    expect(Config::isLocked())->toBeFalse();
+    
+    // Should be able to modify again
+    Config::set('app.name', 'MyApp');
+    expect(Config::get('app.name'))->toBe('MyApp');
+});
+
+it('clear() unlocks configuration', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    Config::clear();
+    expect(Config::isLocked())->toBeFalse();
+    
+    // Should be able to set again
+    Config::set('app.name', 'NewApp');
+    expect(Config::get('app.name'))->toBe('NewApp');
+});
+
+it('typical workflow: load, configure, lock', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'version' => '1.0'],
+    ]);
+
+    try {
+        // 1. Load configuration
+        Config::load($dir);
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // 2. Make runtime modifications
+        Config::set('app.initialized', true);
+        expect(Config::get('app.initialized'))->toBeTrue();
+        
+        // 3. Lock for production safety
+        Config::lock();
+        
+        // 4. Reading still works
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.initialized'))->toBeTrue();
+        
+        // 5. Modifications are prevented
+        expect(fn() => Config::set('app.hacked', true))
+            ->toThrow(RuntimeException::class);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+// === Recursive Loading Tests ===
+
+it('loads configuration recursively from subdirectories', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    // Create subdirectories with configs
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp', 'host' => 'mail.example.com'], true) . ';'
+    );
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'sms.php',
+        '<?php return ' . var_export(['provider' => 'twilio'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true); // recursive = true
+
+        // Root level config
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Namespaced by directory
+        expect(Config::get('services.mail.driver'))->toBe('smtp');
+        expect(Config::get('services.mail.host'))->toBe('mail.example.com');
+        expect(Config::get('services.sms.provider'))->toBe('twilio');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads deeply nested configuration recursively', function (): void {
+    $dir = createTempConfigDir([]);
+
+    // Create deep nested structure
+    $deepPath = $dir . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'v1';
+    mkdir($deepPath, 0755, true);
+    file_put_contents(
+        $deepPath . DIRECTORY_SEPARATOR . 'github.php',
+        '<?php return ' . var_export(['token' => 'secret123', 'endpoint' => 'api.github.com'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true);
+
+        expect(Config::get('external.api.v1.github.token'))->toBe('secret123');
+        expect(Config::get('external.api.v1.github.endpoint'))->toBe('api.github.com');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('merges configs when loading multiple files with same namespace', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'version' => '1.0'],
+    ]);
+
+    $subDir = $dir . DIRECTORY_SEPARATOR . 'app';
+    mkdir($subDir, 0755, true);
+    file_put_contents(
+        $subDir . DIRECTORY_SEPARATOR . 'extra.php',
+        '<?php return ' . var_export(['feature' => 'enabled'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true);
+
+        // Top-level app config
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.version'))->toBe('1.0');
+        
+        // Subdirectory config in app.extra
+        expect(Config::get('app.extra.feature'))->toBe('enabled');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('works with non-recursive mode (backward compatible)', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp'], true) . ';'
+    );
+
+    try {
+        Config::load($dir); // recursive = false (default)
+
+        // Root level should be loaded
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Subdirectory should NOT be loaded
+        expect(Config::get('services.mail.driver'))->toBeNull();
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('ignores non-php files in recursive mode', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    // Create non-PHP files
+    file_put_contents($dir . DIRECTORY_SEPARATOR . 'readme.txt', 'Just a text file');
+    file_put_contents($dir . DIRECTORY_SEPARATOR . 'config.json', '{"json": true}');
+
+    try {
+        Config::load($dir, null, true);
+
+        // Should only load PHP files
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::has('readme'))->toBeFalse();
+        expect(Config::has('config'))->toBeFalse();
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('combines recursive loading with environment configs', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'env' => 'base'],
+    ]);
+
+    // Create services subdirectory
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp'], true) . ';'
+    );
+
+    // Create local environment override
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.local.php',
+        '<?php return ' . var_export(['env' => 'local', 'debug' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'local', true);
+
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.env'))->toBe('local'); // Overridden by environment
+        expect(Config::get('app.debug'))->toBe(true);
+        expect(Config::get('services.mail.driver'))->toBe('smtp'); // From recursive
+    } finally {
+        deleteDir($dir);
+    }
 });
