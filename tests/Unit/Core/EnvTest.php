@@ -177,13 +177,15 @@ describe('Env::load()', function () {
     });
 
     test('returns true when already loaded and no path provided', function () {
-        // Принудительно устанавливаем флаг loaded
-        Env::load(); // Первый вызов устанавливает $loaded = true
+        // Первый вызов без пути: файл может не найтись, но флаг $loaded устанавливается
+        $firstResult = Env::load();
+        // Может быть true (если .env найден) или false (если не найден)
+        expect($firstResult)->toBeBool();
         
-        // Второй вызов должен вернуть true, так как уже загружен
-        $result = Env::load();
-
-        expect($result)->toBeTrue();
+        // Второй вызов без пути: должен вернуть true, т.к. уже отмечен как "загружен"
+        // Это предотвращает повторные поиски файла при каждом Env::get()
+        $secondResult = Env::load();
+        expect($secondResult)->toBeTrue();
     });
 
     test('reload parameter forces file reload', function () {
