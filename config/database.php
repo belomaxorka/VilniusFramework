@@ -1,8 +1,24 @@
 <?php declare(strict_types=1);
 
+/**
+ * Database Configuration
+ *
+ * Supported drivers: sqlite, mysql, pgsql
+ */
+
 return [
+    /**
+     * Default database connection
+     */
     'default' => env('DB_CONNECTION', 'sqlite'),
+
+    /**
+     * Database connections
+     */
     'connections' => [
+        /**
+         * SQLite connection
+         */
         'sqlite' => [
             'driver' => 'sqlite',
             'database' => STORAGE_DIR . '/database.sqlite',
@@ -12,6 +28,10 @@ return [
                 PDO::ATTR_TIMEOUT => 30,
             ]
         ],
+
+        /**
+         * MySQL connection
+         */
         'mysql' => [
             'driver' => 'mysql',
             'host' => env('DB_HOST', 'localhost'),
@@ -27,6 +47,10 @@ return [
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         ],
+
+        /**
+         * PostgreSQL connection
+         */
         'postgres' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST', 'localhost'),
