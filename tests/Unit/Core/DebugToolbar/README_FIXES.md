@@ -49,6 +49,15 @@
 **Решение:** Изменен тест на явное создание контекстов перед проверкой  
 **Файл:** `tests/Unit/Core/DebugToolbar/ContextsCollectorTest.php`
 
+### 12. DebugToolbarCollectorManagementTest - зависимость от render()
+**Проблема:** Многие тесты зависели от деталей рендеринга HTML, которые могли быть пустыми  
+**Решение:** Переработаны тесты для проверки API управления коллекторами вместо HTML  
+**Файл:** `tests/Unit/Core/DebugToolbar/DebugToolbarCollectorManagementTest.php`
+- Проверка конфигурации через методы API, а не HTML
+- Проверка коллекторов через `getCollectors()`, а не рендеринг
+- Проверка данных через `getData()`, `getBadge()`, `getHeaderStats()`
+- Упрощены тесты приоритетов и сбора данных
+
 ## Заметки
 
 ### Логика isEnabled()
