@@ -120,9 +120,9 @@ class Debug
             if ($item['label']) {
                 $output .= '<span style="color: #007bff;">' . htmlspecialchars($item['label']) . '</span> ';
             }
-            $output .= '<small style="color: #6c757d;">(' . basename($item['file']) . ':' . $item['line'] . ')</small><br>';
+            $output .= '<small style="color: #6c757d;">(' . htmlspecialchars(basename($item['file'])) . ':' . $item['line'] . ')</small><br>';
             $output .= '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            $output .= htmlspecialchars(self::varToString($item['data']));
+            $output .= self::varToString($item['data']);
             $output .= '</pre>';
             $output .= '</div>';
         }
@@ -277,11 +277,11 @@ class Debug
             }
 
             if (self::$showBacktrace) {
-                $output .= '<small style="color: #6c757d;">' . basename($file) . ':' . $line . '</small><br>';
+                $output .= '<small style="color: #6c757d;">' . htmlspecialchars(basename($file)) . ':' . $line . '</small><br>';
             }
 
             $output .= '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            $output .= htmlspecialchars(self::varToString($var));
+            $output .= self::varToString($var);
             $output .= '</pre></div>';
         } else {
             $output = ($label ? "[{$label}] " : '') . basename($file) . ':' . $line . "\n" . self::varToString($var);
@@ -338,7 +338,8 @@ class Debug
         }
 
         if (is_string($var)) {
-            return '"' . addslashes($var) . '"';
+            // Экранируем HTML и добавляем кавычки
+            return '"' . htmlspecialchars($var, ENT_QUOTES, 'UTF-8') . '"';
         }
 
         if (is_numeric($var)) {
@@ -352,7 +353,8 @@ class Debug
 
             $result = "array(\n";
             foreach ($var as $key => $value) {
-                $result .= $indent . '  ' . (is_string($key) ? '"' . addslashes($key) . '"' : $key) . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
+                $keyStr = is_string($key) ? '"' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"' : $key;
+                $result .= $indent . '  ' . $keyStr . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
             $result .= $indent . ')';
             return $result;
@@ -369,7 +371,7 @@ class Debug
             // Добавляем объект в список посещенных
             $objectHashes[] = $objectId;
 
-            $class = get_class($var);
+            $class = htmlspecialchars(get_class($var), ENT_QUOTES, 'UTF-8');
             $result = "object({$class}) {\n";
 
             $reflection = new \ReflectionObject($var);
@@ -378,7 +380,8 @@ class Debug
             foreach ($properties as $property) {
                 $property->setAccessible(true);
                 $value = $property->getValue($var);
-                $result .= $indent . '  ' . $property->getName() . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
+                $propName = htmlspecialchars($property->getName(), ENT_QUOTES, 'UTF-8');
+                $result .= $indent . '  ' . $propName . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
 
             $result .= $indent . '}';
@@ -390,7 +393,7 @@ class Debug
         }
 
         if (is_resource($var)) {
-            return 'resource(' . get_resource_type($var) . ')';
+            return 'resource(' . htmlspecialchars(get_resource_type($var), ENT_QUOTES, 'UTF-8') . ')';
         }
 
         return gettype($var);
