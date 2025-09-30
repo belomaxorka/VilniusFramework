@@ -44,8 +44,8 @@ test('логи ниже минимального уровня не записы�
     expect(file_exists($logFile))->toBeTrue();
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('Error message');
-    expect($content)->not->toContain('Debug message');
+    expect(str_contains($content, 'Error message'))->toBeTrue();
+    expect(str_contains($content, 'Debug message'))->toBeFalse();
     
     @unlink($logFile);
 });
@@ -58,8 +58,8 @@ test('метод debug() работает корректно', function () {
     Logger::debug('Debug test');
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('[DEBUG]');
-    expect($content)->toContain('Debug test');
+    expect(str_contains($content, '[DEBUG]'))->toBeTrue();
+    expect(str_contains($content, 'Debug test'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -72,8 +72,8 @@ test('метод info() работает корректно', function () {
     Logger::info('Info test');
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('[INFO]');
-    expect($content)->toContain('Info test');
+    expect(str_contains($content, '[INFO]'))->toBeTrue();
+    expect(str_contains($content, 'Info test'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -86,8 +86,8 @@ test('метод warning() работает корректно', function () {
     Logger::warning('Warning test');
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('[WARNING]');
-    expect($content)->toContain('Warning test');
+    expect(str_contains($content, '[WARNING]'))->toBeTrue();
+    expect(str_contains($content, 'Warning test'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -100,8 +100,8 @@ test('метод error() работает корректно', function () {
     Logger::error('Error test');
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('[ERROR]');
-    expect($content)->toContain('Error test');
+    expect(str_contains($content, '[ERROR]'))->toBeTrue();
+    expect(str_contains($content, 'Error test'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -114,8 +114,8 @@ test('метод critical() работает корректно', function () {
     Logger::critical('Critical test');
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('[CRITICAL]');
-    expect($content)->toContain('Critical test');
+    expect(str_contains($content, '[CRITICAL]'))->toBeTrue();
+    expect(str_contains($content, 'Critical test'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -131,7 +131,7 @@ test('контекстные данные интерполируются в со
     ]);
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('User John logged in from 127.0.0.1');
+    expect(str_contains($content, 'User John logged in from 127.0.0.1'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -146,7 +146,7 @@ test('массивы в контексте преобразуются в JSON', 
     ]);
     
     $content = file_get_contents($logFile);
-    expect($content)->toContain('{"key":"value","number":123}');
+    expect(str_contains($content, '{"key":"value","number":123}'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -166,8 +166,8 @@ test('можно использовать несколько обработчи�
     $content1 = file_get_contents($logFile1);
     $content2 = file_get_contents($logFile2);
     
-    expect($content1)->toContain('Test message');
-    expect($content2)->toContain('Test message');
+    expect(str_contains($content1, 'Test message'))->toBeTrue();
+    expect(str_contains($content2, 'Test message'))->toBeTrue();
     
     @unlink($logFile1);
     @unlink($logFile2);
@@ -187,11 +187,11 @@ test('уровни логирования соблюдают иерархию', 
     
     $content = file_get_contents($logFile);
     
-    expect($content)->not->toContain('debug');
-    expect($content)->not->toContain('info');
-    expect($content)->toContain('warning');
-    expect($content)->toContain('error');
-    expect($content)->toContain('critical');
+    expect(str_contains($content, 'debug'))->toBeFalse();
+    expect(str_contains($content, 'info'))->toBeFalse();
+    expect(str_contains($content, 'warning'))->toBeTrue();
+    expect(str_contains($content, 'error'))->toBeTrue();
+    expect(str_contains($content, 'critical'))->toBeTrue();
     
     @unlink($logFile);
 });
