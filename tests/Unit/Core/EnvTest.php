@@ -177,6 +177,10 @@ describe('Env::load()', function () {
     });
 
     test('returns true when already loaded and no path provided', function () {
+        // Принудительно устанавливаем флаг loaded
+        Env::load(); // Первый вызов устанавливает $loaded = true
+        
+        // Второй вызов должен вернуть true, так как уже загружен
         $result = Env::load();
 
         expect($result)->toBeTrue();
