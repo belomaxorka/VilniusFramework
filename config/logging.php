@@ -51,7 +51,9 @@ return [
             'channel' => env('LOG_SLACK_CHANNEL', '#logs'),
             'username' => env('LOG_SLACK_USERNAME', 'Logger Bot'),
             'emoji' => env('LOG_SLACK_EMOJI', ':robot_face:'),
-            'min_level' => env('LOG_SLACK_LEVEL', 'debug'), // Only errors to Slack
+            'min_level' => env('LOG_SLACK_LEVEL', 'error'), // Only errors to Slack
+            'async' => env('LOG_SLACK_ASYNC', true), // Использовать очередь для отправки
+            'queue' => env('LOG_SLACK_QUEUE', 'logs'), // Имя очереди
         ],
 
         /**
@@ -64,8 +66,10 @@ return [
             'driver' => 'telegram',
             'bot_token' => env('LOG_TELEGRAM_BOT_TOKEN', ''),
             'chat_id' => env('LOG_TELEGRAM_CHAT_ID', ''),
-            'min_level' => env('LOG_TELEGRAM_LEVEL', 'debug'),
+            'min_level' => env('LOG_TELEGRAM_LEVEL', 'error'),
             'parse_mode' => env('LOG_TELEGRAM_PARSE_MODE', 'HTML'), // HTML or Markdown
+            'async' => env('LOG_TELEGRAM_ASYNC', true), // Использовать очередь для отправки
+            'queue' => env('LOG_TELEGRAM_QUEUE', 'logs'), // Имя очереди
         ],
     ],
 ];
