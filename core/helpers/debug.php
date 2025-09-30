@@ -452,3 +452,77 @@ if (!function_exists('context_filter')) {
         \Core\DebugContext::enableFilter($contexts);
     }
 }
+
+// ============================================================================
+// SQL Query Debugger Functions
+// ============================================================================
+
+if (!function_exists('query_log')) {
+    /**
+     * Query log - залогировать SQL запрос
+     */
+    function query_log(string $sql, array $bindings = [], float $time = 0.0, int $rows = 0): void
+    {
+        \Core\QueryDebugger::log($sql, $bindings, $time, $rows);
+    }
+}
+
+if (!function_exists('query_dump')) {
+    /**
+     * Query dump - вывести все SQL запросы
+     */
+    function query_dump(): void
+    {
+        \Core\QueryDebugger::dump();
+    }
+}
+
+if (!function_exists('query_stats')) {
+    /**
+     * Query stats - получить статистику запросов
+     */
+    function query_stats(): array
+    {
+        return \Core\QueryDebugger::getStats();
+    }
+}
+
+if (!function_exists('query_slow')) {
+    /**
+     * Query slow - получить медленные запросы
+     */
+    function query_slow(): array
+    {
+        return \Core\QueryDebugger::getSlowQueries();
+    }
+}
+
+if (!function_exists('query_duplicates')) {
+    /**
+     * Query duplicates - получить дублирующиеся запросы
+     */
+    function query_duplicates(): array
+    {
+        return \Core\QueryDebugger::getDuplicates();
+    }
+}
+
+if (!function_exists('query_clear')) {
+    /**
+     * Query clear - очистить логи запросов
+     */
+    function query_clear(): void
+    {
+        \Core\QueryDebugger::clear();
+    }
+}
+
+if (!function_exists('query_measure')) {
+    /**
+     * Query measure - измерить выполнение запроса
+     */
+    function query_measure(callable $callback, ?string $label = null): mixed
+    {
+        return \Core\QueryDebugger::measure($callback, $label);
+    }
+}
