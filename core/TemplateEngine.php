@@ -100,7 +100,7 @@ class TemplateEngine
     public function display(string $template, array $variables = []): void
     {
         $output = $this->render($template, $variables);
-        
+
         // Автоматически добавляем Debug Toolbar в development режиме
         if (class_exists('\Core\Environment') && \Core\Environment::isDebug()) {
             // Если это HTML с закрывающим </body>, вставляем toolbar перед ним
@@ -112,7 +112,7 @@ class TemplateEngine
                 $output = str_ireplace('</body>', $toolbar . '</body>', $output);
             }
         }
-        
+
         echo $output;
     }
 
@@ -183,7 +183,7 @@ class TemplateEngine
             $line,
             implode(', ', array_keys($availableVars))
         );
-        
+
         Logger::warning($logMessage);
     }
 
@@ -328,12 +328,12 @@ class TemplateEngine
                 if (preg_match('/Undefined variable\s+\$?(\w+)/i', $message, $matches) ||
                     preg_match('/Undefined array key\s+["\']?(\w+)["\']?/i', $message, $matches)) {
                     $varName = $matches[1];
-                    
+
                     // Логируем в production режиме
                     if ($this->logUndefinedVars && Environment::isProduction()) {
                         $this->logUndefinedVariable($varName, $message, $file, $line, $variables);
                     }
-                    
+
                     // Собираем для статистики
                     if (!isset(self::$undefinedVars[$varName])) {
                         self::$undefinedVars[$varName] = [
@@ -344,7 +344,7 @@ class TemplateEngine
                         ];
                     }
                     self::$undefinedVars[$varName]['count']++;
-                    
+
                     // В development показываем ошибку через ErrorHandler
                     if (Environment::isDevelopment() && error_reporting() & $severity) {
                         // Вызываем наш ErrorHandler для красивого отображения
@@ -354,12 +354,12 @@ class TemplateEngine
                         // Если ErrorHandler недоступен, используем стандартную обработку
                         return false;
                     }
-                    
+
                     // Подавляем ошибку в production
                     return true;
                 }
             }
-            
+
             // Для других ошибок вызываем ErrorHandler или стандартную обработку
             if (class_exists('\Core\ErrorHandler')) {
                 return \Core\ErrorHandler::handleError($severity, $message, $file, $line);
@@ -371,10 +371,10 @@ class TemplateEngine
         try {
             eval('?>' . $compiledContent);
             $output = ob_get_clean();
-            
+
             // Восстанавливаем предыдущий обработчик ошибок
             restore_error_handler();
-            
+
             return $output;
         } catch (\Throwable $e) {
             ob_end_clean(); // Очищаем буфер в случае ошибки

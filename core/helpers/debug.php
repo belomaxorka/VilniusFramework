@@ -131,10 +131,6 @@ if (!function_exists('trace')) {
      */
     function trace(?string $label = null): void
     {
-        if (!Environment::isDebug()) {
-            return;
-        }
-
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $output = $label ? "[{$label}] " : '';
         $output .= "Backtrace:\n";
@@ -149,7 +145,8 @@ if (!function_exists('trace')) {
             $output .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
         }
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             Debug::addOutput('<div style="background: #e3f2fd; border: 1px solid #2196f3; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">' .
                 '<h4 style="color: #1976d2; margin-top: 0;">Backtrace</h4>' .
                 '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">' .
@@ -167,10 +164,6 @@ if (!function_exists('benchmark')) {
      */
     function benchmark(callable $callback, ?string $label = null): mixed
     {
-        if (!Environment::isDebug()) {
-            return $callback();
-        }
-
         $start = microtime(true);
         $result = $callback();
         $end = microtime(true);
@@ -178,7 +171,8 @@ if (!function_exists('benchmark')) {
 
         $message = ($label ? "[{$label}] " : '') . "Execution time: " . number_format($time, 2) . "ms";
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             Debug::addOutput('<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">' .
                 '<h4 style="color: #7b1fa2; margin-top: 0;">Benchmark</h4>' .
                 '<p style="margin: 0; color: #4a148c;">' . htmlspecialchars($message) . '</p>' .

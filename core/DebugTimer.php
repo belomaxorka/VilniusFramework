@@ -179,7 +179,8 @@ class DebugTimer
 
         $output .= '</div>';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             Debug::addOutput($output);
         } else {
             Logger::debug("Timer [{$name}]: {$elapsed}ms");

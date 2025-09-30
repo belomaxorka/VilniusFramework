@@ -89,7 +89,7 @@ function render_debug(): string
     if (class_exists('\Core\Debug')) {
         return \Core\Debug::getOutput();
     }
-    
+
     return '';
 }
 
@@ -103,6 +103,6 @@ function render_debug_toolbar(): string
     if (class_exists('\Core\DebugToolbar')) {
         return \Core\DebugToolbar::render();
     }
-    
+
     return '';
 }

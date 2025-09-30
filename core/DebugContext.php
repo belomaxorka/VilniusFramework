@@ -88,7 +88,7 @@ class DebugContext
         }
 
         self::start($name, $config);
-        
+
         try {
             $result = $callback();
         } finally {
@@ -221,38 +221,38 @@ class DebugContext
 
             $context = self::$contexts[$contextName];
             $config = $context['config'];
-            $duration = $context['ended_at'] 
-                ? ($context['ended_at'] - $context['started_at']) * 1000 
+            $duration = $context['ended_at']
+                ? ($context['ended_at'] - $context['started_at']) * 1000
                 : null;
 
             $output .= '<div style="background: white; border-left: 4px solid ' . $config['color'] . '; margin: 10px 0; padding: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
             $output .= '<div style="display: flex; align-items: center; margin-bottom: 10px;">';
             $output .= '<span style="font-size: 24px; margin-right: 10px;">' . $config['icon'] . '</span>';
             $output .= '<strong style="color: ' . $config['color'] . '; font-size: 16px;">' . htmlspecialchars($config['label']) . '</strong>';
-            
+
             if ($duration !== null) {
                 $output .= '<span style="margin-left: auto; color: #757575; font-size: 12px;">' . number_format($duration, 2) . 'ms</span>';
             }
-            
+
             $output .= '</div>';
 
             if (!empty($context['items'])) {
                 $output .= '<div style="background: #f5f5f5; padding: 10px; border-radius: 3px;">';
                 $output .= '<div style="font-size: 12px; color: #757575; margin-bottom: 5px;">Items: ' . count($context['items']) . '</div>';
-                
+
                 foreach ($context['items'] as $index => $item) {
                     $output .= '<div style="background: white; padding: 8px; margin: 5px 0; border-radius: 3px; font-size: 13px;">';
                     $output .= '<strong style="color: ' . $config['color'] . ';">' . htmlspecialchars($item['type']) . '</strong>: ';
-                    
+
                     if (is_string($item['data'])) {
                         $output .= htmlspecialchars($item['data']);
                     } else {
                         $output .= '<pre style="margin: 5px 0; padding: 5px; background: #f9f9f9; border-radius: 3px; font-size: 11px; overflow-x: auto;">' . htmlspecialchars(print_r($item['data'], true)) . '</pre>';
                     }
-                    
+
                     $output .= '</div>';
                 }
-                
+
                 $output .= '</div>';
             }
 
@@ -261,7 +261,8 @@ class DebugContext
 
         $output .= '</div>';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar
+        if (Environment::isDebug()) {
             Debug::addOutput($output);
         }
     }
@@ -276,8 +277,8 @@ class DebugContext
         foreach (self::$contexts as $name => $context) {
             $stats[$name] = [
                 'items' => count($context['items']),
-                'duration' => $context['ended_at'] 
-                    ? ($context['ended_at'] - $context['started_at']) * 1000 
+                'duration' => $context['ended_at']
+                    ? ($context['ended_at'] - $context['started_at']) * 1000
                     : null,
                 'label' => $context['config']['label'],
             ];
