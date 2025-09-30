@@ -6,6 +6,7 @@ use Core\DebugToolbar\CollectorInterface;
 use Core\DebugToolbar\Collectors\CacheCollector;
 use Core\DebugToolbar\Collectors\OverviewCollector;
 use Core\DebugToolbar\Collectors\RequestCollector;
+use Core\DebugToolbar\Collectors\RoutesCollector;
 use Core\DebugToolbar\Collectors\DumpsCollector;
 use Core\DebugToolbar\Collectors\QueriesCollector;
 use Core\DebugToolbar\Collectors\TimersCollector;
@@ -32,6 +33,7 @@ class DebugToolbar
         // Регистрируем стандартные коллекторы
         self::addCollector(new OverviewCollector());
         self::addCollector(new RequestCollector());
+        self::addCollector(new RoutesCollector());
         self::addCollector(new DumpsCollector());
         self::addCollector(new QueriesCollector());
         self::addCollector(new TimersCollector());
@@ -71,6 +73,23 @@ class DebugToolbar
     public static function removeCollector(string $name): void
     {
         unset(self::$collectors[$name]);
+    }
+
+    /**
+     * Установить Router для Routes Collector
+     */
+    public static function setRouter(Router $router): void
+    {
+        self::initialize();
+        
+        $routesCollector = self::getCollector('routes');
+        if ($routesCollector instanceof RoutesCollector) {
+            $routesCollector->setRouter($router);
+            $routesCollector->setCurrentRequest(
+                $_SERVER['REQUEST_METHOD'] ?? 'GET',
+                $_SERVER['REQUEST_URI'] ?? '/'
+            );
+        }
     }
 
     /**

@@ -31,5 +31,8 @@ $router->get('', [\App\Controllers\HomeController::class, 'index']);
 $router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name']);
 $router->any('demo', [\App\Controllers\RequestDemoController::class, 'demo']);
 
+// Передаем Router в Debug Toolbar
+\Core\DebugToolbar::setRouter($router);
+
 // Let the Magic begin!
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
