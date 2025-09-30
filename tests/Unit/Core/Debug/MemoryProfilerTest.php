@@ -298,6 +298,7 @@ describe('Helper Functions', function () {
 describe('Production Mode', function () {
     test('profiler disabled in production', function () {
         Environment::set(Environment::PRODUCTION);
+        MemoryProfiler::clear(); // Очищаем после переключения окружения
         
         MemoryProfiler::start();
         MemoryProfiler::snapshot('test');
@@ -307,6 +308,7 @@ describe('Production Mode', function () {
 
     test('measure still works in production but without output', function () {
         Environment::set(Environment::PRODUCTION);
+        MemoryProfiler::clear(); // Очищаем после переключения окружения
         
         $result = MemoryProfiler::measure('test', fn() => 'result');
         
@@ -316,6 +318,7 @@ describe('Production Mode', function () {
 
     test('current and peak work in production', function () {
         Environment::set(Environment::PRODUCTION);
+        MemoryProfiler::clear(); // Очищаем после переключения окружения
         
         $current = MemoryProfiler::current();
         $peak = MemoryProfiler::peak();

@@ -326,6 +326,7 @@ describe('Helper Functions', function () {
 describe('Production Mode', function () {
     test('query debugger disabled in production', function () {
         Environment::set(Environment::PRODUCTION);
+        QueryDebugger::clear(); // Очищаем после переключения окружения
         
         QueryDebugger::log('SELECT * FROM users', [], 10.0);
         
@@ -334,6 +335,7 @@ describe('Production Mode', function () {
 
     test('measure still works in production without logging', function () {
         Environment::set(Environment::PRODUCTION);
+        QueryDebugger::clear(); // Очищаем после переключения окружения
         
         $result = QueryDebugger::measure(fn() => 'result', 'Test');
         

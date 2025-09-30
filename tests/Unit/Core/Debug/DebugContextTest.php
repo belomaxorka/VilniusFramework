@@ -388,6 +388,7 @@ describe('Integration with Debug', function () {
 describe('Production Mode', function () {
     test('context disabled in production', function () {
         Environment::set(Environment::PRODUCTION);
+        DebugContext::clear(); // Очищаем после переключения окружения
         
         DebugContext::start('test');
         DebugContext::add('item', 'data');
@@ -397,6 +398,7 @@ describe('Production Mode', function () {
 
     test('run still executes callback in production', function () {
         Environment::set(Environment::PRODUCTION);
+        DebugContext::clear(); // Очищаем после переключения окружения
         
         $result = DebugContext::run('test', fn() => 'result');
         

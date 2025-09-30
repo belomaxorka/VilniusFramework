@@ -317,6 +317,7 @@ describe('Helper Functions', function () {
 describe('Production Mode', function () {
     test('timer disabled in production', function () {
         Environment::set(Environment::PRODUCTION);
+        DebugTimer::clear(); // Очищаем после переключения окружения
         
         DebugTimer::start('prod');
         usleep(500);
@@ -328,6 +329,7 @@ describe('Production Mode', function () {
 
     test('measure still works in production but without output', function () {
         Environment::set(Environment::PRODUCTION);
+        DebugTimer::clear(); // Очищаем после переключения окружения
         
         $result = DebugTimer::measure('prod', fn() => 'result');
         
