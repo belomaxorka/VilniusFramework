@@ -1,5 +1,11 @@
 <?php declare(strict_types=1);
 
+/**
+ * Language Configuration
+ *
+ * This file contains language and localization settings.
+ */
+
 return [
     /**
      * Default language for new users

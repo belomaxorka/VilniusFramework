@@ -78,6 +78,32 @@ dump_all(); // Покажет все собранные данные
 clear_debug();
 ```
 
+### Управление выводом
+
+#### `debug_render_on_page($enabled = true)`
+Включает/выключает рендеринг debug данных на странице.
+
+**По умолчанию:** `false` - данные отображаются только в Debug Toolbar.
+
+```php
+// Включить вывод на странице И в toolbar
+debug_render_on_page(true);
+
+// Отключить вывод на странице (только в toolbar) - по умолчанию
+debug_render_on_page(false);
+```
+
+**Примечание:** Когда `renderOnPage = false`, все вызовы `dump()`, `dd()`, `dump_pretty()` будут собираться только для отображения в Debug Toolbar. Это избавляет от дублирования вывода.
+
+```php
+// Пример 1: Только в toolbar (по умолчанию)
+dump($data, 'User Data'); // Будет только в toolbar
+
+// Пример 2: На странице и в toolbar
+debug_render_on_page(true);
+dump($data, 'User Data'); // Будет и на странице, и в toolbar
+```
+
 ### Дополнительные функции
 
 #### `trace($label = null)`
@@ -231,3 +257,22 @@ public function expensiveOperation()
 3. Используйте `benchmark()` для профилирования производительности
 4. Всегда проверяйте `is_debug()` перед выводом чувствительных данных
 5. Используйте `trace()` для отладки сложных вызовов функций
+6. По умолчанию используйте Debug Toolbar для просмотра dumps (избегайте `renderOnPage`)
+7. Включайте `renderOnPage` только если нужен вывод в определенном месте страницы
+
+## Интеграция с Debug Toolbar
+
+Debug Toolbar автоматически собирает все данные из функций дебага:
+
+```php
+// Все эти вызовы будут видны в Debug Toolbar
+dump($user, 'User');
+dump_pretty($config, 'Config');
+trace('Stack Trace');
+benchmark(fn() => heavyOperation(), 'Operation');
+
+// По умолчанию они НЕ выводятся на странице, только в toolbar
+// Чтобы вывести на страницу тоже:
+debug_render_on_page(true);
+dump($data); // Теперь и на странице, и в toolbar
+```

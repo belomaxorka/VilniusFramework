@@ -10,7 +10,7 @@ beforeEach(function () {
     Logger::setMinLevel('debug');
 });
 
-test('можно добавить обработчик логов', function () {
+test('can add log handler', function () {
     $handler = new FileHandler(sys_get_temp_dir() . '/test.log');
     Logger::addHandler($handler);
 
@@ -19,12 +19,12 @@ test('можно добавить обработчик логов', function () 
     expect($handlers[0])->toBeInstanceOf(LogHandlerInterface::class);
 });
 
-test('можно установить минимальный уровень логирования', function () {
+test('can set minimum logging level', function () {
     Logger::setMinLevel('error');
     expect(Logger::getMinLevel())->toBe('error');
 });
 
-test('логи ниже минимального уровня не записываются', function () {
+test('logs below minimum level are not written', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -46,7 +46,7 @@ test('логи ниже минимального уровня не записы�
     @unlink($logFile);
 });
 
-test('метод debug() работает корректно', function () {
+test('debug() method works correctly', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -60,7 +60,7 @@ test('метод debug() работает корректно', function () {
     @unlink($logFile);
 });
 
-test('метод info() работает корректно', function () {
+test('info() method works correctly', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -74,7 +74,7 @@ test('метод info() работает корректно', function () {
     @unlink($logFile);
 });
 
-test('метод warning() работает корректно', function () {
+test('warning() method works correctly', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -88,7 +88,7 @@ test('метод warning() работает корректно', function () {
     @unlink($logFile);
 });
 
-test('метод error() работает корректно', function () {
+test('error() method works correctly', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -102,7 +102,7 @@ test('метод error() работает корректно', function () {
     @unlink($logFile);
 });
 
-test('метод critical() работает корректно', function () {
+test('critical() method works correctly', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -116,7 +116,7 @@ test('метод critical() работает корректно', function () {
     @unlink($logFile);
 });
 
-test('контекстные данные интерполируются в сообщение', function () {
+test('context data is interpolated into message', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
 
     // Убедимся что файл не существует
@@ -146,7 +146,7 @@ test('контекстные данные интерполируются в со
     @unlink($logFile);
 });
 
-test('массивы в контексте преобразуются в JSON', function () {
+test('arrays in context are converted to JSON', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -161,7 +161,7 @@ test('массивы в контексте преобразуются в JSON', 
     @unlink($logFile);
 });
 
-test('можно использовать несколько обработчиков одновременно', function () {
+test('can use multiple handlers simultaneously', function () {
     $logFile1 = sys_get_temp_dir() . '/test1_' . uniqid() . '.log';
     $logFile2 = sys_get_temp_dir() . '/test2_' . uniqid() . '.log';
 
@@ -183,7 +183,7 @@ test('можно использовать несколько обработчи�
     @unlink($logFile2);
 });
 
-test('уровни логирования соблюдают иерархию', function () {
+test('logging levels follow hierarchy', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
@@ -206,7 +206,7 @@ test('уровни логирования соблюдают иерархию', 
     @unlink($logFile);
 });
 
-test('clearHandlers() очищает все обработчики', function () {
+test('clearHandlers() clears all handlers', function () {
     Logger::addHandler(new FileHandler(sys_get_temp_dir() . '/test.log'));
     Logger::addHandler(new FileHandler(sys_get_temp_dir() . '/test2.log'));
 

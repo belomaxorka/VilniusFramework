@@ -8,8 +8,8 @@ final class Core
     {
         HelperLoader::loadHelper('basic');
         self::initEnvironment();
-        self::initDebugSystem();
         self::initConfigLoader();
+        self::initDebugSystem();
         self::initializeLangManager();
         self::initializeDatabase();
         self::initializeTemplateEngine();
@@ -27,6 +27,9 @@ final class Core
 
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
+
+        // Регистрируем shutdown handler для автоматического вывода debug данных
+        Debug::registerShutdownHandler();
 
         // Убеждаемся, что директория для логов существует
         if (!is_dir(LOG_DIR)) {

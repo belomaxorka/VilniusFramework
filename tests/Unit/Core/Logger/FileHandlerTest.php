@@ -2,7 +2,7 @@
 
 use Core\Logger\FileHandler;
 
-test('FileHandler создает лог файл', function () {
+test('FileHandler creates log file', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
 
@@ -13,7 +13,7 @@ test('FileHandler создает лог файл', function () {
     @unlink($logFile);
 });
 
-test('FileHandler записывает корректный формат лога', function () {
+test('FileHandler writes correct log format', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
 
@@ -29,7 +29,7 @@ test('FileHandler записывает корректный формат лог�
     @unlink($logFile);
 });
 
-test('FileHandler добавляет записи в существующий файл', function () {
+test('FileHandler appends entries to existing file', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
 
@@ -44,7 +44,7 @@ test('FileHandler добавляет записи в существующий ф
     @unlink($logFile);
 });
 
-test('FileHandler корректно обрабатывает разные уровни логирования', function () {
+test('FileHandler correctly handles different logging levels', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
     $handler = new FileHandler($logFile);
 
@@ -65,7 +65,7 @@ test('FileHandler корректно обрабатывает разные ур�
     @unlink($logFile);
 });
 
-test('FileHandler создает директорию если не существует', function () {
+test('FileHandler creates directory if it does not exist', function () {
     $dir = sys_get_temp_dir() . '/test_logs_' . uniqid();
     $logFile = $dir . '/app.log';
 

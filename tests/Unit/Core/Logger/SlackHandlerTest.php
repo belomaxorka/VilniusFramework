@@ -2,7 +2,7 @@
 
 use Core\Logger\SlackHandler;
 
-test('SlackHandler создается с правильными параметрами', function () {
+test('SlackHandler is created with correct parameters', function () {
     $handler = new SlackHandler(
         'https://hooks.slack.com/test',
         '#logs',
@@ -14,7 +14,7 @@ test('SlackHandler создается с правильными параметр
     expect($handler)->toBeInstanceOf(SlackHandler::class);
 });
 
-test('SlackHandler не отправляет если webhook пустой', function () {
+test('SlackHandler does not send if webhook is empty', function () {
     $handler = new SlackHandler('', '#logs', 'Bot', ':robot:', 'error');
 
     // Не должно быть исключений
@@ -23,7 +23,7 @@ test('SlackHandler не отправляет если webhook пустой', fun
     expect(true)->toBeTrue();
 });
 
-test('SlackHandler фильтрует по минимальному уровню', function () {
+test('SlackHandler filters by minimum level', function () {
     // Создаем mock handler чтобы проверить фильтрацию
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'error') extends SlackHandler {
         public $sentMessages = [];
@@ -48,7 +48,7 @@ test('SlackHandler фильтрует по минимальному уровню
     expect($handler->sentMessages)->toHaveCount(2);
 });
 
-test('SlackHandler строит корректный payload', function () {
+test('SlackHandler builds correct payload', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'TestBot', ':robot:', 'debug') extends SlackHandler {
         public $lastPayload = null;
 
@@ -77,7 +77,7 @@ test('SlackHandler строит корректный payload', function () {
     expect(str_contains($attachment['title'], 'ERROR'))->toBeTrue();
 });
 
-test('SlackHandler использует правильные цвета для уровней', function () {
+test('SlackHandler uses correct colors for levels', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'debug') extends SlackHandler {
         public $colors = [];
 
@@ -101,7 +101,7 @@ test('SlackHandler использует правильные цвета для �
     expect($handler->colors[4])->toBe('#721c24'); // critical - темно-красный
 });
 
-test('SlackHandler добавляет эмодзи к уровням', function () {
+test('SlackHandler adds emoji to levels', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'debug') extends SlackHandler {
         public $titles = [];
 

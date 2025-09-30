@@ -78,3 +78,31 @@ function template(): \Core\TemplateEngine
 {
     return \Core\TemplateEngine::getInstance();
 }
+
+/**
+ * Render debug output (for manual placement in templates)
+ *
+ * @return string
+ */
+function render_debug(): string
+{
+    if (class_exists('\Core\Debug')) {
+        return \Core\Debug::getOutput();
+    }
+    
+    return '';
+}
+
+/**
+ * Render debug toolbar (interactive debug panel)
+ *
+ * @return string
+ */
+function render_debug_toolbar(): string
+{
+    if (class_exists('\Core\DebugToolbar')) {
+        return \Core\DebugToolbar::render();
+    }
+    
+    return '';
+}

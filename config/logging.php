@@ -1,105 +1,71 @@
 <?php declare(strict_types=1);
 
 /**
- * Конфигурация системы логирования
+ * Logging Configuration
  *
- * Поддерживаемые драйверы:
- * - file: запись логов в файл
- * - slack: отправка логов в Slack
- * - telegram: отправка логов в Telegram
+ * Supported drivers: file, slack, telegram
  */
 
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Драйвер логирования по умолчанию
-    |--------------------------------------------------------------------------
-    |
-    | Определяет какой драйвер будет использоваться по умолчанию
-    |
-    */
+    /**
+     * Default logging driver
+     */
     'default' => env('LOG_CHANNEL', 'file'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Минимальный уровень логирования
-    |--------------------------------------------------------------------------
-    |
-    | Минимальный уровень логов, которые будут записываться
-    | Доступные уровни: debug, info, warning, error, critical
-    |
-    */
+    /**
+     * Minimum log level
+     * Available levels: debug, info, warning, error, critical
+     */
     'min_level' => env('LOG_LEVEL', 'debug'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Активные каналы логирования
-    |--------------------------------------------------------------------------
-    |
-    | Список активных каналов. Логи будут отправляться во все активные каналы.
-    | Оставьте пустым [], чтобы использовать только default драйвер.
-    | Или укажите массив драйверов: ['file', 'slack', 'telegram']
-    |
-    */
-    'channels' => env('LOG_CHANNELS', 'file'),  // Можно: 'file' или 'file,slack,telegram'
+    /**
+     * Active logging channels
+     * Leave empty [] to use only default driver
+     * Or specify array of drivers: ['file', 'slack', 'telegram']
+     * Can be a comma-separated string: 'file' or 'file,slack,telegram'
+     */
+    'channels' => env('LOG_CHANNELS', 'file'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Конфигурация драйверов
-    |--------------------------------------------------------------------------
-    |
-    | Настройки для каждого драйвера логирования
-    |
-    */
+    /**
+     * Driver configurations
+     */
     'drivers' => [
-
-        /*
-        |--------------------------------------------------------------------------
-        | File Driver
-        |--------------------------------------------------------------------------
-        */
+        /**
+         * File driver settings
+         */
         'file' => [
             'driver' => 'file',
             'path' => env('LOG_FILE', LOG_DIR . '/app.log'),
             'min_level' => env('LOG_FILE_LEVEL', 'debug'),
-            'max_size' => env('LOG_FILE_MAX_SIZE', 10485760), // 10MB в байтах
+            'max_size' => env('LOG_FILE_MAX_SIZE', 10485760), // 10MB in bytes
         ],
 
-        /*
-        |--------------------------------------------------------------------------
-        | Slack Driver
-        |--------------------------------------------------------------------------
-        |
-        | Для работы необходимо создать Incoming Webhook в Slack:
-        | https://api.slack.com/messaging/webhooks
-        |
-        */
+        /**
+         * Slack driver settings
+         * To use: create an Incoming Webhook in Slack
+         * https://api.slack.com/messaging/webhooks
+         */
         'slack' => [
             'driver' => 'slack',
             'webhook_url' => env('LOG_SLACK_WEBHOOK_URL', ''),
             'channel' => env('LOG_SLACK_CHANNEL', '#logs'),
             'username' => env('LOG_SLACK_USERNAME', 'Logger Bot'),
             'emoji' => env('LOG_SLACK_EMOJI', ':robot_face:'),
-            'min_level' => env('LOG_SLACK_LEVEL', 'error'), // Только ошибки в Slack
+            'min_level' => env('LOG_SLACK_LEVEL', 'debug'), // Only errors to Slack
         ],
 
-        /*
-        |--------------------------------------------------------------------------
-        | Telegram Driver
-        |--------------------------------------------------------------------------
-        |
-        | Для работы необходимо создать бота через @BotFather и получить:
-        | - Bot Token
-        | - Chat ID (можно получить через @userinfobot)
-        |
-        */
+        /**
+         * Telegram driver settings
+         * To use: create a bot via @BotFather and get:
+         * - Bot Token
+         * - Chat ID (you can get it via @userinfobot)
+         */
         'telegram' => [
             'driver' => 'telegram',
             'bot_token' => env('LOG_TELEGRAM_BOT_TOKEN', ''),
             'chat_id' => env('LOG_TELEGRAM_CHAT_ID', ''),
-            'min_level' => env('LOG_TELEGRAM_LEVEL', 'error'), // Только ошибки в Telegram
-            'parse_mode' => env('LOG_TELEGRAM_PARSE_MODE', 'HTML'), // HTML или Markdown
+            'min_level' => env('LOG_TELEGRAM_LEVEL', 'debug'),
+            'parse_mode' => env('LOG_TELEGRAM_PARSE_MODE', 'HTML'), // HTML or Markdown
         ],
-
     ],
 ];

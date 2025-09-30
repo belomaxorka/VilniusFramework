@@ -13,6 +13,8 @@ class TemplateEngine
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
     private array $filters = [];
+    private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
+    private static array $undefinedVars = []; // Сбор неопределенных переменных
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
@@ -97,7 +99,21 @@ class TemplateEngine
      */
     public function display(string $template, array $variables = []): void
     {
-        echo $this->render($template, $variables);
+        $output = $this->render($template, $variables);
+        
+        // Автоматически добавляем Debug Toolbar в development режиме
+        if (class_exists('\Core\Environment') && \Core\Environment::isDebug()) {
+            // Если это HTML с закрывающим </body>, вставляем toolbar перед ним
+            if (stripos($output, '</body>') !== false) {
+                $toolbar = '';
+                if (function_exists('render_debug_toolbar')) {
+                    $toolbar = render_debug_toolbar();
+                }
+                $output = str_ireplace('</body>', $toolbar . '</body>', $output);
+            }
+        }
+        
+        echo $output;
     }
 
     /**
@@ -107,6 +123,31 @@ class TemplateEngine
     {
         $this->cacheEnabled = $enabled;
         return $this;
+    }
+
+    /**
+     * Включает/выключает логирование неопределенных переменных
+     */
+    public function setLogUndefinedVars(bool $enabled): self
+    {
+        $this->logUndefinedVars = $enabled;
+        return $this;
+    }
+
+    /**
+     * Получить список неопределенных переменных
+     */
+    public static function getUndefinedVars(): array
+    {
+        return self::$undefinedVars;
+    }
+
+    /**
+     * Очистить список неопределенных переменных
+     */
+    public static function clearUndefinedVars(): void
+    {
+        self::$undefinedVars = [];
     }
 
     /**
@@ -127,6 +168,23 @@ class TemplateEngine
         foreach ($files as $file) {
             unlink($file);
         }
+    }
+
+    /**
+     * Логирует использование неопределенной переменной
+     */
+    private function logUndefinedVariable(string $varName, string $message, string $file, int $line, array $availableVars): void
+    {
+        $logMessage = sprintf(
+            "Template undefined variable: \$%s\nMessage: %s\nFile: %s:%d\nAvailable variables: %s",
+            $varName,
+            $message,
+            basename($file),
+            $line,
+            implode(', ', array_keys($availableVars))
+        );
+        
+        Logger::warning($logMessage);
     }
 
     /**
@@ -262,12 +320,65 @@ class TemplateEngine
         // Передаем ссылку на движок шаблонов для доступа к helper-методам
         $__tpl = $this;
 
+        // Устанавливаем обработчик ошибок для отслеживания undefined variables
+        $previousErrorHandler = set_error_handler(function ($severity, $message, $file, $line) use (&$variables) {
+            // Проверяем если это undefined variable
+            if ($severity === E_WARNING || $severity === E_NOTICE) {
+                // Пытаемся извлечь имя переменной из сообщения
+                if (preg_match('/Undefined variable\s+\$?(\w+)/i', $message, $matches) ||
+                    preg_match('/Undefined array key\s+["\']?(\w+)["\']?/i', $message, $matches)) {
+                    $varName = $matches[1];
+                    
+                    // Логируем в production режиме
+                    if ($this->logUndefinedVars && Environment::isProduction()) {
+                        $this->logUndefinedVariable($varName, $message, $file, $line, $variables);
+                    }
+                    
+                    // Собираем для статистики
+                    if (!isset(self::$undefinedVars[$varName])) {
+                        self::$undefinedVars[$varName] = [
+                            'count' => 0,
+                            'message' => $message,
+                            'file' => $file,
+                            'line' => $line
+                        ];
+                    }
+                    self::$undefinedVars[$varName]['count']++;
+                    
+                    // В development показываем ошибку через ErrorHandler
+                    if (Environment::isDevelopment() && error_reporting() & $severity) {
+                        // Вызываем наш ErrorHandler для красивого отображения
+                        if (class_exists('\Core\ErrorHandler')) {
+                            return \Core\ErrorHandler::handleError($severity, $message, $file, $line);
+                        }
+                        // Если ErrorHandler недоступен, используем стандартную обработку
+                        return false;
+                    }
+                    
+                    // Подавляем ошибку в production
+                    return true;
+                }
+            }
+            
+            // Для других ошибок вызываем ErrorHandler или стандартную обработку
+            if (class_exists('\Core\ErrorHandler')) {
+                return \Core\ErrorHandler::handleError($severity, $message, $file, $line);
+            }
+            return false;
+        });
+
         ob_start();
         try {
             eval('?>' . $compiledContent);
-            return ob_get_clean();
+            $output = ob_get_clean();
+            
+            // Восстанавливаем предыдущий обработчик ошибок
+            restore_error_handler();
+            
+            return $output;
         } catch (\Throwable $e) {
             ob_end_clean(); // Очищаем буфер в случае ошибки
+            restore_error_handler(); // Восстанавливаем обработчик
             throw $e;
         }
     }

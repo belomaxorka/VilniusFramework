@@ -5,8 +5,11 @@ namespace Core;
 class Debug
 {
     private static array $debugData = [];
+    private static array $debugOutput = []; // Буфер для вывода
     private static int $maxDepth = 10;
     private static bool $showBacktrace = true;
+    private static bool $autoDisplay = true; // Автоматический вывод в конце
+    private static bool $renderOnPage = false; // Рендерить на странице (false = только в toolbar)
 
     /**
      * Дебаг переменной (аналог var_dump)
@@ -25,12 +28,23 @@ class Debug
         $output = self::formatVariable($var, $label, $file, $line);
 
         if (Environment::isDevelopment()) {
-            echo $output;
+            // Сохраняем в буфер вместо прямого echo
+            self::$debugOutput[] = [
+                'type' => 'dump',
+                'output' => $output,
+                'die' => $die
+            ];
+
+            // Добавляем в контекст если активен
+            if (class_exists('\Core\DebugContext')) {
+                \Core\DebugContext::add('dump', $label ?? 'Variable dump');
+            }
         } else {
             Logger::debug($output);
         }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -52,12 +66,18 @@ class Debug
         $output = self::formatVariablePretty($var, $label, $file, $line);
 
         if (Environment::isDevelopment()) {
-            echo $output;
+            // Сохраняем в буфер вместо прямого echo
+            self::$debugOutput[] = [
+                'type' => 'dump_pretty',
+                'output' => $output,
+                'die' => $die
+            ];
         } else {
             Logger::debug($output);
         }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -92,25 +112,32 @@ class Debug
             return;
         }
 
-        echo '<div style="background: #f8f9fa; border: 1px solid #dee2e6; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
-        echo '<h3 style="color: #495057; margin-top: 0;">Debug Collection</h3>';
+        $output = '<div style="background: #f8f9fa; border: 1px solid #dee2e6; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
+        $output .= '<h3 style="color: #495057; margin-top: 0;">Debug Collection</h3>';
 
         foreach (self::$debugData as $index => $item) {
-            echo '<div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">';
-            echo '<strong>#' . ($index + 1) . '</strong> ';
+            $output .= '<div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">';
+            $output .= '<strong>#' . ($index + 1) . '</strong> ';
             if ($item['label']) {
-                echo '<span style="color: #007bff;">' . htmlspecialchars($item['label']) . '</span> ';
+                $output .= '<span style="color: #007bff;">' . htmlspecialchars($item['label']) . '</span> ';
             }
-            echo '<small style="color: #6c757d;">(' . basename($item['file']) . ':' . $item['line'] . ')</small><br>';
-            echo '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            echo htmlspecialchars(self::varToString($item['data']));
-            echo '</pre>';
-            echo '</div>';
+            $output .= '<small style="color: #6c757d;">(' . htmlspecialchars(basename($item['file'])) . ':' . $item['line'] . ')</small><br>';
+            $output .= '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
+            $output .= self::varToString($item['data']);
+            $output .= '</pre>';
+            $output .= '</div>';
         }
 
-        echo '</div>';
+        $output .= '</div>';
+
+        if (Environment::isDevelopment()) {
+            self::addOutput($output);
+        } else {
+            Logger::debug($output);
+        }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -121,6 +148,107 @@ class Debug
     public static function clear(): void
     {
         self::$debugData = [];
+    }
+
+    /**
+     * Очистить буфер debug вывода
+     */
+    public static function clearOutput(): void
+    {
+        self::$debugOutput = [];
+    }
+
+    /**
+     * Добавить вывод в буфер напрямую
+     */
+    public static function addOutput(string $output): void
+    {
+        if (!Environment::isDebug() || !Environment::isDevelopment()) {
+            return;
+        }
+
+        self::$debugOutput[] = [
+            'type' => 'custom',
+            'output' => $output,
+            'die' => false
+        ];
+    }
+
+    /**
+     * Вывести все накопленные debug данные
+     */
+    public static function flush(): void
+    {
+        if (empty(self::$debugOutput)) {
+            return;
+        }
+
+        foreach (self::$debugOutput as $item) {
+            echo $item['output'];
+        }
+
+        self::clearOutput();
+    }
+
+    /**
+     * Получить все накопленные debug данные как строку
+     */
+    public static function getOutput(bool $raw = false): string|array
+    {
+        if (empty(self::$debugOutput)) {
+            return $raw ? [] : '';
+        }
+
+        if ($raw) {
+            return self::$debugOutput;
+        }
+
+        $output = '';
+        foreach (self::$debugOutput as $item) {
+            $output .= $item['output'];
+        }
+
+        return $output;
+    }
+
+    /**
+     * Проверить, есть ли накопленные debug данные
+     */
+    public static function hasOutput(): bool
+    {
+        return !empty(self::$debugOutput);
+    }
+
+    /**
+     * Установить автоматический вывод в конце выполнения
+     */
+    public static function setAutoDisplay(bool $auto): void
+    {
+        self::$autoDisplay = $auto;
+    }
+
+    /**
+     * Получить статус автоматического вывода
+     */
+    public static function isAutoDisplay(): bool
+    {
+        return self::$autoDisplay;
+    }
+
+    /**
+     * Установить рендеринг на странице (true = на странице + toolbar, false = только toolbar)
+     */
+    public static function setRenderOnPage(bool $renderOnPage): void
+    {
+        self::$renderOnPage = $renderOnPage;
+    }
+
+    /**
+     * Получить статус рендеринга на странице
+     */
+    public static function isRenderOnPage(): bool
+    {
+        return self::$renderOnPage;
     }
 
     /**
@@ -140,6 +268,23 @@ class Debug
     }
 
     /**
+     * Регистрирует shutdown handler для автоматического вывода debug данных
+     */
+    public static function registerShutdownHandler(): void
+    {
+        register_shutdown_function(function () {
+            // Выводим на страницу только если:
+            // 1. Включен autoDisplay
+            // 2. Окружение development
+            // 3. Есть данные для вывода
+            // 4. Включен renderOnPage (иначе данные будут только в toolbar)
+            if (self::$autoDisplay && Environment::isDevelopment() && self::hasOutput() && self::$renderOnPage) {
+                self::flush();
+            }
+        });
+    }
+
+    /**
      * Форматировать переменную для вывода
      */
     private static function formatVariable(mixed $var, ?string $label, string $file, int $line): string
@@ -154,11 +299,11 @@ class Debug
             }
 
             if (self::$showBacktrace) {
-                $output .= '<small style="color: #6c757d;">' . basename($file) . ':' . $line . '</small><br>';
+                $output .= '<small style="color: #6c757d;">' . htmlspecialchars(basename($file)) . ':' . $line . '</small><br>';
             }
 
             $output .= '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            $output .= htmlspecialchars(self::varToString($var));
+            $output .= self::varToString($var);
             $output .= '</pre></div>';
         } else {
             $output = ($label ? "[{$label}] " : '') . basename($file) . ':' . $line . "\n" . self::varToString($var);
@@ -198,7 +343,7 @@ class Debug
     /**
      * Преобразовать переменную в строку
      */
-    private static function varToString(mixed $var, int $depth = 0): string
+    public static function varToString(mixed $var, int $depth = 0, array &$objectHashes = []): string
     {
         if ($depth > self::$maxDepth) {
             return '... (max depth reached)';
@@ -215,7 +360,8 @@ class Debug
         }
 
         if (is_string($var)) {
-            return '"' . addslashes($var) . '"';
+            // Экранируем HTML и добавляем кавычки
+            return '"' . htmlspecialchars($var, ENT_QUOTES, 'UTF-8') . '"';
         }
 
         if (is_numeric($var)) {
@@ -229,14 +375,25 @@ class Debug
 
             $result = "array(\n";
             foreach ($var as $key => $value) {
-                $result .= $indent . '  ' . (is_string($key) ? '"' . addslashes($key) . '"' : $key) . ' => ' . self::varToString($value, $depth + 1) . ",\n";
+                $keyStr = is_string($key) ? '"' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"' : $key;
+                $result .= $indent . '  ' . $keyStr . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
             $result .= $indent . ')';
             return $result;
         }
 
         if (is_object($var)) {
-            $class = get_class($var);
+            $objectId = spl_object_id($var);
+
+            // Проверяем циклическую ссылку
+            if (in_array($objectId, $objectHashes)) {
+                return '*CIRCULAR REFERENCE*';
+            }
+
+            // Добавляем объект в список посещенных
+            $objectHashes[] = $objectId;
+
+            $class = htmlspecialchars(get_class($var), ENT_QUOTES, 'UTF-8');
             $result = "object({$class}) {\n";
 
             $reflection = new \ReflectionObject($var);
@@ -245,15 +402,20 @@ class Debug
             foreach ($properties as $property) {
                 $property->setAccessible(true);
                 $value = $property->getValue($var);
-                $result .= $indent . '  ' . $property->getName() . ' => ' . self::varToString($value, $depth + 1) . ",\n";
+                $propName = htmlspecialchars($property->getName(), ENT_QUOTES, 'UTF-8');
+                $result .= $indent . '  ' . $propName . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
 
             $result .= $indent . '}';
+
+            // Убираем объект из списка при возврате (для обработки разных веток)
+            array_pop($objectHashes);
+
             return $result;
         }
 
         if (is_resource($var)) {
-            return 'resource(' . get_resource_type($var) . ')';
+            return 'resource(' . htmlspecialchars(get_resource_type($var), ENT_QUOTES, 'UTF-8') . ')';
         }
 
         return gettype($var);
@@ -262,7 +424,7 @@ class Debug
     /**
      * Преобразовать переменную в строку с красивым форматированием
      */
-    private static function varToStringPretty(mixed $var, int $depth = 0): string
+    private static function varToStringPretty(mixed $var, int $depth = 0, array &$objectHashes = []): string
     {
         if ($depth > self::$maxDepth) {
             return '<span style="color: #808080;">... (max depth reached)</span>';
@@ -294,15 +456,25 @@ class Debug
             $result = '<span style="color: #4ec9b0;">array</span> <span style="color: #808080;">(</span><br>';
             foreach ($var as $key => $value) {
                 $keyStr = is_string($key) ? '<span style="color: #ce9178;">"' . htmlspecialchars($key) . '"</span>' : '<span style="color: #b5cea8;">' . $key . '</span>';
-                $result .= $indent . '  ' . $keyStr . ' <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1) . '<span style="color: #808080;">,</span><br>';
+                $result .= $indent . '  ' . $keyStr . ' <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1, $objectHashes) . '<span style="color: #808080;">,</span><br>';
             }
             $result .= $indent . '<span style="color: #808080;">)</span>';
             return $result;
         }
 
         if (is_object($var)) {
+            $objectId = spl_object_id($var);
+
+            // Проверяем циклическую ссылку
+            if (in_array($objectId, $objectHashes)) {
+                return '<span style="color: #f44336;">*CIRCULAR REFERENCE*</span>';
+            }
+
+            // Добавляем объект в список посещенных
+            $objectHashes[] = $objectId;
+
             $class = get_class($var);
-            $result = '<span style="color: #4ec9b0;">object</span> <span style="color: #4ec9b0;">(' . $class . ')</span> <span style="color: #808080;">{</span><br>';
+            $result = '<span style="color: #4ec9b0;">object</span> <span style="color: #4ec9b0;">(' . htmlspecialchars($class) . ')</span> <span style="color: #808080;">{</span><br>';
 
             $reflection = new \ReflectionObject($var);
             $properties = $reflection->getProperties();
@@ -310,10 +482,14 @@ class Debug
             foreach ($properties as $property) {
                 $property->setAccessible(true);
                 $value = $property->getValue($var);
-                $result .= $indent . '  <span style="color: #9cdcfe;">' . $property->getName() . '</span> <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1) . '<span style="color: #808080;">,</span><br>';
+                $result .= $indent . '  <span style="color: #9cdcfe;">' . $property->getName() . '</span> <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1, $objectHashes) . '<span style="color: #808080;">,</span><br>';
             }
 
             $result .= $indent . '<span style="color: #808080;">}</span>';
+
+            // Убираем объект из списка при возврате
+            array_pop($objectHashes);
+
             return $result;
         }
 
