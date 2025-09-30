@@ -20,7 +20,7 @@ class HttpCollector extends AbstractCollector
 
     public function __construct()
     {
-        $this->priority = 38; // Между Queries (30) и Timers (40)
+        $this->priority = 78; // Между Queries (80) и CacheCollector (75)
     }
 
     public function getName(): string

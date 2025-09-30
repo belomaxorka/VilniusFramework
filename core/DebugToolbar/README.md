@@ -61,13 +61,15 @@ MyCollector::log('Some data');
 
 | Коллектор         | Приоритет | Описание         |
 |-------------------|-----------|------------------|
-| OverviewCollector | 10        | Общая статистика |
-| DumpsCollector    | 20        | Debug dumps      |
-| QueriesCollector  | 30        | SQL запросы      |
-| CacheCollector    | 35        | Операции с кэшем |
-| TimersCollector   | 40        | Таймеры          |
-| MemoryCollector   | 50        | Память           |
-| ContextsCollector | 60        | Контексты        |
+| OverviewCollector | 100       | Общая статистика |
+| DumpsCollector    | 90        | Debug dumps      |
+| QueriesCollector  | 80        | SQL запросы      |
+| CacheCollector    | 75        | Операции с кэшем |
+| TimersCollector   | 70        | Таймеры          |
+| MemoryCollector   | 60        | Память           |
+| ContextsCollector | 50        | Контексты        |
+
+**Приоритет:** чем больше число, тем важнее коллектор и раньше он отображается.
 
 ## Интерфейс CollectorInterface
 

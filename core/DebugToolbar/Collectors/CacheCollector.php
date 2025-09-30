@@ -14,7 +14,7 @@ class CacheCollector extends AbstractCollector
 
     public function __construct()
     {
-        $this->priority = 35;
+        $this->priority = 75;
     }
 
     public function getName(): string

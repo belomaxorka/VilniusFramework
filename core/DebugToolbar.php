@@ -125,9 +125,9 @@ class DebugToolbar
     {
         $tabs = [];
 
-        // Сортируем коллекторы по приоритету
+        // Сортируем коллекторы по приоритету (больше = важнее, отображается первым)
         $collectors = self::$collectors;
-        usort($collectors, fn($a, $b) => $a->getPriority() <=> $b->getPriority());
+        uasort($collectors, fn($a, $b) => $b->getPriority() <=> $a->getPriority());
 
         foreach ($collectors as $collector) {
             if (!$collector->isEnabled()) {
@@ -152,7 +152,11 @@ class DebugToolbar
     {
         $stats = [];
 
-        foreach (self::$collectors as $collector) {
+        // Сортируем коллекторы по приоритету (больше = важнее, отображается первым)
+        $collectors = self::$collectors;
+        uasort($collectors, fn($a, $b) => $b->getPriority() <=> $a->getPriority());
+
+        foreach ($collectors as $collector) {
             if (!$collector->isEnabled()) {
                 continue;
             }

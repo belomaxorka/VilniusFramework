@@ -12,7 +12,7 @@ class ContextsCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 60;
+        $this->priority = 50;
     }
 
     public function getName(): string

@@ -12,7 +12,7 @@ class QueriesCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 30;
+        $this->priority = 80;
     }
 
     public function getName(): string

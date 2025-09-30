@@ -11,7 +11,7 @@ class TimersCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 40;
+        $this->priority = 70;
     }
 
     public function getName(): string

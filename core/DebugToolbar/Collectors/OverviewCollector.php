@@ -16,7 +16,7 @@ class OverviewCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 10; // Самый первый
+        $this->priority = 100; // Самый важный, отображается первым
     }
 
     public function getName(): string

@@ -12,7 +12,7 @@ class MemoryCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 50;
+        $this->priority = 60;
     }
 
     public function getName(): string

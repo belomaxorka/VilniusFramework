@@ -40,13 +40,13 @@ Debug Toolbar был полностью переработан с монолит
 ### 3. Встроенные коллекторы
 `core/DebugToolbar/Collectors/`
 
-- **OverviewCollector** - общая статистика (приоритет: 10)
-- **DumpsCollector** - debug dumps (приоритет: 20)
-- **QueriesCollector** - SQL запросы (приоритет: 30)
-- **CacheCollector** - операции с кэшем (приоритет: 35)
-- **TimersCollector** - таймеры (приоритет: 40)
-- **MemoryCollector** - использование памяти (приоритет: 50)
-- **ContextsCollector** - контексты отладки (приоритет: 60)
+- **OverviewCollector** - общая статистика (приоритет: 100)
+- **DumpsCollector** - debug dumps (приоритет: 90)
+- **QueriesCollector** - SQL запросы (приоритет: 80)
+- **CacheCollector** - операции с кэшем (приоритет: 75)
+- **TimersCollector** - таймеры (приоритет: 70)
+- **MemoryCollector** - использование памяти (приоритет: 60)
+- **ContextsCollector** - контексты отладки (приоритет: 50)
 
 ### 4. Обновленный DebugToolbar
 `core/DebugToolbar.php`
@@ -83,7 +83,7 @@ class MyCollector extends AbstractCollector
     
     public function __construct()
     {
-        $this->priority = 45;
+        $this->priority = 85; // Чем больше, тем важнее (раньше отображается)
     }
 
     public function getName(): string
