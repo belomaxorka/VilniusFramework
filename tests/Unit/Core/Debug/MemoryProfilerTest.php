@@ -374,15 +374,16 @@ describe('Real Usage Scenarios', function () {
         memory_start();
         
         $leaky = [];
-        for ($i = 0; $i < 10; $i++) {
-            $leaky[] = str_repeat('x', 1000);
+        for ($i = 0; $i < 1000; $i++) {
+            $leaky[] = str_repeat('x', 10000); // Больше данных для видимого роста
         }
         memory_snapshot('after_leak', 'Potential leak');
         
         $snapshots = MemoryProfiler::getSnapshots();
         $lastSnapshot = end($snapshots);
         
-        // Должен показать рост памяти
+        // Должен показать рост памяти (с таким объемом данных точно будет рост)
         expect($lastSnapshot['diff_from_start'])->toBeGreaterThan(0);
+        expect($lastSnapshot['label'])->toBe('Potential leak');
     });
 });
