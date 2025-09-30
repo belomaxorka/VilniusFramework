@@ -204,37 +204,6 @@ class RequestCollector extends AbstractCollector
     private function filterServer(array $server): array
     {
         $filtered = [];
-        
-        // В production режиме скрываем почти все значения
-        $isProduction = Environment::isProduction();
-        
-        // Всегда скрываем чувствительные данные
-        $alwaysHidden = [
-            'PHP_AUTH_PW',
-            'PHP_AUTH_USER',
-            'HTTP_AUTHORIZATION',
-            'DATABASE_URL',
-            'DB_PASSWORD',
-            'DB_USERNAME',
-            'API_KEY',
-            'SECRET_KEY',
-            'AWS_SECRET',
-            'STRIPE_SECRET',
-        ];
-
-        // В production режиме разрешаем показывать только базовые безопасные переменные
-        $safeInProduction = [
-            'REQUEST_METHOD',
-            'REQUEST_URI',
-            'REQUEST_TIME',
-            'REQUEST_TIME_FLOAT',
-            'SERVER_PROTOCOL',
-            'GATEWAY_INTERFACE',
-            'SERVER_SOFTWARE',
-            'QUERY_STRING',
-            'CONTENT_TYPE',
-            'CONTENT_LENGTH',
-        ];
 
         foreach ($server as $key => $value) {
             // Пропускаем HTTP_ заголовки (они в отдельной секции)
@@ -242,19 +211,9 @@ class RequestCollector extends AbstractCollector
                 continue;
             }
 
-            // Всегда скрываем чувствительные данные
-            if ($this->isSensitiveKey($key, $alwaysHidden)) {
-                $filtered[$key] = '***HIDDEN***';
-                continue;
-            }
-
-            // В production режиме скрываем всё, кроме безопасных переменных
-            if ($isProduction) {
-                if (in_array($key, $safeInProduction)) {
-                    $filtered[$key] = $value;
-                } else {
-                    $filtered[$key] = '***HIDDEN (PRODUCTION MODE)***';
-                }
+            // В production режиме скрываем ВСЕ серверные переменные
+            if (Environment::isProduction()) {
+                $filtered[$key] = '***HIDDEN (PRODUCTION MODE)***';
             } else {
                 // В development режиме показываем всё
                 $filtered[$key] = $value;
@@ -262,27 +221,6 @@ class RequestCollector extends AbstractCollector
         }
 
         return $filtered;
-    }
-
-    /**
-     * Проверить, является ли ключ чувствительным
-     */
-    private function isSensitiveKey(string $key, array $sensitiveKeys): bool
-    {
-        // Точное совпадение
-        if (in_array($key, $sensitiveKeys)) {
-            return true;
-        }
-
-        // Проверяем по паттернам
-        $patterns = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'AUTH', 'CREDENTIAL'];
-        foreach ($patterns as $pattern) {
-            if (str_contains(strtoupper($key), $pattern)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -390,8 +328,8 @@ class RequestCollector extends AbstractCollector
         // Предупреждение для production режима
         if ($isProduction) {
             $html .= '<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 10px; color: #856404;">';
-            $html .= '⚠️ <strong>Production Mode:</strong> Sensitive server variables are hidden for security reasons. ';
-            $html .= 'Only safe variables are shown.';
+            $html .= '⚠️ <strong>Production Mode:</strong> All server variables are hidden for security reasons. ';
+            $html .= 'Server variables are only visible in development mode.';
             $html .= '</div>';
         }
         

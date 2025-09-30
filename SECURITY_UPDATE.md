@@ -44,32 +44,32 @@ MY_CUSTOM_API_KEY     → ***HIDDEN***
 
 ### 3. Production Mode защита
 
-В production режиме (`APP_ENV=production`) **дополнительная защита**:
+В production режиме (`APP_ENV=production`) **максимальная защита**:
 
-#### ✅ Показываются только безопасные переменные:
+#### 🔒 ВСЕ серверные переменные скрыты:
 ```
-REQUEST_METHOD        ✅
-REQUEST_URI           ✅
-REQUEST_TIME          ✅
-REQUEST_TIME_FLOAT    ✅
-SERVER_PROTOCOL       ✅
-GATEWAY_INTERFACE     ✅
-SERVER_SOFTWARE       ✅
-QUERY_STRING          ✅
-CONTENT_TYPE          ✅
-CONTENT_LENGTH        ✅
-```
-
-#### 🔒 Все остальные скрыты:
-```
+REQUEST_METHOD        → ***HIDDEN (PRODUCTION MODE)***
+REQUEST_URI           → ***HIDDEN (PRODUCTION MODE)***
+REQUEST_TIME          → ***HIDDEN (PRODUCTION MODE)***
+SERVER_PROTOCOL       → ***HIDDEN (PRODUCTION MODE)***
 DOCUMENT_ROOT         → ***HIDDEN (PRODUCTION MODE)***
 REMOTE_ADDR           → ***HIDDEN (PRODUCTION MODE)***
 SERVER_NAME           → ***HIDDEN (PRODUCTION MODE)***
 PATH                  → ***HIDDEN (PRODUCTION MODE)***
 SCRIPT_FILENAME       → ***HIDDEN (PRODUCTION MODE)***
 PHP_SELF              → ***HIDDEN (PRODUCTION MODE)***
-... и т.д.
+... абсолютно ВСЕ серверные переменные
 ```
+
+**Философия "Hide All":**
+
+Вместо попыток угадать, какие переменные "безопасны" (что может быть ненадежно), 
+мы полностью скрываем ВСЕ серверные переменные в production. Это гарантирует:
+
+- ✅ Максимальную безопасность
+- ✅ Защиту от утечки новых переменных
+- ✅ Отсутствие необходимости поддерживать белые/черные списки
+- ✅ Zero-trust подход
 
 ### 4. Визуальная индикация
 
