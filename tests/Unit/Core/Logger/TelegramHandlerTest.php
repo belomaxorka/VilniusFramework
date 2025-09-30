@@ -2,7 +2,7 @@
 
 use Core\Logger\TelegramHandler;
 
-test('TelegramHandler создается с правильными параметрами', function () {
+test('TelegramHandler is created with correct parameters', function () {
     $handler = new TelegramHandler(
         'bot_token',
         'chat_id',
@@ -13,7 +13,7 @@ test('TelegramHandler создается с правильными параме�
     expect($handler)->toBeInstanceOf(TelegramHandler::class);
 });
 
-test('TelegramHandler не отправляет если токен или chat_id пустые', function () {
+test('TelegramHandler does not send if token or chat_id are empty', function () {
     $handler1 = new TelegramHandler('', 'chat_id', 'HTML', 'error');
     $handler2 = new TelegramHandler('token', '', 'HTML', 'error');
 
@@ -24,7 +24,7 @@ test('TelegramHandler не отправляет если токен или chat_
     expect(true)->toBeTrue();
 });
 
-test('TelegramHandler фильтрует по минимальному уровню', function () {
+test('TelegramHandler filters by minimum level', function () {
     $handler = new class('token', 'chat_id', 'HTML', 'error') extends TelegramHandler {
         public $sentMessages = [];
 
@@ -48,7 +48,7 @@ test('TelegramHandler фильтрует по минимальному уров�
     expect($handler->sentMessages)->toHaveCount(2);
 });
 
-test('TelegramHandler форматирует сообщения в HTML', function () {
+test('TelegramHandler formats messages in HTML', function () {
     $handler = new class('token', 'chat_id', 'HTML', 'debug') extends TelegramHandler {
         public $lastMessage = null;
 
@@ -65,7 +65,7 @@ test('TelegramHandler форматирует сообщения в HTML', functi
     expect(str_contains($handler->lastMessage, '<i>'))->toBeTrue();
 });
 
-test('TelegramHandler форматирует сообщения в Markdown', function () {
+test('TelegramHandler formats messages in Markdown', function () {
     $handler = new class('token', 'chat_id', 'Markdown', 'debug') extends TelegramHandler {
         public $lastMessage = null;
 
@@ -82,7 +82,7 @@ test('TelegramHandler форматирует сообщения в Markdown', fu
     expect(str_contains($handler->lastMessage, '_'))->toBeTrue();
 });
 
-test('TelegramHandler экранирует HTML спецсимволы', function () {
+test('TelegramHandler escapes HTML special characters', function () {
     $handler = new class('token', 'chat_id', 'HTML', 'debug') extends TelegramHandler {
         public $lastMessage = null;
 
@@ -99,7 +99,7 @@ test('TelegramHandler экранирует HTML спецсимволы', functio
     expect(str_contains($handler->lastMessage, '&amp;'))->toBeTrue();
 });
 
-test('TelegramHandler добавляет эмодзи к уровням', function () {
+test('TelegramHandler adds emoji to levels', function () {
     $handler = new class('token', 'chat_id', 'HTML', 'debug') extends TelegramHandler {
         public $messages = [];
 
@@ -122,7 +122,7 @@ test('TelegramHandler добавляет эмодзи к уровням', functi
     expect(str_contains($handler->messages[4], '🔥'))->toBeTrue();
 });
 
-test('TelegramHandler включает timestamp в сообщение', function () {
+test('TelegramHandler includes timestamp in message', function () {
     $handler = new class('token', 'chat_id', 'HTML', 'debug') extends TelegramHandler {
         public $lastMessage = null;
 

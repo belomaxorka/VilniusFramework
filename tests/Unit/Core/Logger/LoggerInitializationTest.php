@@ -12,7 +12,7 @@ afterEach(function () {
     Logger::clearHandlers();
 });
 
-test('Logger инициализируется из конфигурации', function () {
+test('Logger initializes from configuration', function () {
     // Создаем временную конфигурацию
     $tempDir = createTempConfigDir([
         'logging.php' => [
@@ -39,7 +39,7 @@ test('Logger инициализируется из конфигурации', fu
     deleteDir($tempDir);
 });
 
-test('Logger использует fallback если конфигурация пустая', function () {
+test('Logger uses fallback if configuration is empty', function () {
     // Очищаем конфигурацию
     $tempDir = createTempConfigDir([]);
     Config::load($tempDir, 'testing');
@@ -52,7 +52,7 @@ test('Logger использует fallback если конфигурация п�
     deleteDir($tempDir);
 });
 
-test('Logger может инициализировать несколько драйверов', function () {
+test('Logger can initialize multiple drivers', function () {
     $tempDir = createTempConfigDir([
         'logging.php' => [
             'default' => 'file',
@@ -82,7 +82,7 @@ test('Logger может инициализировать несколько др
     deleteDir($tempDir);
 });
 
-test('Logger пропускает драйверы с некорректной конфигурацией', function () {
+test('Logger skips drivers with invalid configuration', function () {
     $tempDir = createTempConfigDir([
         'logging.php' => [
             'default' => 'file',
@@ -116,7 +116,7 @@ test('Logger пропускает драйверы с некорректной �
     deleteDir($tempDir);
 });
 
-test('Logger не инициализируется повторно', function () {
+test('Logger does not initialize twice', function () {
     $tempDir = createTempConfigDir([
         'logging.php' => [
             'default' => 'file',
@@ -142,7 +142,7 @@ test('Logger не инициализируется повторно', function (
     deleteDir($tempDir);
 });
 
-test('Logger парсит строку каналов', function () {
+test('Logger parses channels string', function () {
     $tempDir = createTempConfigDir([
         'logging.php' => [
             'default' => 'file',
@@ -176,7 +176,7 @@ test('Logger парсит строку каналов', function () {
     deleteDir($tempDir);
 });
 
-test('Logger устанавливает минимальный уровень из конфига', function () {
+test('Logger sets minimum level from config', function () {
     $tempDir = createTempConfigDir([
         'logging.php' => [
             'default' => 'file',
