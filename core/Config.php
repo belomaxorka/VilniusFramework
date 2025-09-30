@@ -12,6 +12,8 @@ class Config
     protected static bool $loadedFromCache = false;
     protected static array $macros = [];
     protected static bool $locked = false;
+    protected static array $allowedBasePaths = [];
+    protected static array $resolvingMacros = [];
 
     /**
      * Loads configuration files from the specified directory
@@ -33,6 +35,9 @@ class Config
         if (!is_dir($realPath)) {
             throw new InvalidArgumentException("Specified path is not a directory: {$path}");
         }
+
+        // Security: validate path
+        self::validatePath($realPath);
 
         // Prevent loading the same path multiple times
         if (in_array($realPath, self::$loadedPaths, true)) {
@@ -226,6 +231,9 @@ class Config
             throw new InvalidArgumentException("File is not readable: {$filePath}");
         }
 
+        // Security: validate path
+        self::validatePath($filePath);
+
         // Check that the file returns an array
         $config = require $filePath;
 
@@ -257,6 +265,9 @@ class Config
         if (!is_readable($filePath)) {
             throw new InvalidArgumentException("File is not readable: {$filePath}");
         }
+
+        // Security: validate path
+        self::validatePath($filePath);
 
         $key = basename($filePath, '.php');
 
@@ -364,7 +375,7 @@ class Config
     /**
      * Clears all configuration data and loaded paths
      *
-     * Note: This also unlocks the configuration.
+     * Note: This also unlocks the configuration and clears allowed base paths.
      */
     public static function clear(): void
     {
@@ -373,6 +384,8 @@ class Config
         self::$loadedFromCache = false;
         self::$macros = [];
         self::$locked = false;
+        self::$allowedBasePaths = [];
+        self::$resolvingMacros = [];
     }
 
     /**
@@ -476,13 +489,25 @@ class Config
      * @param string $key The configuration key (supports dot notation)
      * @param mixed $default Default value if key doesn't exist
      * @return mixed The resolved value or default
+     * @throws RuntimeException If circular macro reference is detected
      */
     public static function resolve(string $key, mixed $default = null): mixed
     {
+        // Check for circular references
+        if (isset(self::$resolvingMacros[$key])) {
+            throw new RuntimeException("Circular macro reference detected: {$key}");
+        }
+
         $value = self::get($key, $default);
 
         if (is_callable($value) && self::isMacro($key)) {
-            return $value();
+            self::$resolvingMacros[$key] = true;
+            try {
+                $result = $value();
+            } finally {
+                unset(self::$resolvingMacros[$key]);
+            }
+            return $result;
         }
 
         return $value;
@@ -822,5 +847,81 @@ class Config
         if (self::$locked) {
             throw new RuntimeException("Cannot modify configuration: Configuration is locked");
         }
+    }
+
+    /**
+     * Sets allowed base paths for file loading (security)
+     *
+     * @param array $paths Array of allowed directory paths
+     */
+    public static function setAllowedBasePaths(array $paths): void
+    {
+        self::$allowedBasePaths = array_map(function($path) {
+            $realPath = realpath($path);
+            if ($realPath === false) {
+                throw new InvalidArgumentException("Invalid base path: {$path}");
+            }
+            return $realPath;
+        }, $paths);
+    }
+
+    /**
+     * Validates that a path is within allowed base paths
+     *
+     * @param string $path Path to validate
+     * @throws RuntimeException If path traversal is detected
+     */
+    protected static function validatePath(string $path): void
+    {
+        // Skip validation if no base paths configured
+        if (empty(self::$allowedBasePaths)) {
+            return;
+        }
+
+        $realPath = realpath($path);
+        
+        if ($realPath === false) {
+            return; // Let other validation handle this
+        }
+
+        foreach (self::$allowedBasePaths as $basePath) {
+            if (str_starts_with($realPath, $basePath)) {
+                return; // Path is valid
+            }
+        }
+
+        throw new RuntimeException("Path traversal detected or path outside allowed directories: {$path}");
+    }
+
+    /**
+     * Gets a required configuration value, throws if missing
+     *
+     * @param string $key The configuration key
+     * @return mixed The configuration value
+     * @throws RuntimeException If key doesn't exist
+     */
+    public static function getRequired(string $key): mixed
+    {
+        if (!self::has($key)) {
+            throw new RuntimeException("Required configuration key missing: {$key}");
+        }
+
+        return self::get($key);
+    }
+
+    /**
+     * Gets multiple configuration values at once
+     *
+     * @param array $keys Array of configuration keys
+     * @param mixed $default Default value for missing keys
+     * @return array Array of values keyed by original keys
+     */
+    public static function getMany(array $keys, mixed $default = null): array
+    {
+        $result = [];
+        foreach ($keys as $key) {
+            $result[$key] = self::get($key, $default);
+        }
+        return $result;
     }
 }
