@@ -142,7 +142,8 @@ class Config
      * Merges two configuration arrays intelligently
      *
      * Unlike array_merge_recursive, this function properly overwrites scalar values
-     * instead of creating arrays from them.
+     * instead of creating arrays from them, while still merging associative arrays
+     * and appending to numeric (list) arrays.
      *
      * @param array $base Base configuration array
      * @param array $override Override configuration array
@@ -152,8 +153,14 @@ class Config
     {
         foreach ($override as $key => $value) {
             if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
-                // Both are arrays - merge recursively
-                $base[$key] = self::mergeConfigs($base[$key], $value);
+                // Both are arrays
+                if (array_is_list($base[$key]) && array_is_list($value)) {
+                    // Both are lists (numeric arrays) - append values
+                    $base[$key] = array_merge($base[$key], $value);
+                } else {
+                    // At least one is associative - merge recursively
+                    $base[$key] = self::mergeConfigs($base[$key], $value);
+                }
             } else {
                 // Override the value (scalar or array replaces anything)
                 $base[$key] = $value;
