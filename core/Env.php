@@ -54,9 +54,7 @@ class Env
         $stringValue = (string)$value;
 
         // Устанавливаем в системные переменные
-        $_ENV[$key] = $stringValue;
-        $_SERVER[$key] = $stringValue;
-        putenv("$key=$stringValue");
+        self::setRaw($key, $stringValue);
 
         // Обновляем кеш - сохраняем парсированное значение для консистентности
         self::$cache[$key] = self::parseValue($stringValue);
@@ -88,68 +86,112 @@ class Env
 
     /**
      * Загрузить .env файл
+     * 
+     * @param string|null $path Путь к .env файлу (если null, ищет автоматически)
+     * @param bool $required Выбросить исключение если файл не найден
+     * @param bool $reload Перезагрузить даже если уже загружен (с переопределением переменных)
+     * @return bool true если файл загружен успешно, false если не найден
      */
-    public static function load(?string $path = null, bool $required = false): bool
+    public static function load(?string $path = null, bool $required = false, bool $reload = false): bool
     {
-        // Если уже загружен и не указан конкретный путь, возвращаем true
-        if (self::$loaded && $path === null) {
+        // Если уже загружен и не требуется перезагрузка, возвращаем true
+        if (self::$loaded && !$reload) {
             return true;
         }
 
         // Если путь не указан, пытаемся найти .env файл в корне проекта
-        if (!$path) {
-            $possiblePaths = [
-                getcwd() . '/.env',
-                dirname(__DIR__) . '/.env',
-                __DIR__ . '/.env'
-            ];
-
-            foreach ($possiblePaths as $possiblePath) {
-                if (is_file($possiblePath)) {
-                    $path = $possiblePath;
-                    break;
-                }
-            }
+        if ($path === null) {
+            $path = self::findEnvFile();
         }
 
-        if (!$path || !is_file($path)) {
+        // Если файл не найден
+        if ($path === null || !is_file($path)) {
             if ($required) {
-                throw new RuntimeException("Environment file not found: " . ($path ?? 'any .env file'));
+                throw new RuntimeException("Environment file not found" . ($path ? ": {$path}" : ''));
             }
-
+            // Отмечаем как загруженный только если мы пытались автоматически найти файл
+            // Это предотвращает повторные попытки поиска при каждом вызове get()
             self::$loaded = true;
             return false;
         }
 
+        // Загружаем переменные из файла
+        self::loadFile($path, $reload);
+        self::$loaded = true;
+        
+        return true;
+    }
+
+    /**
+     * Найти .env файл в стандартных местах
+     */
+    protected static function findEnvFile(): ?string
+    {
+        $possiblePaths = [
+            getcwd() . '/.env',
+            dirname(__DIR__) . '/.env',
+            __DIR__ . '/../.env',
+            __DIR__ . '/.env'
+        ];
+
+        foreach ($possiblePaths as $possiblePath) {
+            if (is_file($possiblePath)) {
+                return $possiblePath;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Загрузить переменные из файла
+     * 
+     * @param string $path Путь к файлу
+     * @param bool $override Переопределять существующие переменные
+     */
+    protected static function loadFile(string $path, bool $override = false): void
+    {
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        
+        if ($lines === false) {
+            return;
+        }
+
         foreach ($lines as $line) {
             $line = trim($line);
 
-            // Пропускаем комментарии
-            if (str_starts_with($line, '#')) {
+            // Пропускаем комментарии и пустые строки
+            if ($line === '' || str_starts_with($line, '#')) {
                 continue;
             }
 
             // Парсим строку вида KEY=VALUE
             if (str_contains($line, '=')) {
-                list($key, $value) = explode('=', $line, 2);
+                [$key, $value] = explode('=', $line, 2);
                 $key = trim($key);
                 $value = trim($value);
 
                 // Удаляем кавычки если есть
                 $value = self::removeQuotes($value);
 
-                // Устанавливаем только если переменная еще не установлена
-                if (!isset($_ENV[$key]) && !isset($_SERVER[$key])) {
-                    $_ENV[$key] = $value;
-                    $_SERVER[$key] = $value;
-                    putenv("$key=$value");
+                // Устанавливаем переменную
+                // При reload (override=true) переопределяем существующие
+                // При обычной загрузке - только если еще не установлена
+                if ($override || (!isset($_ENV[$key]) && !isset($_SERVER[$key]))) {
+                    self::setRaw($key, $value);
                 }
             }
         }
+    }
 
-        self::$loaded = true;
-        return true;
+    /**
+     * Установить переменную без парсинга значения (для внутреннего использования)
+     */
+    protected static function setRaw(string $key, string $value): void
+    {
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+        putenv("$key=$value");
     }
 
     /**
