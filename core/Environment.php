@@ -11,21 +11,19 @@ class Environment
     public const string TESTING = 'testing';
 
     private static ?string $environment = null;
+    private static ?bool $isDebugCache = null;
 
     /**
      * Получить текущее окружение
      */
     public static function get(): string
     {
-        if (self::$environment === null) {
-            self::$environment = self::detect();
-        }
-
-        return self::$environment;
+        // Простое кеширование без лишнего метода detect()
+        return self::$environment ??= Env::get('APP_ENV', self::PRODUCTION);
     }
 
     /**
-     * Установить окружение
+     * Установить окружение (для тестов)
      */
     public static function set(string $environment): void
     {
@@ -34,6 +32,7 @@ class Environment
         }
 
         self::$environment = $environment;
+        self::$isDebugCache = null; // Сбрасываем кеш при изменении окружения
         Env::set('APP_ENV', $environment);
     }
 
@@ -66,36 +65,40 @@ class Environment
      */
     public static function isDebug(): bool
     {
-        // Получаем значение APP_DEBUG (null если не установлено)
+        // Кешируем результат для производительности (вызывается очень часто)
+        if (self::$isDebugCache !== null) {
+            return self::$isDebugCache;
+        }
+
         $debug = Env::get('APP_DEBUG', null);
         
         // В development режиме debug включен по умолчанию (если явно не выключен)
         if (self::isDevelopment()) {
-            // Если APP_DEBUG не установлен - включаем по умолчанию
-            if ($debug === null) {
-                return true;
-            }
-            // Проверяем явное значение
-            return $debug === true || $debug === 'true' || $debug === '1' || $debug === 1;
+            self::$isDebugCache = $debug === null ? true : self::parseBool($debug);
+        } 
+        // В других режимах (production, testing) debug выключен по умолчанию
+        else {
+            self::$isDebugCache = self::parseBool($debug);
         }
 
-        // В других режимах (production, testing) debug выключен по умолчанию (включаем только если явно true)
-        return $debug === true || $debug === 'true' || $debug === '1' || $debug === 1;
+        return self::$isDebugCache;
     }
 
     /**
-     * Определить окружение из переменных окружения
+     * Парсить boolean значение из APP_DEBUG
      */
-    private static function detect(): string
+    private static function parseBool(mixed $value): bool
     {
-        // Проверяем переменную окружения
-        $env = Env::get('APP_ENV');
-        if ($env && in_array($env, [self::DEVELOPMENT, self::PRODUCTION, self::TESTING])) {
-            return $env;
+        if ($value === null) {
+            return false;
         }
-
-        // Если APP_ENV не установлен, по умолчанию продакшен
-        return self::PRODUCTION;
+        
+        if (is_bool($value)) {
+            return $value;
+        }
+        
+        // Проверяем строки и числа
+        return $value === true || $value === 'true' || $value === '1' || $value === 1;
     }
 
     /**
@@ -118,6 +121,7 @@ class Environment
     public static function clearCache(): void
     {
         self::$environment = null;
+        self::$isDebugCache = null;
         Env::clearCache();
     }
 }
