@@ -8,6 +8,10 @@ beforeEach(function () {
     Environment::set(Environment::DEVELOPMENT);
     QueryDebugger::clear();
     Debug::clearOutput();
+    
+    // Сброс настроек в значения по умолчанию
+    QueryDebugger::setDetectDuplicates(true);
+    QueryDebugger::setSlowQueryThreshold(100.0);
 });
 
 afterEach(function () {
