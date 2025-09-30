@@ -288,7 +288,7 @@ class Config
             return self::getNestedValue($key, $default);
         }
 
-        return self::$items[$key] ?? $default;
+        return array_key_exists($key, self::$items) ? self::$items[$key] : $default;
     }
 
     /**
