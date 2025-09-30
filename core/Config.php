@@ -106,7 +106,7 @@ class Config implements ArrayAccess, Countable
                 // Load PHP config file
                 $filename = pathinfo($fullPath, PATHINFO_FILENAME);
                 $key = $namespace === '' ? $filename : $namespace . '.' . $filename;
-                
+
                 // Load with the computed namespace key
                 $config = require $fullPath;
 
@@ -278,7 +278,7 @@ class Config implements ArrayAccess, Countable
         $key = basename($filePath, '.' . $extension);
 
         // Load configuration based on file type
-        $config = match($extension) {
+        $config = match ($extension) {
             'php' => self::loadPhpFile($filePath),
             'json' => self::loadJsonFile($filePath),
             default => throw new RuntimeException("Unsupported file format: {$extension}. Supported formats: php, json")
@@ -317,13 +317,13 @@ class Config implements ArrayAccess, Countable
     protected static function loadJsonFile(string $filePath): array
     {
         $content = file_get_contents($filePath);
-        
+
         if ($content === false) {
             throw new RuntimeException("Failed to read JSON file: {$filePath}");
         }
 
         $config = json_decode($content, true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new RuntimeException("Invalid JSON in file {$filePath}: " . json_last_error_msg());
         }
@@ -457,7 +457,7 @@ class Config implements ArrayAccess, Countable
         }
 
         $array[] = $value;
-        
+
         // Temporarily unlock to allow set() to work
         $wasLocked = self::$locked;
         self::$locked = false;
@@ -483,7 +483,7 @@ class Config implements ArrayAccess, Countable
         }
 
         array_unshift($array, $value);
-        
+
         // Temporarily unlock to allow set() to work
         $wasLocked = self::$locked;
         self::$locked = false;
@@ -504,7 +504,7 @@ class Config implements ArrayAccess, Countable
         self::ensureNotLocked();
 
         $value = self::get($key, $default);
-        
+
         // Temporarily unlock to allow forget() to work
         $wasLocked = self::$locked;
         self::$locked = false;
@@ -526,7 +526,7 @@ class Config implements ArrayAccess, Countable
         self::ensureNotLocked();
 
         self::$macros[$key] = $callback;
-        
+
         // Temporarily unlock to allow set() to work
         $wasLocked = self::$locked;
         self::$locked = false;
@@ -547,17 +547,17 @@ class Config implements ArrayAccess, Countable
 
         // Mark this key as memoized
         self::$memoizedMacros[$key] = true;
-        
+
         // Create a wrapper that caches the result
-        $memoized = function() use ($key, $callback) {
+        $memoized = function () use ($key, $callback) {
             if (!isset(self::$memoizedValues[$key])) {
                 self::$memoizedValues[$key] = $callback();
             }
             return self::$memoizedValues[$key];
         };
-        
+
         self::$macros[$key] = $memoized;
-        
+
         // Temporarily unlock to allow set() to work
         $wasLocked = self::$locked;
         self::$locked = false;
@@ -938,7 +938,7 @@ class Config implements ArrayAccess, Countable
      */
     public static function setAllowedBasePaths(array $paths): void
     {
-        self::$allowedBasePaths = array_map(function($path) {
+        self::$allowedBasePaths = array_map(function ($path) {
             $realPath = realpath($path);
             if ($realPath === false) {
                 throw new InvalidArgumentException("Invalid base path: {$path}");
@@ -961,7 +961,7 @@ class Config implements ArrayAccess, Countable
         }
 
         $realPath = realpath($path);
-        
+
         if ($realPath === false) {
             return; // Let other validation handle this
         }

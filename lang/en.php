@@ -4,7 +4,7 @@ return [
     'hello' => 'Hello, :name!',
     'welcome' => 'Welcome to our application!',
     'goodbye' => 'Goodbye, see you later!',
-    
+
     // Nested translations example
     'user' => [
         'profile' => [
@@ -19,7 +19,7 @@ return [
         ],
         'greeting' => 'Hello, :username!',
     ],
-    
+
     'errors' => [
         'not_found' => 'Page not found',
         'unauthorized' => 'Unauthorized access',
@@ -30,7 +30,7 @@ return [
             'min' => 'The :field must be at least :min characters',
         ],
     ],
-    
+
     'buttons' => [
         'submit' => 'Submit',
         'cancel' => 'Cancel',

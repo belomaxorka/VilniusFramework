@@ -28,14 +28,14 @@ final class Core
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
 
-        // Настраиваем логгер для дебага
-        $logFile = LOG_DIR . '/debug.log';
+        // Убеждаемся, что директория для логов существует
         if (!is_dir(LOG_DIR)) {
             mkdir(LOG_DIR, 0755, true);
         }
 
-        Logger::addHandler(new Logger\FileHandler($logFile));
-        Logger::setMinLevel(Environment::getConfig()['log_level']);
+        // Инициализируем логгер из конфигурации
+        // Он автоматически загрузит все настроенные драйверы
+        Logger::init();
     }
 
     private static function initConfigLoader(): void
@@ -49,7 +49,7 @@ final class Core
         } else {
             // В dev/testing загружаем напрямую с поддержкой окружения
             Config::load(CONFIG_DIR, $environment);
-            
+
             // В production создаем/обновляем кэш после загрузки
             if ($environment === 'production') {
                 // Убедимся, что директория для кэша существует

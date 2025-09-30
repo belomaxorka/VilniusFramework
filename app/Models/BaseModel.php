@@ -16,23 +16,23 @@ abstract class BaseModel
     protected array $hidden = [];
     protected array $casts = [];
     protected array $dates = ['created_at', 'updated_at', 'deleted_at'];
-    
+
     // Timestamps
     protected bool $timestamps = true;
     protected string $createdAtColumn = 'created_at';
     protected string $updatedAtColumn = 'updated_at';
-    
+
     // Soft Deletes
     protected bool $softDeletes = false;
     protected string $deletedAtColumn = 'deleted_at';
-    
+
     // Атрибуты модели
     protected array $attributes = [];
     protected array $original = [];
-    
+
     // Relations
     protected array $relations = [];
-    
+
     // События
     protected static array $booted = [];
     protected static array $globalScopes = [];
@@ -50,7 +50,7 @@ abstract class BaseModel
     protected function bootIfNotBooted(): void
     {
         $class = static::class;
-        
+
         if (!isset(static::$booted[$class])) {
             static::$booted[$class] = true;
             $this->boot();
@@ -76,7 +76,7 @@ abstract class BaseModel
                 $this->setAttribute($key, $value);
             }
         }
-        
+
         return $this;
     }
 
@@ -87,13 +87,13 @@ abstract class BaseModel
     {
         // Вызываем мутатор если есть
         $method = 'set' . str_replace('_', '', ucwords($key, '_')) . 'Attribute';
-        
+
         if (method_exists($this, $method)) {
             $value = $this->$method($value);
         }
-        
+
         $this->attributes[$key] = $value;
-        
+
         return $this;
     }
 
@@ -105,21 +105,21 @@ abstract class BaseModel
         if (!array_key_exists($key, $this->attributes)) {
             return null;
         }
-        
+
         $value = $this->attributes[$key];
-        
+
         // Применяем cast
         if (isset($this->casts[$key])) {
             $value = $this->castAttribute($key, $value);
         }
-        
+
         // Вызываем accessor если есть
         $method = 'get' . str_replace('_', '', ucwords($key, '_')) . 'Attribute';
-        
+
         if (method_exists($this, $method)) {
             return $this->$method($value);
         }
-        
+
         return $value;
     }
 
@@ -129,16 +129,16 @@ abstract class BaseModel
     protected function castAttribute(string $key, $value)
     {
         $castType = $this->casts[$key];
-        
+
         if ($value === null) {
             return null;
         }
-        
-        return match($castType) {
-            'int', 'integer' => (int) $value,
-            'real', 'float', 'double' => (float) $value,
-            'string' => (string) $value,
-            'bool', 'boolean' => (bool) $value,
+
+        return match ($castType) {
+            'int', 'integer' => (int)$value,
+            'real', 'float', 'double' => (float)$value,
+            'string' => (string)$value,
+            'bool', 'boolean' => (bool)$value,
             'array', 'json' => is_string($value) ? json_decode($value, true) : $value,
             'object' => is_string($value) ? json_decode($value) : $value,
             'date', 'datetime' => $value,
@@ -184,17 +184,17 @@ abstract class BaseModel
     public function newQuery(): QueryBuilder
     {
         $query = Database::table($this->table);
-        
+
         // Применяем global scopes
         foreach (static::$globalScopes as $scope) {
             $scope($query);
         }
-        
+
         // Применяем soft deletes если включены
         if ($this->softDeletes) {
             $query->whereNull($this->deletedAtColumn);
         }
-        
+
         return $query;
     }
 
@@ -214,11 +214,11 @@ abstract class BaseModel
     public static function findOrFail($id): array
     {
         $result = static::find($id);
-        
+
         if ($result === null) {
             throw new \RuntimeException("Model not found with ID: {$id}");
         }
-        
+
         return $result;
     }
 
@@ -316,20 +316,20 @@ abstract class BaseModel
     public static function create(array $data): int
     {
         $model = new static;
-        
+
         // Фильтруем fillable/guarded
         $data = $model->filterFillable($data);
-        
+
         // Добавляем timestamps
         if ($model->timestamps) {
             $timestamp = date('Y-m-d H:i:s');
             $data[$model->createdAtColumn] = $timestamp;
             $data[$model->updatedAtColumn] = $timestamp;
         }
-        
+
         // Событие creating
         $model->fireEvent('creating', $data);
-        
+
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
 
@@ -338,11 +338,11 @@ abstract class BaseModel
             array_values($data)
         );
 
-        $id = (int) $model->db->lastInsertId();
-        
+        $id = (int)$model->db->lastInsertId();
+
         // Событие created
         $model->fireEvent('created', $id);
-        
+
         return $id;
     }
 
@@ -352,25 +352,25 @@ abstract class BaseModel
     public static function updateRecord(int $id, array $data): int
     {
         $model = new static;
-        
+
         // Фильтруем fillable/guarded
         $data = $model->filterFillable($data);
-        
+
         // Обновляем timestamp
         if ($model->timestamps) {
             $data[$model->updatedAtColumn] = date('Y-m-d H:i:s');
         }
-        
+
         // Событие updating
         $model->fireEvent('updating', $data);
-        
+
         $result = static::query()
             ->where($model->primaryKey, '=', $id)
             ->update($data);
-        
+
         // Событие updated
         $model->fireEvent('updated', $id);
-        
+
         return $result;
     }
 
@@ -380,12 +380,12 @@ abstract class BaseModel
     public static function destroy($id): int
     {
         $model = new static;
-        
+
         // Событие deleting
         $model->fireEvent('deleting', $id);
-        
+
         $result = 0;
-        
+
         // Soft delete
         if ($model->softDeletes) {
             $result = static::query()
@@ -397,10 +397,10 @@ abstract class BaseModel
                 ->where($model->primaryKey, '=', $id)
                 ->delete();
         }
-        
+
         // Событие deleted
         $model->fireEvent('deleted', $id);
-        
+
         return $result;
     }
 
@@ -410,7 +410,7 @@ abstract class BaseModel
     public static function forceDelete($id): int
     {
         $model = new static;
-        
+
         return $model->db->delete(
             "DELETE FROM {$model->table} WHERE {$model->primaryKey} = ?",
             [$id]
@@ -423,11 +423,11 @@ abstract class BaseModel
     public static function restore($id): int
     {
         $model = new static;
-        
+
         if (!$model->softDeletes) {
             throw new \RuntimeException("Model does not use soft deletes");
         }
-        
+
         return $model->db->update(
             "UPDATE {$model->table} SET {$model->deletedAtColumn} = NULL WHERE {$model->primaryKey} = ?",
             [$id]
@@ -440,11 +440,11 @@ abstract class BaseModel
     public static function onlyTrashed(): QueryBuilder
     {
         $model = new static;
-        
+
         if (!$model->softDeletes) {
             throw new \RuntimeException("Model does not use soft deletes");
         }
-        
+
         return Database::table($model->table)
             ->whereNotNull($model->deletedAtColumn);
     }
@@ -513,12 +513,12 @@ abstract class BaseModel
     {
         $model = new static;
         $driver = $model->db->getDriverName();
-        
+
         // SQLite не поддерживает TRUNCATE, используем DELETE
         if ($driver === 'sqlite') {
             return $model->db->statement("DELETE FROM " . $model->table);
         }
-        
+
         return $model->db->statement("TRUNCATE TABLE " . $model->table);
     }
 
@@ -531,17 +531,17 @@ abstract class BaseModel
         if (!empty($this->fillable)) {
             return array_intersect_key($data, array_flip($this->fillable));
         }
-        
+
         // Если guarded = ['*'], возвращаем пустой массив
         if ($this->guarded === ['*']) {
             return [];
         }
-        
+
         // Если guarded содержит конкретные поля, исключаем их
         if (!empty($this->guarded)) {
             return array_diff_key($data, array_flip($this->guarded));
         }
-        
+
         return $data;
     }
 
@@ -563,10 +563,10 @@ abstract class BaseModel
     public function toArray(): array
     {
         $data = $this->attributes;
-        
+
         // Скрываем hidden поля
         $data = $this->hideFields($data);
-        
+
         // Применяем casts
         foreach ($this->casts as $key => $type) {
             if (isset($data[$key])) {
@@ -577,7 +577,7 @@ abstract class BaseModel
                 $data[$key] = $this->castAttribute($key, $data[$key]);
             }
         }
-        
+
         return $data;
     }
 
@@ -612,12 +612,12 @@ abstract class BaseModel
     {
         // Проверяем, есть ли scope метод
         $scopeMethod = 'scope' . ucfirst($method);
-        
+
         if (method_exists(static::class, $scopeMethod)) {
             $model = new static;
             return $model->$scopeMethod(static::query(), ...$parameters);
         }
-        
+
         // Если нет scope метода, пробуем вызвать метод query builder
         return static::query()->$method(...$parameters);
     }
@@ -628,7 +628,7 @@ abstract class BaseModel
     protected function fireEvent(string $event, $data = null): void
     {
         $method = 'on' . ucfirst($event);
-        
+
         if (method_exists($this, $method)) {
             $this->$method($data);
         }
@@ -637,7 +637,7 @@ abstract class BaseModel
     /**
      * Relationships
      */
-    
+
     /**
      * Define a one-to-one relationship
      */
@@ -645,9 +645,9 @@ abstract class BaseModel
     {
         $foreignKey = $foreignKey ?? $this->table . '_id';
         $localKey = $localKey ?? $this->primaryKey;
-        
+
         $relatedModel = new $related;
-        
+
         return $relatedModel->db->select(
             "SELECT * FROM {$relatedModel->table} WHERE {$foreignKey} = ?",
             [$this->attributes[$localKey] ?? null]
@@ -670,12 +670,12 @@ abstract class BaseModel
         $relatedModel = new $related;
         $foreignKey = $foreignKey ?? $relatedModel->table . '_id';
         $ownerKey = $ownerKey ?? $relatedModel->primaryKey;
-        
+
         $result = $relatedModel->db->selectOne(
             "SELECT * FROM {$relatedModel->table} WHERE {$ownerKey} = ?",
             [$this->attributes[$foreignKey] ?? null]
         );
-        
+
         return $result;
     }
 
@@ -683,17 +683,18 @@ abstract class BaseModel
      * Define a many-to-many relationship
      */
     protected function belongsToMany(
-        string $related,
+        string  $related,
         ?string $table = null,
         ?string $foreignPivotKey = null,
         ?string $relatedPivotKey = null
-    ): array {
+    ): array
+    {
         $relatedModel = new $related;
-        
+
         $table = $table ?? $this->joiningTable($relatedModel);
         $foreignPivotKey = $foreignPivotKey ?? $this->table . '_id';
         $relatedPivotKey = $relatedPivotKey ?? $relatedModel->table . '_id';
-        
+
         return $this->db->select(
             "SELECT {$relatedModel->table}.* FROM {$relatedModel->table}
              INNER JOIN {$table} ON {$relatedModel->table}.{$relatedModel->primaryKey} = {$table}.{$relatedPivotKey}
@@ -711,9 +712,9 @@ abstract class BaseModel
             $this->table,
             $related->table
         ];
-        
+
         sort($segments);
-        
+
         return strtolower(implode('_', $segments));
     }
 }

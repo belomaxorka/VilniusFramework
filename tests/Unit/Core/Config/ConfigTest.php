@@ -392,9 +392,9 @@ it('throws when prepending to non-array value', function (): void {
 
 it('pulls value and removes it', function (): void {
     Config::set('temp.value', 'temporary');
-    
+
     $value = Config::pull('temp.value');
-    
+
     expect($value)->toBe('temporary');
     expect(Config::has('temp.value'))->toBeFalse();
 });
@@ -406,9 +406,9 @@ it('pulls with default when key missing', function (): void {
 
 it('pulls nested value', function (): void {
     Config::set('app.temp.secret', 'sensitive_data');
-    
+
     $value = Config::pull('app.temp.secret', null);
-    
+
     expect($value)->toBe('sensitive_data');
     expect(Config::has('app.temp.secret'))->toBeFalse();
     expect(Config::has('app.temp'))->toBeTrue(); // Parent still exists
@@ -418,19 +418,19 @@ it('pulls nested value', function (): void {
 
 it('registers and resolves a macro', function (): void {
     $counter = 0;
-    
+
     Config::macro('app.timestamp', function () use (&$counter) {
         $counter++;
         return time();
     });
 
     expect(Config::isMacro('app.timestamp'))->toBeTrue();
-    
+
     // Resolving should execute the callable
     $result = Config::resolve('app.timestamp');
     expect($result)->toBeInt();
     expect($counter)->toBe(1);
-    
+
     // Each resolve executes it again (not memoized by default)
     Config::resolve('app.timestamp');
     expect($counter)->toBe(2);
@@ -438,7 +438,7 @@ it('registers and resolves a macro', function (): void {
 
 it('get returns callable without executing for macros', function (): void {
     Config::macro('app.factory', fn() => 'created');
-    
+
     $value = Config::get('app.factory');
     expect($value)->toBeCallable();
 });
@@ -446,7 +446,7 @@ it('get returns callable without executing for macros', function (): void {
 it('resolve executes macro only if registered', function (): void {
     // Regular callable set without macro() should NOT be executed
     Config::set('app.callback', fn() => 'should-not-execute');
-    
+
     $result = Config::resolve('app.callback');
     expect($result)->toBeCallable(); // Returns the callable itself
 });
@@ -473,7 +473,7 @@ it('resolves all macros recursively', function (): void {
     Config::set('database.port', 3306);
 
     $resolved = Config::resolveAll();
-    
+
     expect($resolved['app']['name'])->toBe('MyApp');
     expect($resolved['app']['version'])->toBe('1.0.0');
     expect($resolved['database']['host'])->toBe('localhost');
@@ -483,7 +483,7 @@ it('resolves all macros recursively', function (): void {
 it('clear removes macros', function (): void {
     Config::macro('app.factory', fn() => 'value');
     expect(Config::isMacro('app.factory'))->toBeTrue();
-    
+
     Config::clear();
     expect(Config::isMacro('app.factory'))->toBeFalse();
 });
@@ -500,10 +500,10 @@ it('macros are excluded from cache', function (): void {
         expect(Config::isMacro('app.factory'))->toBeFalse();
 
         Config::loadCached($cachePath);
-        
+
         // Regular config is restored
         expect(Config::get('app.name'))->toBe('MyApp');
-        
+
         // Macros are NOT restored from cache
         expect(Config::isMacro('app.factory'))->toBeFalse();
         expect(Config::get('app.factory'))->toBeNull();
@@ -521,7 +521,7 @@ it('resolves with default when macro does not exist', function (): void {
 
 it('macro can access external state', function (): void {
     $externalValue = 'external';
-    
+
     Config::macro('app.dynamic', function () use ($externalValue) {
         return "Value: {$externalValue}";
     });
@@ -555,12 +555,12 @@ it('loads environment-specific configs from subdirectory', function (): void {
         // Base config values
         expect(Config::get('app.name'))->toBe('MyApp');
         expect(Config::get('app.version'))->toBe('1.0');
-        
+
         // Overridden by environment
         expect(Config::get('app.debug'))->toBe(false);
         expect(Config::get('app.log_level'))->toBe('error');
         expect(Config::get('database.host'))->toBe('prod-server.com');
-        
+
         // Not overridden
         expect(Config::get('database.port'))->toBe(3306);
     } finally {
@@ -661,10 +661,10 @@ it('ignores non-existent environment configs gracefully', function (): void {
 it('locks configuration to prevent modifications', function (): void {
     Config::set('app.name', 'MyApp');
     expect(Config::isLocked())->toBeFalse();
-    
+
     Config::lock();
     expect(Config::isLocked())->toBeTrue();
-    
+
     expect(fn() => Config::set('app.name', 'NewName'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -672,7 +672,7 @@ it('locks configuration to prevent modifications', function (): void {
 it('prevents set() when locked', function (): void {
     Config::set('app.name', 'MyApp');
     Config::lock();
-    
+
     expect(fn() => Config::set('app.version', '2.0'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -680,7 +680,7 @@ it('prevents set() when locked', function (): void {
 it('prevents forget() when locked', function (): void {
     Config::set('app.name', 'MyApp');
     Config::lock();
-    
+
     expect(fn() => Config::forget('app.name'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -688,7 +688,7 @@ it('prevents forget() when locked', function (): void {
 it('prevents push() when locked', function (): void {
     Config::set('app.providers', ['Provider1']);
     Config::lock();
-    
+
     expect(fn() => Config::push('app.providers', 'Provider2'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -696,7 +696,7 @@ it('prevents push() when locked', function (): void {
 it('prevents prepend() when locked', function (): void {
     Config::set('app.middleware', ['Middleware1']);
     Config::lock();
-    
+
     expect(fn() => Config::prepend('app.middleware', 'Middleware0'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -704,14 +704,14 @@ it('prevents prepend() when locked', function (): void {
 it('prevents pull() when locked', function (): void {
     Config::set('temp.value', 'temporary');
     Config::lock();
-    
+
     expect(fn() => Config::pull('temp.value'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
 
 it('prevents macro() when locked', function (): void {
     Config::lock();
-    
+
     expect(fn() => Config::macro('app.factory', fn() => 'value'))
         ->toThrow(RuntimeException::class, 'Configuration is locked');
 });
@@ -719,7 +719,7 @@ it('prevents macro() when locked', function (): void {
 it('allows get() and has() when locked', function (): void {
     Config::set('app.name', 'MyApp');
     Config::lock();
-    
+
     // Read operations should work
     expect(Config::get('app.name'))->toBe('MyApp');
     expect(Config::has('app.name'))->toBeTrue();
@@ -728,7 +728,7 @@ it('allows get() and has() when locked', function (): void {
 it('allows resolve() when locked', function (): void {
     Config::macro('app.factory', fn() => 'value');
     Config::lock();
-    
+
     // Resolving should work even when locked
     expect(Config::resolve('app.factory'))->toBe('value');
 });
@@ -736,10 +736,10 @@ it('allows resolve() when locked', function (): void {
 it('unlocks configuration', function (): void {
     Config::lock();
     expect(Config::isLocked())->toBeTrue();
-    
+
     Config::unlock();
     expect(Config::isLocked())->toBeFalse();
-    
+
     // Should be able to modify again
     Config::set('app.name', 'MyApp');
     expect(Config::get('app.name'))->toBe('MyApp');
@@ -749,10 +749,10 @@ it('clear() unlocks configuration', function (): void {
     Config::set('app.name', 'MyApp');
     Config::lock();
     expect(Config::isLocked())->toBeTrue();
-    
+
     Config::clear();
     expect(Config::isLocked())->toBeFalse();
-    
+
     // Should be able to set again
     Config::set('app.name', 'NewApp');
     expect(Config::get('app.name'))->toBe('NewApp');
@@ -767,18 +767,18 @@ it('typical workflow: load, configure, lock', function (): void {
         // 1. Load configuration
         Config::load($dir);
         expect(Config::get('app.name'))->toBe('MyApp');
-        
+
         // 2. Make runtime modifications
         Config::set('app.initialized', true);
         expect(Config::get('app.initialized'))->toBeTrue();
-        
+
         // 3. Lock for production safety
         Config::lock();
-        
+
         // 4. Reading still works
         expect(Config::get('app.name'))->toBe('MyApp');
         expect(Config::get('app.initialized'))->toBeTrue();
-        
+
         // 5. Modifications are prevented
         expect(fn() => Config::set('app.hacked', true))
             ->toThrow(RuntimeException::class);
@@ -811,7 +811,7 @@ it('loads configuration recursively from subdirectories', function (): void {
 
         // Root level config
         expect(Config::get('app.name'))->toBe('MyApp');
-        
+
         // Namespaced by directory
         expect(Config::get('services.mail.driver'))->toBe('smtp');
         expect(Config::get('services.mail.host'))->toBe('mail.example.com');
@@ -860,7 +860,7 @@ it('merges configs when loading multiple files with same namespace', function ()
         // Top-level app config
         expect(Config::get('app.name'))->toBe('MyApp');
         expect(Config::get('app.version'))->toBe('1.0');
-        
+
         // Subdirectory config in app.extra
         expect(Config::get('app.extra.feature'))->toBe('enabled');
     } finally {
@@ -885,7 +885,7 @@ it('works with non-recursive mode (backward compatible)', function (): void {
 
         // Root level should be loaded
         expect(Config::get('app.name'))->toBe('MyApp');
-        
+
         // Subdirectory should NOT be loaded
         expect(Config::get('services.mail.driver'))->toBeNull();
     } finally {

@@ -196,7 +196,7 @@ class TemplateEngine
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
             $variable = $this->processVariable(array_shift($parts));
-            
+
             // Применяем фильтры
             $compiled = $variable;
             foreach ($parts as $filter) {
@@ -209,7 +209,7 @@ class TemplateEngine
                     $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
                 }
             }
-            
+
             return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
         }, $content);
 
@@ -218,7 +218,7 @@ class TemplateEngine
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
             $variable = $this->processVariable(array_shift($parts));
-            
+
             // Применяем фильтры
             $compiled = $variable;
             foreach ($parts as $filter) {
@@ -231,7 +231,7 @@ class TemplateEngine
                     $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
                 }
             }
-            
+
             return '<?= ' . $compiled . ' ?? \'\' ?>';
         }, $content);
 
@@ -258,7 +258,7 @@ class TemplateEngine
     private function executeTemplate(string $compiledContent, array $variables): string
     {
         extract($variables);
-        
+
         // Передаем ссылку на движок шаблонов для доступа к helper-методам
         $__tpl = $this;
 
@@ -421,11 +421,11 @@ class TemplateEngine
         $inString = false;
         $stringChar = null;
         $length = strlen($expression);
-        
+
         for ($i = 0; $i < $length; $i++) {
             $char = $expression[$i];
             $prevChar = $i > 0 ? $expression[$i - 1] : '';
-            
+
             // Проверяем открытие/закрытие строки
             if (($char === '"' || $char === "'") && $prevChar !== '\\') {
                 if (!$inString) {
@@ -438,35 +438,35 @@ class TemplateEngine
                 $current .= $char;
                 continue;
             }
-            
+
             // Внутри строки просто добавляем символ
             if ($inString) {
                 $current .= $char;
                 continue;
             }
-            
+
             // Отслеживаем вложенность скобок
             if ($char === '(') {
                 $depth++;
             } elseif ($char === ')') {
                 $depth--;
             }
-            
+
             // Разделяем по | только на верхнем уровне
             if ($char === '|' && $depth === 0) {
                 $parts[] = $current;
                 $current = '';
                 continue;
             }
-            
+
             $current .= $char;
         }
-        
+
         // Добавляем последнюю часть
         if ($current !== '') {
             $parts[] = $current;
         }
-        
+
         return $parts;
     }
 
@@ -525,23 +525,23 @@ class TemplateEngine
     {
         // Массив для хранения защищенных фрагментов
         $protected = [];
-        
+
         // Регулярное выражение для поиска цепочек вида: variable.property[index].another
         // Ищем паттерн: начало_имени[индекс или .свойство]*
         $pattern = '/\b([a-zA-Z_][a-zA-Z0-9_]*)([.\[][\w\[\]."\']+)?/';
-        
+
         $expression = preg_replace_callback($pattern, function ($matches) use (&$protected) {
             $baseName = $matches[1];
             $accessors = $matches[2] ?? '';
-            
+
             if (empty($accessors)) {
                 // Простая переменная без доступа
                 return $matches[0];
             }
-            
+
             // Начинаем с базовой переменной
             $result = '$' . $baseName;
-            
+
             // Разбираем цепочку доступов
             $remaining = $accessors;
             while (!empty($remaining)) {
@@ -550,25 +550,23 @@ class TemplateEngine
                     $property = $propMatch[1];
                     $result = '$__tpl->getValue(' . $result . ', "' . $property . '")';
                     $remaining = substr($remaining, strlen($propMatch[0]));
-                }
-                // Проверяем доступ через квадратные скобки: [index] или ["key"]
+                } // Проверяем доступ через квадратные скобки: [index] или ["key"]
                 elseif (preg_match('/^\[([^\]]+)\]/', $remaining, $arrMatch)) {
                     $index = $arrMatch[1];
                     // Убираем кавычки если они есть, так как мы работаем с числами напрямую
                     $result = $result . '[' . $index . ']';
                     $remaining = substr($remaining, strlen($arrMatch[0]));
-                }
-                else {
+                } else {
                     break;
                 }
             }
-            
+
             // Защищаем результат от дальнейшей обработки
             $placeholder = '___PROTECTED_' . count($protected) . '___';
             $protected[$placeholder] = $result;
             return $placeholder;
         }, $expression);
-        
+
         // Возвращаем выражение вместе с защищенными фрагментами
         return ['expression' => $expression, 'protected' => $protected];
     }
@@ -583,22 +581,22 @@ class TemplateEngine
         $this->addFilter('lower', fn($value) => mb_strtolower((string)$value, 'UTF-8'));
         $this->addFilter('capitalize', fn($value) => mb_convert_case((string)$value, MB_CASE_TITLE, 'UTF-8'));
         $this->addFilter('trim', fn($value) => trim((string)$value));
-        
+
         // Фильтры для HTML
         $this->addFilter('escape', fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'));
         $this->addFilter('e', fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8')); // алиас
         $this->addFilter('striptags', fn($value) => strip_tags((string)$value));
         $this->addFilter('nl2br', fn($value) => nl2br((string)$value));
-        
+
         // Фильтры для чисел
         $this->addFilter('abs', fn($value) => abs((float)$value));
         $this->addFilter('round', fn($value, $precision = 0) => round((float)$value, (int)$precision));
-        $this->addFilter('number_format', function($value, $decimals = 0, $decPoint = '.', $thousandsSep = ',') {
+        $this->addFilter('number_format', function ($value, $decimals = 0, $decPoint = '.', $thousandsSep = ',') {
             return number_format((float)$value, (int)$decimals, $decPoint, $thousandsSep);
         });
-        
+
         // Фильтры для массивов
-        $this->addFilter('length', function($value) {
+        $this->addFilter('length', function ($value) {
             if (is_array($value) || $value instanceof \Countable) {
                 return count($value);
             }
@@ -610,9 +608,9 @@ class TemplateEngine
         $this->addFilter('last', fn($value) => is_array($value) && !empty($value) ? end($value) : null);
         $this->addFilter('keys', fn($value) => is_array($value) ? array_keys($value) : []);
         $this->addFilter('values', fn($value) => is_array($value) ? array_values($value) : []);
-        
+
         // Фильтры для строк
-        $this->addFilter('truncate', function($value, $length = 80, $suffix = '...') {
+        $this->addFilter('truncate', function ($value, $length = 80, $suffix = '...') {
             $str = (string)$value;
             if (mb_strlen($str, 'UTF-8') <= $length) {
                 return $str;
@@ -622,9 +620,9 @@ class TemplateEngine
         $this->addFilter('replace', fn($value, $search, $replace) => str_replace($search, $replace, (string)$value));
         $this->addFilter('split', fn($value, $delimiter = ',') => explode($delimiter, (string)$value));
         $this->addFilter('reverse', fn($value) => is_array($value) ? array_reverse($value) : strrev((string)$value));
-        
+
         // Фильтры для форматирования
-        $this->addFilter('date', function($value, $format = 'Y-m-d H:i:s') {
+        $this->addFilter('date', function ($value, $format = 'Y-m-d H:i:s') {
             if ($value instanceof \DateTimeInterface) {
                 return $value->format($format);
             }
@@ -637,20 +635,20 @@ class TemplateEngine
             }
             return $value;
         });
-        
+
         // Фильтры для значений по умолчанию
         $this->addFilter('default', fn($value, $default = '') => empty($value) ? $default : $value);
-        
+
         // Фильтры для JSON
         $this->addFilter('json', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $this->addFilter('json_decode', fn($value) => json_decode((string)$value, true));
-        
+
         // Фильтры для URL
         $this->addFilter('url_encode', fn($value) => urlencode((string)$value));
         $this->addFilter('url_decode', fn($value) => urldecode((string)$value));
-        
+
         // Фильтры для отладки
-        $this->addFilter('dump', function($value) {
+        $this->addFilter('dump', function ($value) {
             ob_start();
             var_dump($value);
             return '<pre>' . htmlspecialchars(ob_get_clean(), ENT_QUOTES, 'UTF-8') . '</pre>';

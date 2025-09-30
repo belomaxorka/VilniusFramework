@@ -6,12 +6,12 @@ use Core\Config;
 beforeEach(function (): void {
     // Reset Lang state before each test
     Lang::reset();
-    
+
     // Set up test language directory
     if (!defined('LANG_DIR')) {
         define('LANG_DIR', __DIR__ . '/../../../lang');
     }
-    
+
     // Setup Config for testing
     Config::clear();
     Config::set('language', [
@@ -37,30 +37,30 @@ describe('Initialization', function () {
     it('initializes language system with default language', function (): void {
         Config::set('language.default', 'ru');
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBe('ru');
     });
 
     it('initializes with auto-detection when default is auto', function (): void {
         Config::set('language.default', 'auto');
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9';
-        
+
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBe('ru');
     });
 
     it('sets fallback language during initialization', function (): void {
         Config::set('language.fallback', 'ru');
         Lang::init();
-        
+
         expect(Lang::getFallbackLang())->toBe('ru');
     });
 
     it('falls back to auto-detection when default language is invalid', function (): void {
         Config::set('language.default', 'invalid_lang');
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBeString();
     });
 });
@@ -150,17 +150,17 @@ describe('Fallback language', function () {
     it('uses fallback when key missing in current language', function (): void {
         Lang::setLang('ru');
         Lang::setFallbackLang('en');
-        
+
         // Add a key only to English
         Lang::addMessages('en', ['only_english' => 'English only']);
-        
+
         expect(Lang::get('only_english'))->toBe('English only');
     });
 
     it('gets and sets fallback language', function (): void {
         Lang::setFallbackLang('ru');
         expect(Lang::getFallbackLang())->toBe('ru');
-        
+
         Lang::setFallbackLang('en');
         expect(Lang::getFallbackLang())->toBe('en');
     });
@@ -170,7 +170,7 @@ describe('Multiple languages', function () {
     it('switches between languages', function (): void {
         Lang::setLang('en');
         expect(Lang::get('hello', ['name' => 'World']))->toBe('Hello, World!');
-        
+
         Lang::setLang('ru');
         expect(Lang::get('hello', ['name' => 'Мир']))->toBe('Привет, Мир!');
     });
@@ -178,7 +178,7 @@ describe('Multiple languages', function () {
     it('loads multiple languages', function (): void {
         Lang::setLang('en');
         Lang::setLang('ru');
-        
+
         $loaded = Lang::getLoadedLanguages();
         expect($loaded)->toContain('en');
         expect($loaded)->toContain('ru');
@@ -218,7 +218,7 @@ describe('Language validation', function () {
     it('validates language when setting with validation flag', function (): void {
         $result = Lang::setLang('fr', true); // French not supported
         expect($result)->toBeFalse();
-        
+
         $result = Lang::setLang('ru', true); // Russian is supported
         expect($result)->toBeTrue();
         expect(Lang::getCurrentLang())->toBe('ru');
@@ -229,9 +229,9 @@ describe('State management', function () {
     it('resets language state', function (): void {
         Lang::setLang('ru');
         Lang::setFallbackLang('ru');
-        
+
         Lang::reset();
-        
+
         expect(Lang::getCurrentLang())->toBe('en');
         expect(Lang::getFallbackLang())->toBe('en');
         expect(Lang::getLoadedLanguages())->toBe([]);
@@ -240,7 +240,7 @@ describe('State management', function () {
     it('gets all messages for current language', function (): void {
         Lang::setLang('en');
         $messages = Lang::all();
-        
+
         expect($messages)->toBeArray();
         expect($messages)->toHaveKey('hello');
         expect($messages)->toHaveKey('user');
@@ -252,7 +252,7 @@ describe('State management', function () {
             'custom' => 'Custom message',
             'another' => 'Another one',
         ]);
-        
+
         expect(Lang::get('custom'))->toBe('Custom message');
         expect(Lang::get('another'))->toBe('Another one');
     });
@@ -260,17 +260,17 @@ describe('State management', function () {
     it('overrides existing messages with addMessages', function (): void {
         Lang::setLang('en');
         Lang::addMessages('en', ['hello' => 'Hi, :name!']);
-        
+
         expect(Lang::get('hello', ['name' => 'Test']))->toBe('Hi, Test!');
     });
 
     it('gets messages for specific language', function (): void {
         Lang::setLang('en');
         Lang::setLang('ru'); // Load both languages
-        
+
         $enMessages = Lang::getMessages('en');
         $ruMessages = Lang::getMessages('ru');
-        
+
         expect($enMessages)->toBeArray();
         expect($ruMessages)->toBeArray();
         expect($enMessages['hello'])->toBe('Hello, :name!');
@@ -281,13 +281,13 @@ describe('State management', function () {
 describe('Supported languages', function () {
     it('gets supported language codes', function (): void {
         $languages = Lang::getSupportedLanguages();
-        
+
         expect($languages)->toBe(['en', 'ru']);
     });
 
     it('gets supported languages with names', function (): void {
         $languages = Lang::getSupportedLanguagesWithNames();
-        
+
         expect($languages)->toBe([
             'en' => 'English',
             'ru' => 'Русский',
@@ -307,7 +307,7 @@ describe('Supported languages', function () {
 describe('Available languages', function () {
     it('gets available languages from directory', function (): void {
         $available = Lang::getAvailableLanguages();
-        
+
         expect($available)->toBeArray();
         expect($available)->toContain('en');
         expect($available)->toContain('ru');
@@ -315,7 +315,7 @@ describe('Available languages', function () {
 
     it('filters out invalid language codes', function (): void {
         $available = Lang::getAvailableLanguages();
-        
+
         foreach ($available as $lang) {
             expect($lang)->toMatch('/^[a-z]{2}$/');
         }
@@ -336,13 +336,13 @@ describe('RTL support', function () {
     it('checks current language for RTL when no parameter provided', function (): void {
         Lang::init();
         Lang::setLang('en', true);
-        
+
         expect(Lang::isRTL())->toBeFalse();
     });
 
     it('handles empty RTL languages list', function (): void {
         Config::set('language.rtl_languages', []);
-        
+
         expect(Lang::isRTL('ar'))->toBeFalse();
     });
 });
@@ -376,7 +376,7 @@ describe('Edge cases', function () {
                 'items' => ['one', 'two', 'three'],
             ],
         ]);
-        
+
         // Getting an array should return the key (since we can't return non-string)
         $result = Lang::get('data.items');
         expect($result)->toBe('data.items');
@@ -384,24 +384,24 @@ describe('Edge cases', function () {
 
     it('handles missing config values gracefully', function (): void {
         Config::clear();
-        
+
         Lang::init();
-        
+
         // Should use defaults
         expect(Lang::getCurrentLang())->toBeString();
     });
 
     it('handles empty supported languages list', function (): void {
         Config::set('language.supported', []);
-        
+
         $languages = Lang::getSupportedLanguages();
-        
+
         expect($languages)->toBe([]);
     });
 
     it('validates against empty supported list', function (): void {
         Config::set('language.supported', []);
-        
+
         expect(Lang::isValidLanguage('en'))->toBeFalse();
     });
 });
@@ -410,27 +410,27 @@ describe('Auto-detection', function () {
     it('detects language from HTTP_ACCEPT_LANGUAGE header', function (): void {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7';
         Config::set('language.auto_detect', true);
-        
+
         Lang::setLang(null); // null triggers auto-detection
-        
+
         expect(Lang::getCurrentLang())->toBe('ru');
     });
 
     it('falls back to default when auto-detect disabled', function (): void {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'de-DE,de;q=0.9';
         Config::set('language.auto_detect', false);
-        
+
         Lang::setLang(null);
-        
+
         expect(Lang::getCurrentLang())->toBe('en'); // fallback
     });
 
     it('uses fallback when browser language not supported', function (): void {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'fr-FR,fr;q=0.9';
         Config::set('language.auto_detect', true);
-        
+
         Lang::setLang(null);
-        
+
         // French is not supported, should use fallback
         expect(Lang::getCurrentLang())->toBe('en');
     });
@@ -439,9 +439,9 @@ describe('Auto-detection', function () {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9,en;q=0.8';
         Config::set('language.default', 'auto');
         Config::set('language.auto_detect', true);
-        
+
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBe('ru');
     });
 
@@ -449,9 +449,9 @@ describe('Auto-detection', function () {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'fr-FR,fr;q=0.9';
         Config::set('language.default', 'auto');
         Config::set('language.auto_detect', true);
-        
+
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBe('en');
     });
 
@@ -459,9 +459,9 @@ describe('Auto-detection', function () {
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9';
         Config::set('language.default', 'en');
         Config::set('language.auto_detect', false);
-        
+
         Lang::init();
-        
+
         expect(Lang::getCurrentLang())->toBe('en');
     });
 });
