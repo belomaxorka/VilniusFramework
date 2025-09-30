@@ -188,7 +188,11 @@ describe('Query Dump', function () {
         
         expect($output)->toContain('SQL Query Debugger');
         expect($output)->toContain('Total Queries:');
-        expect($output)->toContain('SELECT * FROM users');
+        // SQL подсвечивается, поэтому проверяем части
+        expect($output)->toContain('users');
+        expect($output)->toContain('posts');
+        expect($output)->toContain('100 rows');
+        expect($output)->toContain('50 rows');
     });
 
     test('shows warnings for slow queries', function () {
