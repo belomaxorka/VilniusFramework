@@ -95,6 +95,27 @@ it('merges config when loading files with same key', function (): void {
     }
 });
 
+it('overwrites scalar values instead of creating arrays', function (): void {
+    $dir1 = createTempConfigDir([
+        'app.php' => ['name' => 'OldName', 'debug' => false],
+    ]);
+    $dir2 = createTempConfigDir([
+        'app.php' => ['name' => 'NewName', 'debug' => true],
+    ]);
+
+    try {
+        Config::loadFile($dir1 . DIRECTORY_SEPARATOR . 'app.php');
+        Config::loadFile($dir2 . DIRECTORY_SEPARATOR . 'app.php');
+
+        // Should overwrite, not create arrays
+        expect(Config::get('app.name'))->toBe('NewName');
+        expect(Config::get('app.debug'))->toBe(true);
+    } finally {
+        deleteDir($dir1);
+        deleteDir($dir2);
+    }
+});
+
 it('throws when loading non-existing directory', function (): void {
     expect(fn() => Config::load('Z:/definitely/nonexistent/path'))
         ->toThrow(InvalidArgumentException::class);
@@ -467,10 +488,11 @@ it('clear removes macros', function (): void {
     expect(Config::isMacro('app.factory'))->toBeFalse();
 });
 
-it('caches and loads macros', function (): void {
+it('macros are excluded from cache', function (): void {
     $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
 
     try {
+        Config::set('app.name', 'MyApp');
         Config::macro('app.factory', fn() => 'lazy-value');
         Config::cache($cachePath);
 
@@ -478,8 +500,13 @@ it('caches and loads macros', function (): void {
         expect(Config::isMacro('app.factory'))->toBeFalse();
 
         Config::loadCached($cachePath);
-        expect(Config::isMacro('app.factory'))->toBeTrue();
-        expect(Config::resolve('app.factory'))->toBe('lazy-value');
+        
+        // Regular config is restored
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Macros are NOT restored from cache
+        expect(Config::isMacro('app.factory'))->toBeFalse();
+        expect(Config::get('app.factory'))->toBeNull();
     } finally {
         if (file_exists($cachePath)) {
             @unlink($cachePath);

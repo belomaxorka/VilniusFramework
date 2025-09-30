@@ -125,7 +125,7 @@ class Config
             if ($i === count($parts) - 1) {
                 // Last part: merge if exists, otherwise set
                 if (isset($current[$part]) && is_array($current[$part])) {
-                    $current[$part] = array_merge_recursive($current[$part], $value);
+                    $current[$part] = self::mergeConfigs($current[$part], $value);
                 } else {
                     $current[$part] = $value;
                 }
@@ -136,6 +136,31 @@ class Config
                 $current = &$current[$part];
             }
         }
+    }
+
+    /**
+     * Merges two configuration arrays intelligently
+     *
+     * Unlike array_merge_recursive, this function properly overwrites scalar values
+     * instead of creating arrays from them.
+     *
+     * @param array $base Base configuration array
+     * @param array $override Override configuration array
+     * @return array Merged configuration
+     */
+    protected static function mergeConfigs(array $base, array $override): array
+    {
+        foreach ($override as $key => $value) {
+            if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
+                // Both are arrays - merge recursively
+                $base[$key] = self::mergeConfigs($base[$key], $value);
+            } else {
+                // Override the value (scalar or array replaces anything)
+                $base[$key] = $value;
+            }
+        }
+
+        return $base;
     }
 
     /**
@@ -203,7 +228,7 @@ class Config
 
         // Merge configurations if key already exists
         if (isset(self::$items[$key]) && is_array(self::$items[$key])) {
-            self::$items[$key] = array_merge_recursive(self::$items[$key], $config);
+            self::$items[$key] = self::mergeConfigs(self::$items[$key], $config);
         } else {
             self::$items[$key] = $config;
         }
@@ -237,7 +262,7 @@ class Config
 
         // Merge configurations if key already exists
         if (isset(self::$items[$key]) && is_array(self::$items[$key])) {
-            self::$items[$key] = array_merge_recursive(self::$items[$key], $config);
+            self::$items[$key] = self::mergeConfigs(self::$items[$key], $config);
         } else {
             self::$items[$key] = $config;
         }
@@ -590,6 +615,8 @@ class Config
     /**
      * Caches all configuration data to a file
      *
+     * Note: Macros (callables) cannot be cached and will be excluded.
+     *
      * @param string $cachePath Path to the cache file
      * @return bool True if cache was successfully created
      * @throws RuntimeException If unable to write cache file
@@ -608,16 +635,19 @@ class Config
             throw new RuntimeException("Cache directory is not writable: {$cacheDir}");
         }
 
+        // Remove callables from items before caching (they can't be serialized with var_export)
+        $cacheableItems = self::removeCachableCallables(self::$items);
+
         $data = [
-            'items' => self::$items,
+            'items' => $cacheableItems,
             'loadedPaths' => self::$loadedPaths,
-            'macros' => self::$macros,
             'timestamp' => time(),
         ];
 
         $content = '<?php declare(strict_types=1);' . PHP_EOL . PHP_EOL;
         $content .= '// Configuration cache generated at ' . date('Y-m-d H:i:s') . PHP_EOL;
-        $content .= '// Do not modify this file manually' . PHP_EOL . PHP_EOL;
+        $content .= '// Do not modify this file manually' . PHP_EOL;
+        $content .= '// Note: Macros (callables) are not cached' . PHP_EOL . PHP_EOL;
         $content .= 'return ' . var_export($data, true) . ';' . PHP_EOL;
 
         $result = file_put_contents($cachePath, $content, LOCK_EX);
@@ -630,7 +660,31 @@ class Config
     }
 
     /**
+     * Recursively removes callables from array for caching
+     *
+     * @param array $array The array to process
+     * @return array Array without callables
+     */
+    protected static function removeCachableCallables(array $array): array
+    {
+        $result = [];
+
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $result[$key] = self::removeCachableCallables($value);
+            } elseif (!is_callable($value)) {
+                $result[$key] = $value;
+            }
+            // Skip callables - they can't be cached
+        }
+
+        return $result;
+    }
+
+    /**
      * Loads configuration from a cached file
+     *
+     * Note: Macros are not restored from cache.
      *
      * @param string $cachePath Path to the cache file
      * @return bool True if cache was successfully loaded, false if cache doesn't exist
@@ -654,7 +708,6 @@ class Config
 
         self::$items = $data['items'];
         self::$loadedPaths = $data['loadedPaths'];
-        self::$macros = $data['macros'] ?? [];
         self::$loadedFromCache = true;
 
         return true;
