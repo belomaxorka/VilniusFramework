@@ -6,8 +6,6 @@ use Core\Logger\LogHandlerInterface;
 use Core\Logger\FileHandler;
 use Core\Logger\SlackHandler;
 use Core\Logger\TelegramHandler;
-use Core\Logger\AsyncSlackHandler;
-use Core\Logger\AsyncTelegramHandler;
 
 class Logger
 {
@@ -84,19 +82,6 @@ class Logger
                     if (empty($webhookUrl)) {
                         return null; // Slack webhook не настроен
                     }
-                    
-                    // Используем асинхронный хендлер если указано
-                    if ($config['async'] ?? false) {
-                        return new AsyncSlackHandler(
-                            $webhookUrl,
-                            $config['channel'] ?? '#logs',
-                            $config['username'] ?? 'Logger Bot',
-                            $config['emoji'] ?? ':robot_face:',
-                            $config['min_level'] ?? 'error',
-                            $config['queue'] ?? 'logs'
-                        );
-                    }
-                    
                     return new SlackHandler(
                         $webhookUrl,
                         $config['channel'] ?? '#logs',
@@ -111,18 +96,6 @@ class Logger
                     if (empty($botToken) || empty($chatId)) {
                         return null; // Telegram не настроен
                     }
-                    
-                    // Используем асинхронный хендлер если указано
-                    if ($config['async'] ?? false) {
-                        return new AsyncTelegramHandler(
-                            $botToken,
-                            $chatId,
-                            $config['parse_mode'] ?? 'HTML',
-                            $config['min_level'] ?? 'error',
-                            $config['queue'] ?? 'logs'
-                        );
-                    }
-                    
                     return new TelegramHandler(
                         $botToken,
                         $chatId,
