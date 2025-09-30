@@ -33,6 +33,16 @@ class Environment
 
         self::$environment = $environment;
         self::$isDebugCache = null; // Сбрасываем кеш при изменении окружения
+        
+        // Удаляем APP_DEBUG из окружения чтобы не было конфликтов между тестами
+        // Это позволит isDebug() использовать значения по умолчанию для каждого окружения
+        unset($_ENV['APP_DEBUG'], $_SERVER['APP_DEBUG']);
+        putenv('APP_DEBUG');
+        
+        // Очищаем кеш Env ПЕРЕД установкой нового окружения
+        Env::clearCache();
+        
+        // Теперь устанавливаем новое окружение
         Env::set('APP_ENV', $environment);
     }
 
