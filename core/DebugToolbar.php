@@ -87,7 +87,9 @@ class DebugToolbar
         }
 
         // Total time (от старта скрипта)
-        if (defined('APP_START')) {
+        if (defined('VILNIUS_START')) {
+            $stats['time'] = (microtime(true) - VILNIUS_START) * 1000;
+        } elseif (defined('APP_START')) {
             $stats['time'] = (microtime(true) - APP_START) * 1000;
         }
 
