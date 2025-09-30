@@ -23,13 +23,46 @@ beforeEach(function (): void {
         ],
         'auto_detect' => true,
         'log_missing' => false,
-        'rtl_languages' => [],
+        'rtl_languages' => ['ar', 'he'],
     ]);
 });
 
 afterEach(function (): void {
     Lang::reset();
     Config::clear();
+    unset($_SERVER['HTTP_ACCEPT_LANGUAGE']);
+});
+
+describe('Initialization', function () {
+    it('initializes language system with default language', function (): void {
+        Config::set('language.default', 'ru');
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBe('ru');
+    });
+
+    it('initializes with auto-detection when default is auto', function (): void {
+        Config::set('language.default', 'auto');
+        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9';
+        
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBe('ru');
+    });
+
+    it('sets fallback language during initialization', function (): void {
+        Config::set('language.fallback', 'ru');
+        Lang::init();
+        
+        expect(Lang::getFallbackLang())->toBe('ru');
+    });
+
+    it('falls back to auto-detection when default language is invalid', function (): void {
+        Config::set('language.default', 'invalid_lang');
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBeString();
+    });
 });
 
 describe('Basic functionality', function () {
@@ -158,6 +191,40 @@ describe('Multiple languages', function () {
     });
 });
 
+describe('Language validation', function () {
+    it('validates supported languages', function (): void {
+        expect(Lang::isValidLanguage('en'))->toBeTrue();
+        expect(Lang::isValidLanguage('ru'))->toBeTrue();
+    });
+
+    it('rejects unsupported languages', function (): void {
+        expect(Lang::isValidLanguage('fr'))->toBeFalse();
+        expect(Lang::isValidLanguage('de'))->toBeFalse();
+    });
+
+    it('rejects invalid language codes', function (): void {
+        expect(Lang::isValidLanguage('eng'))->toBeFalse();
+        expect(Lang::isValidLanguage('e'))->toBeFalse();
+        expect(Lang::isValidLanguage('123'))->toBeFalse();
+        expect(Lang::isValidLanguage('EN'))->toBeFalse(); // uppercase
+    });
+
+    it('rejects empty or special characters', function (): void {
+        expect(Lang::isValidLanguage(''))->toBeFalse();
+        expect(Lang::isValidLanguage('en-US'))->toBeFalse();
+        expect(Lang::isValidLanguage('en_US'))->toBeFalse();
+    });
+
+    it('validates language when setting with validation flag', function (): void {
+        $result = Lang::setLang('fr', true); // French not supported
+        expect($result)->toBeFalse();
+        
+        $result = Lang::setLang('ru', true); // Russian is supported
+        expect($result)->toBeTrue();
+        expect(Lang::getCurrentLang())->toBe('ru');
+    });
+});
+
 describe('State management', function () {
     it('resets language state', function (): void {
         Lang::setLang('ru');
@@ -211,6 +278,75 @@ describe('State management', function () {
     });
 });
 
+describe('Supported languages', function () {
+    it('gets supported language codes', function (): void {
+        $languages = Lang::getSupportedLanguages();
+        
+        expect($languages)->toBe(['en', 'ru']);
+    });
+
+    it('gets supported languages with names', function (): void {
+        $languages = Lang::getSupportedLanguagesWithNames();
+        
+        expect($languages)->toBe([
+            'en' => 'English',
+            'ru' => 'Русский',
+        ]);
+    });
+
+    it('gets language display name', function (): void {
+        expect(Lang::getLanguageName('en'))->toBe('English');
+        expect(Lang::getLanguageName('ru'))->toBe('Русский');
+    });
+
+    it('returns language code when name not found', function (): void {
+        expect(Lang::getLanguageName('fr'))->toBe('fr');
+    });
+});
+
+describe('Available languages', function () {
+    it('gets available languages from directory', function (): void {
+        $available = Lang::getAvailableLanguages();
+        
+        expect($available)->toBeArray();
+        expect($available)->toContain('en');
+        expect($available)->toContain('ru');
+    });
+
+    it('filters out invalid language codes', function (): void {
+        $available = Lang::getAvailableLanguages();
+        
+        foreach ($available as $lang) {
+            expect($lang)->toMatch('/^[a-z]{2}$/');
+        }
+    });
+});
+
+describe('RTL support', function () {
+    it('detects RTL languages', function (): void {
+        expect(Lang::isRTL('ar'))->toBeTrue();
+        expect(Lang::isRTL('he'))->toBeTrue();
+    });
+
+    it('detects non-RTL languages', function (): void {
+        expect(Lang::isRTL('en'))->toBeFalse();
+        expect(Lang::isRTL('ru'))->toBeFalse();
+    });
+
+    it('checks current language for RTL when no parameter provided', function (): void {
+        Lang::init();
+        Lang::setLang('en', true);
+        
+        expect(Lang::isRTL())->toBeFalse();
+    });
+
+    it('handles empty RTL languages list', function (): void {
+        Config::set('language.rtl_languages', []);
+        
+        expect(Lang::isRTL('ar'))->toBeFalse();
+    });
+});
+
 describe('Edge cases', function () {
     it('handles invalid language codes gracefully', function (): void {
         Lang::setLang('invalid_lang');
@@ -245,6 +381,29 @@ describe('Edge cases', function () {
         $result = Lang::get('data.items');
         expect($result)->toBe('data.items');
     });
+
+    it('handles missing config values gracefully', function (): void {
+        Config::clear();
+        
+        Lang::init();
+        
+        // Should use defaults
+        expect(Lang::getCurrentLang())->toBeString();
+    });
+
+    it('handles empty supported languages list', function (): void {
+        Config::set('language.supported', []);
+        
+        $languages = Lang::getSupportedLanguages();
+        
+        expect($languages)->toBe([]);
+    });
+
+    it('validates against empty supported list', function (): void {
+        Config::set('language.supported', []);
+        
+        expect(Lang::isValidLanguage('en'))->toBeFalse();
+    });
 });
 
 describe('Auto-detection', function () {
@@ -255,8 +414,6 @@ describe('Auto-detection', function () {
         Lang::setLang(null); // null triggers auto-detection
         
         expect(Lang::getCurrentLang())->toBe('ru');
-        
-        unset($_SERVER['HTTP_ACCEPT_LANGUAGE']);
     });
 
     it('falls back to default when auto-detect disabled', function (): void {
@@ -266,8 +423,6 @@ describe('Auto-detection', function () {
         Lang::setLang(null);
         
         expect(Lang::getCurrentLang())->toBe('en'); // fallback
-        
-        unset($_SERVER['HTTP_ACCEPT_LANGUAGE']);
     });
 
     it('uses fallback when browser language not supported', function (): void {
@@ -278,7 +433,35 @@ describe('Auto-detection', function () {
         
         // French is not supported, should use fallback
         expect(Lang::getCurrentLang())->toBe('en');
+    });
+
+    it('detects and sets correct language from browser via init', function (): void {
+        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9,en;q=0.8';
+        Config::set('language.default', 'auto');
+        Config::set('language.auto_detect', true);
         
-        unset($_SERVER['HTTP_ACCEPT_LANGUAGE']);
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBe('ru');
+    });
+
+    it('uses fallback when browser language unsupported via init', function (): void {
+        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'fr-FR,fr;q=0.9';
+        Config::set('language.default', 'auto');
+        Config::set('language.auto_detect', true);
+        
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBe('en');
+    });
+
+    it('ignores auto-detection when disabled via init', function (): void {
+        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'ru-RU,ru;q=0.9';
+        Config::set('language.default', 'en');
+        Config::set('language.auto_detect', false);
+        
+        Lang::init();
+        
+        expect(Lang::getCurrentLang())->toBe('en');
     });
 });

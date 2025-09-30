@@ -64,7 +64,7 @@ final class Core
 
     private static function initializeLangManager(): void
     {
-        LanguageManager::init();
+        Lang::init();
     }
 
     private static function initializeDatabase(): void
