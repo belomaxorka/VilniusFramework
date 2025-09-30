@@ -33,6 +33,11 @@ class Debug
                 'output' => $output,
                 'die' => $die
             ];
+            
+            // Добавляем в контекст если активен
+            if (class_exists('\Core\DebugContext')) {
+                \Core\DebugContext::add('dump', $label ?? 'Variable dump');
+            }
         } else {
             Logger::debug($output);
         }

@@ -378,3 +378,77 @@ if (!function_exists('memory_format')) {
         return \Core\MemoryProfiler::formatBytes($bytes, $precision);
     }
 }
+
+// ============================================================================
+// Debug Context Functions
+// ============================================================================
+
+if (!function_exists('context_start')) {
+    /**
+     * Context start - начать debug контекст
+     */
+    function context_start(string $name, ?array $config = null): void
+    {
+        \Core\DebugContext::start($name, $config);
+    }
+}
+
+if (!function_exists('context_end')) {
+    /**
+     * Context end - закончить debug контекст
+     */
+    function context_end(?string $name = null): void
+    {
+        \Core\DebugContext::end($name);
+    }
+}
+
+if (!function_exists('context_run')) {
+    /**
+     * Context run - выполнить код в контексте
+     */
+    function context_run(string $name, callable $callback, ?array $config = null): mixed
+    {
+        return \Core\DebugContext::run($name, $callback, $config);
+    }
+}
+
+if (!function_exists('context_dump')) {
+    /**
+     * Context dump - вывести контексты
+     */
+    function context_dump(?array $contexts = null): void
+    {
+        \Core\DebugContext::dump($contexts);
+    }
+}
+
+if (!function_exists('context_clear')) {
+    /**
+     * Context clear - очистить контексты
+     */
+    function context_clear(?string $name = null): void
+    {
+        \Core\DebugContext::clear($name);
+    }
+}
+
+if (!function_exists('context_current')) {
+    /**
+     * Context current - получить текущий контекст
+     */
+    function context_current(): ?string
+    {
+        return \Core\DebugContext::current();
+    }
+}
+
+if (!function_exists('context_filter')) {
+    /**
+     * Context filter - включить фильтрацию по контекстам
+     */
+    function context_filter(array $contexts): void
+    {
+        \Core\DebugContext::enableFilter($contexts);
+    }
+}
