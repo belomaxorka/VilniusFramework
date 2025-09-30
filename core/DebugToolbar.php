@@ -83,7 +83,7 @@ class DebugToolbar
     public static function setRouter(Router $router): void
     {
         self::initialize();
-        
+
         $routesCollector = self::getCollector('routes');
         if ($routesCollector instanceof RoutesCollector) {
             $routesCollector->setRouter($router);
@@ -265,13 +265,6 @@ class DebugToolbar
             $html .= '</div>';
         }
 
-        // Search box
-        $html .= '<div style="flex: 1; max-width: 300px;">';
-        $html .= '<input type="text" id="debug-search" placeholder="🔍 Search in debug data..." ';
-        $html .= 'style="width: 100%; padding: 6px 10px; border: 1px solid #37474f; background: #37474f; color: #eceff1; border-radius: 4px; font-size: 12px;" ';
-        $html .= 'oninput="debugToolbarSearch(this.value)" />';
-        $html .= '</div>';
-
         $html .= '<div style="margin-left: auto; cursor: pointer;" id="debug-toolbar-arrow">▲</div>';
 
         $html .= '</div>';
@@ -286,9 +279,6 @@ class DebugToolbar
     {
         return "
         <script>
-        let debugSearchMatches = [];
-        let debugCurrentMatch = 0;
-
         function debugToolbarToggle() {
             const toolbar = document.getElementById('debug-toolbar');
             const arrow = document.getElementById('debug-toolbar-arrow');
@@ -305,117 +295,6 @@ class DebugToolbar
             document.querySelector('.debug-tab[data-tab=\"' + tabName + '\"]').classList.add('active');
             document.querySelector('.debug-panel[data-panel=\"' + tabName + '\"]').classList.add('active');
         }
-
-        function debugToolbarSearch(query) {
-            // Remove previous highlights
-            document.querySelectorAll('.debug-panel').forEach(panel => {
-                panel.innerHTML = panel.innerHTML.replace(/<mark class=\"debug-highlight\">(.*?)<\\/mark>/gi, '$1');
-                panel.querySelectorAll('.debug-search-match-count').forEach(el => el.remove());
-            });
-
-            debugSearchMatches = [];
-            debugCurrentMatch = 0;
-
-            if (!query || query.length < 2) {
-                // Reset search
-                document.querySelectorAll('.debug-tab').forEach(tab => {
-                    tab.style.opacity = '1';
-                    const badge = tab.querySelector('.debug-search-badge');
-                    if (badge) badge.remove();
-                });
-                return;
-            }
-
-            const searchRegex = new RegExp('(' + query.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + ')', 'gi');
-            let totalMatches = 0;
-
-            document.querySelectorAll('.debug-panel').forEach((panel, index) => {
-                const content = panel.innerHTML;
-                let matchCount = 0;
-
-                // Count matches
-                const matches = content.match(searchRegex);
-                if (matches) {
-                    matchCount = matches.length;
-                    totalMatches += matchCount;
-                }
-
-                // Highlight matches
-                const highlighted = content.replace(searchRegex, '<mark class=\"debug-highlight\">$1</mark>');
-                panel.innerHTML = highlighted;
-
-                // Update tab badge
-                const tabName = panel.getAttribute('data-panel');
-                const tab = document.querySelector('.debug-tab[data-tab=\"' + tabName + '\"]');
-                
-                if (tab) {
-                    // Remove old badge
-                    const oldBadge = tab.querySelector('.debug-search-badge');
-                    if (oldBadge) oldBadge.remove();
-
-                    if (matchCount > 0) {
-                        // Add search badge
-                        const badge = document.createElement('span');
-                        badge.className = 'debug-search-badge';
-                        badge.textContent = matchCount;
-                        badge.style.cssText = 'background: #4caf50; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: 5px;';
-                        tab.appendChild(badge);
-                        tab.style.opacity = '1';
-
-                        debugSearchMatches.push({tab: tabName, count: matchCount});
-                    } else {
-                        tab.style.opacity = '0.5';
-                    }
-                }
-            });
-
-            // Switch to first tab with matches
-            if (debugSearchMatches.length > 0) {
-                debugToolbarSwitchTab(debugSearchMatches[0].tab);
-                
-                // Show total count in search input
-                const searchInput = document.getElementById('debug-search');
-                if (totalMatches > 0) {
-                    searchInput.style.borderColor = '#4caf50';
-                    searchInput.title = totalMatches + ' matches found';
-                } else {
-                    searchInput.style.borderColor = '#f44336';
-                    searchInput.title = 'No matches found';
-                }
-            } else {
-                const searchInput = document.getElementById('debug-search');
-                searchInput.style.borderColor = '#f44336';
-                searchInput.title = 'No matches found';
-            }
-        }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Ctrl/Cmd + D - Toggle toolbar
-            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-                e.preventDefault();
-                debugToolbarToggle();
-            }
-            
-            // Ctrl/Cmd + F in toolbar - Focus search
-            if ((e.ctrlKey || e.metaKey) && e.key === 'f' && document.getElementById('debug-toolbar')) {
-                const toolbar = document.getElementById('debug-toolbar');
-                if (!toolbar.classList.contains('collapsed')) {
-                    e.preventDefault();
-                    document.getElementById('debug-search').focus();
-                }
-            }
-
-            // ESC - Clear search
-            if (e.key === 'Escape') {
-                const searchInput = document.getElementById('debug-search');
-                if (searchInput && searchInput.value) {
-                    searchInput.value = '';
-                    debugToolbarSearch('');
-                    searchInput.blur();
-                }
-            }
-        });
         </script>
         <style>
         .debug-tab.active {
@@ -438,20 +317,6 @@ class DebugToolbar
             padding: 2px 6px;
             font-size: 10px;
             margin-left: 5px;
-        }
-        .debug-highlight {
-            background: #ffeb3b;
-            color: #000;
-            padding: 2px 4px;
-            border-radius: 2px;
-            font-weight: bold;
-        }
-        .debug-search-badge {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
         }
         </style>
         ";
