@@ -153,6 +153,67 @@ $template = TemplateEngine::getInstance();
 $template->clearCache();
 ```
 
+## Логирование неопределенных переменных
+
+Шаблонизатор автоматически отслеживает использование неопределенных переменных и логирует их в production режиме.
+
+### Как это работает
+
+**В Development режиме:**
+- PHP показывает стандартные Notice/Warning об undefined variables
+- Отображается на странице для отладки
+
+**В Production режиме:**
+- Ошибки скрыты от пользователей (не ломают страницу)
+- Автоматически логируются в `storage/logs/app.log`
+- Логируются с информацией о доступных переменных
+
+### Настройка логирования
+
+```php
+$template = TemplateEngine::getInstance();
+
+// Включить логирование (по умолчанию)
+$template->setLogUndefinedVars(true);
+
+// Отключить логирование
+$template->setLogUndefinedVars(false);
+```
+
+### Получение статистики
+
+```php
+// Получить список всех неопределенных переменных за сессию
+$undefinedVars = TemplateEngine::getUndefinedVars();
+
+foreach ($undefinedVars as $varName => $info) {
+    echo "Variable: \${$varName}\n";
+    echo "Count: {$info['count']}\n";
+    echo "File: {$info['file']}:{$info['line']}\n";
+}
+
+// Очистить статистику
+TemplateEngine::clearUndefinedVars();
+```
+
+### Пример лога
+
+В production режиме в логе появится:
+
+```
+[2025-09-30 12:34:56] WARNING: Template undefined variable: $user_name
+Message: Undefined variable $user_name
+File: welcome.tpl:15
+Available variables: title, content, footer, config
+```
+
+### Рекомендации
+
+1. **В Development:** Исправляйте все undefined variables сразу
+2. **В Production:** Регулярно проверяйте логи на наличие таких ошибок
+3. **Используйте статистику:** `getUndefinedVars()` для анализа проблемных мест
+4. **Всегда передавайте переменные:** Убедитесь что все переменные из шаблона передаются из контроллера
+
 ## Примеры шаблонов
 
 ### Простой шаблон
