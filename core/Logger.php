@@ -134,11 +134,6 @@ class Logger
             return;
         }
 
-        // Добавляем в LogsCollector для Debug Toolbar (только в debug режиме)
-        if (Environment::isDebug() && class_exists('\Core\DebugToolbar\Collectors\LogsCollector')) {
-            \Core\DebugToolbar\Collectors\LogsCollector::addLog($level, $message, $context);
-        }
-
         // Добавляем контекст к сообщению
         $message = self::interpolate($message, $context);
 

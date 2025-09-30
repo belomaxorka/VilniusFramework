@@ -13,10 +13,6 @@ use Core\DebugToolbar\Collectors\QueriesCollector;
 use Core\DebugToolbar\Collectors\TimersCollector;
 use Core\DebugToolbar\Collectors\MemoryCollector;
 use Core\DebugToolbar\Collectors\ContextsCollector;
-use Core\DebugToolbar\Collectors\SessionCollector;
-use Core\DebugToolbar\Collectors\EnvironmentCollector;
-use Core\DebugToolbar\Collectors\FilesCollector;
-use Core\DebugToolbar\Collectors\LogsCollector;
 
 class DebugToolbar
 {
@@ -45,10 +41,6 @@ class DebugToolbar
         self::addCollector(new TimersCollector());
         self::addCollector(new MemoryCollector());
         self::addCollector(new ContextsCollector());
-        self::addCollector(new SessionCollector());
-        self::addCollector(new EnvironmentCollector());
-        self::addCollector(new FilesCollector());
-        self::addCollector(new LogsCollector());
 
         self::$initialized = true;
     }
@@ -206,30 +198,26 @@ class DebugToolbar
      */
     private static function renderHtml(array $tabs): string
     {
-        $positionClass = self::$position === 'top' ? 'top' : '';
+        $positionClass = self::$position === 'top' ? 'top-0' : 'bottom-0';
         $collapsedClass = self::$collapsed ? 'collapsed' : '';
-        $classes = array_filter(['debug-toolbar', $positionClass, $collapsedClass]);
 
-        // Include CSS and JS
-        $html = self::renderAssets();
-
-        $html .= '<div id="debug-toolbar" class="' . implode(' ', $classes) . '">';
+        $html = '<div id="debug-toolbar" class="' . $collapsedClass . '" style="' . self::getBaseStyles() . '">';
 
         // Header with stats
-        $html .= '<div class="debug-toolbar-header" onclick="debugToolbarToggle()">';
+        $html .= '<div class="debug-toolbar-header" style="' . self::getHeaderStyles() . '" onclick="debugToolbarToggle()">';
         $html .= self::renderHeader();
         $html .= '</div>';
 
         // Content with tabs
-        $html .= '<div class="debug-toolbar-content">';
+        $html .= '<div class="debug-toolbar-content" style="' . self::getContentStyles() . '">';
 
         // Tab navigation
-        $html .= '<div class="debug-toolbar-tabs">';
+        $html .= '<div class="debug-toolbar-tabs" style="' . self::getTabsStyles() . '">';
         $isFirst = true;
         foreach ($tabs as $key => $tab) {
             $activeClass = $isFirst ? 'active' : '';
             $badge = $tab['badge'] ? '<span class="badge">' . $tab['badge'] . '</span>' : '';
-            $html .= '<button class="debug-tab ' . $activeClass . '" data-tab="' . $key . '" onclick="debugToolbarSwitchTab(\'' . $key . '\')">';
+            $html .= '<button class="debug-tab ' . $activeClass . '" data-tab="' . $key . '" onclick="debugToolbarSwitchTab(\'' . $key . '\')" style="' . self::getTabButtonStyles() . '">';
             $html .= $tab['icon'] . ' ' . $tab['title'] . $badge;
             $html .= '</button>';
             $isFirst = false;
@@ -237,11 +225,11 @@ class DebugToolbar
         $html .= '</div>';
 
         // Tab panels
-        $html .= '<div class="debug-toolbar-panels">';
+        $html .= '<div class="debug-toolbar-panels" style="' . self::getPanelsStyles() . '">';
         $isFirst = true;
         foreach ($tabs as $key => $tab) {
             $activeClass = $isFirst ? 'active' : '';
-            $html .= '<div class="debug-panel ' . $activeClass . '" data-panel="' . $key . '">';
+            $html .= '<div class="debug-panel ' . $activeClass . '" data-panel="' . $key . '" style="' . self::getPanelStyles() . '">';
             $html .= $tab['content'];
             $html .= '</div>';
             $isFirst = false;
@@ -249,6 +237,9 @@ class DebugToolbar
         $html .= '</div>';
 
         $html .= '</div>';
+
+        // JavaScript
+        $html .= self::renderJavaScript();
 
         $html .= '</div>';
 
@@ -260,21 +251,21 @@ class DebugToolbar
      */
     private static function renderHeader(): string
     {
-        $html = '<div class="debug-toolbar-header-content">';
+        $html = '<div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">';
 
-        $html .= '<div class="debug-toolbar-title">🐛 Debug Toolbar</div>';
+        $html .= '<div style="font-weight: bold; color: #fff;">🐛 Debug Toolbar</div>';
 
         // Собираем статистику из коллекторов
         $stats = self::collectHeaderStats();
 
         foreach ($stats as $stat) {
-            $html .= '<div class="debug-toolbar-stat">';
-            $html .= '<span class="debug-toolbar-stat-icon">' . $stat['icon'] . '</span>';
+            $html .= '<div style="display: flex; align-items: center; gap: 5px;">';
+            $html .= '<span>' . $stat['icon'] . '</span>';
             $html .= '<span style="color: ' . $stat['color'] . ';">' . $stat['value'] . '</span>';
             $html .= '</div>';
         }
 
-        $html .= '<div class="debug-toolbar-arrow" id="debug-toolbar-arrow">▲</div>';
+        $html .= '<div style="margin-left: auto; cursor: pointer;" id="debug-toolbar-arrow">▲</div>';
 
         $html .= '</div>';
 
@@ -282,105 +273,88 @@ class DebugToolbar
     }
 
     /**
-     * Рендерить CSS и JS assets
+     * Рендерить JavaScript
      */
-    private static function renderAssets(): string
+    private static function renderJavaScript(): string
     {
-        $basePath = self::getAssetBasePath();
-        
-        $cssPath = $basePath . '/css/debug-toolbar.css';
-        $jsPath = $basePath . '/js/debug-toolbar.js';
-        
-        $html = '';
-        
-        // CSS
-        if (file_exists(dirname(__DIR__) . '/resources/css/debug-toolbar.css')) {
-            $html .= '<link rel="stylesheet" href="' . htmlspecialchars($cssPath) . '?v=' . self::getAssetVersion() . '">';
-        } else {
-            // Fallback to inline styles if file not found
-            $html .= '<style>' . self::getInlineStyles() . '</style>';
+        return "
+        <script>
+        function debugToolbarToggle() {
+            const toolbar = document.getElementById('debug-toolbar');
+            const arrow = document.getElementById('debug-toolbar-arrow');
+            toolbar.classList.toggle('collapsed');
+            arrow.textContent = toolbar.classList.contains('collapsed') ? '▲' : '▼';
         }
-        
-        // JavaScript
-        if (file_exists(dirname(__DIR__) . '/resources/js/debug-toolbar.js')) {
-            $html .= '<script src="' . htmlspecialchars($jsPath) . '?v=' . self::getAssetVersion() . '" defer></script>';
-        } else {
-            // Fallback to inline script if file not found
-            $html .= '<script>' . self::getInlineScript() . '</script>';
+
+        function debugToolbarSwitchTab(tabName) {
+            // Remove active from all
+            document.querySelectorAll('.debug-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.debug-panel').forEach(p => p.classList.remove('active'));
+
+            // Add active to selected
+            document.querySelector('.debug-tab[data-tab=\"' + tabName + '\"]').classList.add('active');
+            document.querySelector('.debug-panel[data-panel=\"' + tabName + '\"]').classList.add('active');
         }
-        
-        return $html;
-    }
-
-    /**
-     * Получить базовый путь для assets
-     */
-    private static function getAssetBasePath(): string
-    {
-        // Определяем базовый URL
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $scriptName = dirname($_SERVER['SCRIPT_NAME'] ?? '');
-        
-        $basePath = $scheme . '://' . $host . $scriptName;
-        $basePath = rtrim($basePath, '/');
-        
-        return $basePath . '/resources';
-    }
-
-    /**
-     * Получить версию assets для cache busting
-     */
-    private static function getAssetVersion(): string
-    {
-        // Используем modification time файла или константу версии
-        static $version = null;
-        
-        if ($version === null) {
-            $cssFile = dirname(__DIR__) . '/resources/css/debug-toolbar.css';
-            if (file_exists($cssFile)) {
-                $version = filemtime($cssFile);
-            } else {
-                $version = '1.0.0';
-            }
+        </script>
+        <style>
+        .debug-tab.active {
+            background: #1976d2 !important;
+            color: white !important;
         }
-        
-        return (string)$version;
+        .debug-panel {
+            display: none;
+        }
+        .debug-panel.active {
+            display: block;
+        }
+        #debug-toolbar.collapsed .debug-toolbar-content {
+            display: none;
+        }
+        .debug-tab .badge {
+            background: #ef5350;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        </style>
+        ";
     }
 
-    /**
-     * Получить inline стили (fallback)
-     */
-    private static function getInlineStyles(): string
+    // Styles
+    private static function getBaseStyles(): string
     {
-        return '
-        #debug-toolbar{position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#263238;color:#eceff1;font-family:monospace;font-size:13px;box-shadow:0 -2px 10px rgba(0,0,0,0.3)}
-        #debug-toolbar.top{bottom:auto;top:0}
-        .debug-toolbar-header{padding:10px 20px;cursor:pointer;user-select:none;border-bottom:1px solid #37474f}
-        .debug-toolbar-header-content{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-        .debug-toolbar-title{font-weight:bold;color:#fff}
-        .debug-toolbar-stat{display:flex;align-items:center;gap:5px}
-        .debug-toolbar-arrow{margin-left:auto;cursor:pointer}
-        .debug-toolbar-content{background:#eceff1}
-        #debug-toolbar.collapsed .debug-toolbar-content{display:none}
-        .debug-toolbar-tabs{display:flex;background:#37474f;padding:0;margin:0;overflow-x:auto}
-        .debug-tab{background:transparent;border:none;color:#eceff1;padding:12px 20px;cursor:pointer;white-space:nowrap;transition:all 0.3s}
-        .debug-tab.active{background:#1976d2;color:white}
-        .debug-tab .badge{background:#ef5350;color:white;border-radius:10px;padding:2px 6px;font-size:10px;margin-left:5px}
-        .debug-toolbar-panels{background:white;color:#333}
-        .debug-panel{display:none;min-height:200px;max-height:500px;overflow-y:auto}
-        .debug-panel.active{display:block}
-        ';
+        return 'position: fixed; ' . self::$position . ': 0; left: 0; right: 0; z-index: 999999; background: #263238; color: #eceff1; font-family: monospace; font-size: 13px; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);';
     }
 
-    /**
-     * Получить inline script (fallback)
-     */
-    private static function getInlineScript(): string
+    private static function getHeaderStyles(): string
     {
-        return '
-        function debugToolbarToggle(){const t=document.getElementById("debug-toolbar"),e=document.getElementById("debug-toolbar-arrow");t.classList.toggle("collapsed"),e.textContent=t.classList.contains("collapsed")?"▲":"▼"}
-        function debugToolbarSwitchTab(t){document.querySelectorAll(".debug-tab").forEach(t=>t.classList.remove("active")),document.querySelectorAll(".debug-panel").forEach(t=>t.classList.remove("active")),document.querySelector(\'.debug-tab[data-tab="\'+t+\'"]\').classList.add("active"),document.querySelector(\'.debug-panel[data-panel="\'+t+\'"]\').classList.add("active")}
-        ';
+        return 'padding: 10px 20px; cursor: pointer; user-select: none; border-bottom: 1px solid #37474f;';
+    }
+
+    private static function getContentStyles(): string
+    {
+        return 'background: #eceff1;';
+    }
+
+    private static function getTabsStyles(): string
+    {
+        return 'display: flex; background: #37474f; padding: 0; margin: 0; overflow-x: auto;';
+    }
+
+    private static function getTabButtonStyles(): string
+    {
+        return 'background: transparent; border: none; color: #eceff1; padding: 12px 20px; cursor: pointer; white-space: nowrap; transition: all 0.3s;';
+    }
+
+    private static function getPanelsStyles(): string
+    {
+        return 'background: white; color: #333;';
+    }
+
+    private static function getPanelStyles(): string
+    {
+        return 'min-height: 200px; max-height: 500px; overflow-y: auto;';
     }
 }
