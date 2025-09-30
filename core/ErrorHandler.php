@@ -20,6 +20,7 @@ class ErrorHandler
         $config = Environment::getConfig();
         error_reporting($config['error_reporting']);
         ini_set('display_errors', (string)$config['display_errors']);
+        ini_set('display_startup_errors', (string)$config['display_errors']);
         ini_set('log_errors', (string)$config['log_errors']);
 
         // Регистрируем обработчики
