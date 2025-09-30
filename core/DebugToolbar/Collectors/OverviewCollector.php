@@ -122,9 +122,6 @@ class OverviewCollector extends AbstractCollector
         if (defined('VILNIUS_START')) {
             return (microtime(true) - VILNIUS_START) * 1000;
         }
-        if (defined('APP_START')) {
-            return (microtime(true) - APP_START) * 1000;
-        }
         return 0;
     }
 

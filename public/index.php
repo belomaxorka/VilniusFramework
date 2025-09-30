@@ -6,6 +6,7 @@ define('VILNIUS_START', microtime(true));
 define('ROOT', realpath(__DIR__ . '/../'));
 define('CONFIG_DIR', ROOT . '/config');
 define('LANG_DIR', ROOT . '/lang');
+define('RESOURCES_DIR', ROOT . '/resources');
 define('STORAGE_DIR', ROOT . '/storage');
 define('CACHE_DIR', STORAGE_DIR . '/cache');
 define('LOG_DIR', STORAGE_DIR . '/logs');

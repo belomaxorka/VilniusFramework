@@ -39,12 +39,13 @@ class ResponseCollector extends AbstractCollector
      * Установить данные ответа вручную
      */
     public function setResponseData(
-        ?int $statusCode = null,
-        ?array $headers = null,
-        ?int $contentLength = null,
+        ?int    $statusCode = null,
+        ?array  $headers = null,
+        ?int    $contentLength = null,
         ?string $contentType = null,
-        ?float $responseTime = null
-    ): void {
+        ?float  $responseTime = null
+    ): void
+    {
         if ($statusCode !== null) $this->statusCode = $statusCode;
         if ($headers !== null) $this->headers = $headers;
         if ($contentLength !== null) $this->contentLength = $contentLength;
@@ -80,9 +81,7 @@ class ResponseCollector extends AbstractCollector
 
         // Response Time
         $responseTime = $this->responseTime;
-        if ($responseTime === null && defined('APP_START')) {
-            $responseTime = (microtime(true) - APP_START) * 1000;
-        } elseif ($responseTime === null && defined('VILNIUS_START')) {
+        if ($responseTime === null && defined('VILNIUS_START')) {
             $responseTime = (microtime(true) - VILNIUS_START) * 1000;
         }
 
@@ -103,7 +102,7 @@ class ResponseCollector extends AbstractCollector
     public function render(): string
     {
         $html = '<div style="padding: 20px;">';
-        
+
         // Status Section
         $statusColor = $this->getStatusColor($this->data['status_code']);
         $html .= '<div style="background: ' . $statusColor . '20; border-left: 4px solid ' . $statusColor . '; padding: 15px; margin-bottom: 20px; border-radius: 4px;">';
@@ -118,7 +117,7 @@ class ResponseCollector extends AbstractCollector
 
         // Quick Stats
         $html .= '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">';
-        
+
         // Response Time
         if ($this->data['response_time'] !== null) {
             $html .= $this->renderStatCard(
@@ -169,9 +168,9 @@ class ResponseCollector extends AbstractCollector
 
             foreach ($this->data['headers'] as $key => $value) {
                 $html .= '<tr>';
-                $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-weight: bold;">' 
+                $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-weight: bold;">'
                     . htmlspecialchars($key) . '</td>';
-                $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; word-break: break-all;">' 
+                $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; word-break: break-all;">'
                     . htmlspecialchars($value) . '</td>';
                 $html .= '</tr>';
             }
@@ -234,7 +233,7 @@ class ResponseCollector extends AbstractCollector
             101 => 'Switching Protocols',
             102 => 'Processing',
             103 => 'Early Hints',
-            
+
             // 2xx Success
             200 => 'OK',
             201 => 'Created',
@@ -246,7 +245,7 @@ class ResponseCollector extends AbstractCollector
             207 => 'Multi-Status',
             208 => 'Already Reported',
             226 => 'IM Used',
-            
+
             // 3xx Redirection
             300 => 'Multiple Choices',
             301 => 'Moved Permanently',
@@ -256,7 +255,7 @@ class ResponseCollector extends AbstractCollector
             305 => 'Use Proxy',
             307 => 'Temporary Redirect',
             308 => 'Permanent Redirect',
-            
+
             // 4xx Client Errors
             400 => 'Bad Request',
             401 => 'Unauthorized',
@@ -287,7 +286,7 @@ class ResponseCollector extends AbstractCollector
             429 => 'Too Many Requests',
             431 => 'Request Header Fields Too Large',
             451 => 'Unavailable For Legal Reasons',
-            
+
             // 5xx Server Errors
             500 => 'Internal Server Error',
             501 => 'Not Implemented',
@@ -300,7 +299,7 @@ class ResponseCollector extends AbstractCollector
             508 => 'Loop Detected',
             510 => 'Not Extended',
             511 => 'Network Authentication Required',
-            
+
             default => 'Unknown Status',
         };
     }
@@ -311,7 +310,7 @@ class ResponseCollector extends AbstractCollector
     private function getStatusDescription(int $code): string
     {
         $category = (int)($code / 100);
-        
+
         return match ($category) {
             1 => 'ℹ️ Informational response - Request received, continuing process.',
             2 => '✅ Success - The request was successfully received, understood, and accepted.',
@@ -328,7 +327,7 @@ class ResponseCollector extends AbstractCollector
     private function getStatusColor(int $code): string
     {
         $category = (int)($code / 100);
-        
+
         return match ($category) {
             1 => '#2196f3', // Blue - Informational
             2 => '#4caf50', // Green - Success
