@@ -4,8 +4,8 @@ use Core\Debug;
 use Core\Environment;
 
 beforeEach(function () {
-    // Устанавливаем development окружение для тестов
-    Environment::set(Environment::DEVELOPMENT);
+    // Устанавливаем testing окружение для тестов
+    Environment::set(Environment::TESTING);
     
     // Очищаем буферы перед каждым тестом
     Debug::clear();

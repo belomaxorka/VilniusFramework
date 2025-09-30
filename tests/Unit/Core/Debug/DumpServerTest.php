@@ -5,7 +5,7 @@ use Core\DumpClient;
 use Core\Environment;
 
 beforeEach(function () {
-    Environment::set(Environment::DEVELOPMENT);
+    Environment::set(Environment::TESTING);
     DumpClient::enable(true);
 });
 

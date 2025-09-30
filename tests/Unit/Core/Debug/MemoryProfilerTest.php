@@ -5,7 +5,7 @@ use Core\Debug;
 use Core\Environment;
 
 beforeEach(function () {
-    Environment::set(Environment::DEVELOPMENT);
+    Environment::set(Environment::TESTING);
     MemoryProfiler::clear();
     Debug::clearOutput();
 });
