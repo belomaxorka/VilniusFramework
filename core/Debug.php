@@ -192,10 +192,14 @@ class Debug
     /**
      * Получить все накопленные debug данные как строку
      */
-    public static function getOutput(): string
+    public static function getOutput(bool $raw = false): string|array
     {
         if (empty(self::$debugOutput)) {
-            return '';
+            return $raw ? [] : '';
+        }
+
+        if ($raw) {
+            return self::$debugOutput;
         }
 
         $output = '';

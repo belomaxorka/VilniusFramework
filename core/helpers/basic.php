@@ -92,3 +92,17 @@ function render_debug(): string
     
     return '';
 }
+
+/**
+ * Render debug toolbar (interactive debug panel)
+ *
+ * @return string
+ */
+function render_debug_toolbar(): string
+{
+    if (class_exists('\Core\DebugToolbar')) {
+        return \Core\DebugToolbar::render();
+    }
+    
+    return '';
+}
