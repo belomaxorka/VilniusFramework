@@ -220,3 +220,77 @@ if (!function_exists('has_debug_output')) {
         return Debug::hasOutput();
     }
 }
+
+// ============================================================================
+// Debug Timer Functions
+// ============================================================================
+
+if (!function_exists('timer_start')) {
+    /**
+     * Timer start - запускает таймер
+     */
+    function timer_start(string $name = 'default'): void
+    {
+        \Core\DebugTimer::start($name);
+    }
+}
+
+if (!function_exists('timer_stop')) {
+    /**
+     * Timer stop - останавливает таймер и возвращает время
+     */
+    function timer_stop(string $name = 'default'): float
+    {
+        return \Core\DebugTimer::stop($name);
+    }
+}
+
+if (!function_exists('timer_lap')) {
+    /**
+     * Timer lap - промежуточный замер
+     */
+    function timer_lap(string $name = 'default', ?string $label = null): float
+    {
+        return \Core\DebugTimer::lap($name, $label);
+    }
+}
+
+if (!function_exists('timer_elapsed')) {
+    /**
+     * Timer elapsed - получить прошедшее время
+     */
+    function timer_elapsed(string $name = 'default'): float
+    {
+        return \Core\DebugTimer::getElapsed($name);
+    }
+}
+
+if (!function_exists('timer_dump')) {
+    /**
+     * Timer dump - вывести таймер(ы)
+     */
+    function timer_dump(?string $name = null): void
+    {
+        \Core\DebugTimer::dump($name);
+    }
+}
+
+if (!function_exists('timer_clear')) {
+    /**
+     * Timer clear - очистить таймер(ы)
+     */
+    function timer_clear(?string $name = null): void
+    {
+        \Core\DebugTimer::clear($name);
+    }
+}
+
+if (!function_exists('timer_measure')) {
+    /**
+     * Timer measure - измерить время выполнения функции
+     */
+    function timer_measure(string $name, callable $callback): mixed
+    {
+        return \Core\DebugTimer::measure($name, $callback);
+    }
+}
