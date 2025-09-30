@@ -58,9 +58,9 @@ test('TelegramHandler форматирует сообщения в HTML', functi
     
     $handler->handle('error', 'Test error message');
     
-    expect($handler->lastMessage)->toContain('<b>ERROR</b>');
-    expect($handler->lastMessage)->toContain('Test error message');
-    expect($handler->lastMessage)->toContain('<i>');
+    expect(str_contains($handler->lastMessage, '<b>ERROR</b>'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, 'Test error message'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, '<i>'))->toBeTrue();
 });
 
 test('TelegramHandler форматирует сообщения в Markdown', function () {
@@ -74,9 +74,9 @@ test('TelegramHandler форматирует сообщения в Markdown', fu
     
     $handler->handle('info', 'Test info message');
     
-    expect($handler->lastMessage)->toContain('*INFO*');
-    expect($handler->lastMessage)->toContain('Test info message');
-    expect($handler->lastMessage)->toContain('_');
+    expect(str_contains($handler->lastMessage, '*INFO*'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, 'Test info message'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, '_'))->toBeTrue();
 });
 
 test('TelegramHandler экранирует HTML спецсимволы', function () {
@@ -90,9 +90,9 @@ test('TelegramHandler экранирует HTML спецсимволы', functio
     
     $handler->handle('info', 'Message with <tags> & "quotes"');
     
-    expect($handler->lastMessage)->toContain('&lt;tags&gt;');
-    expect($handler->lastMessage)->toContain('&quot;quotes&quot;');
-    expect($handler->lastMessage)->toContain('&amp;');
+    expect(str_contains($handler->lastMessage, '&lt;tags&gt;'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, '&quot;quotes&quot;'))->toBeTrue();
+    expect(str_contains($handler->lastMessage, '&amp;'))->toBeTrue();
 });
 
 test('TelegramHandler добавляет эмодзи к уровням', function () {
@@ -110,11 +110,11 @@ test('TelegramHandler добавляет эмодзи к уровням', functi
     $handler->handle('error', 'msg');
     $handler->handle('critical', 'msg');
     
-    expect($handler->messages[0])->toContain('🐛');
-    expect($handler->messages[1])->toContain('ℹ️');
-    expect($handler->messages[2])->toContain('⚠️');
-    expect($handler->messages[3])->toContain('❌');
-    expect($handler->messages[4])->toContain('🔥');
+    expect(str_contains($handler->messages[0], '🐛'))->toBeTrue();
+    expect(str_contains($handler->messages[1], 'ℹ️'))->toBeTrue();
+    expect(str_contains($handler->messages[2], '⚠️'))->toBeTrue();
+    expect(str_contains($handler->messages[3], '❌'))->toBeTrue();
+    expect(str_contains($handler->messages[4], '🔥'))->toBeTrue();
 });
 
 test('TelegramHandler включает timestamp в сообщение', function () {

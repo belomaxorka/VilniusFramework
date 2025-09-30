@@ -5,13 +5,9 @@ use Core\Logger\FileHandler;
 use Core\Logger\LogHandlerInterface;
 
 beforeEach(function () {
-    // Очищаем обработчики перед каждым тестом
+    // Полностью очищаем Logger перед каждым тестом
     Logger::clearHandlers();
-});
-
-afterEach(function () {
-    // Очищаем после тестов
-    Logger::clearHandlers();
+    Logger::setMinLevel('debug');
 });
 
 test('можно добавить обработчик логов', function () {
@@ -122,15 +118,29 @@ test('метод critical() работает корректно', function () {
 
 test('контекстные данные интерполируются в сообщение', function () {
     $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
+    
+    // Убедимся что файл не существует
+    if (file_exists($logFile)) {
+        @unlink($logFile);
+    }
+    
     $handler = new FileHandler($logFile);
     Logger::addHandler($handler);
+    
+    // Убедимся что обработчик добавлен
+    expect(Logger::getHandlers())->toHaveCount(1);
     
     Logger::info('User {username} logged in from {ip}', [
         'username' => 'John',
         'ip' => '127.0.0.1'
     ]);
     
+    // Проверяем что файл создан
+    expect(file_exists($logFile))->toBeTrue();
+    
     $content = file_get_contents($logFile);
+    
+    // Проверяем что в логе есть нужный текст
     expect(str_contains($content, 'User John logged in from 127.0.0.1'))->toBeTrue();
     
     @unlink($logFile);

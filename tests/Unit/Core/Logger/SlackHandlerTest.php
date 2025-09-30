@@ -72,7 +72,7 @@ test('SlackHandler строит корректный payload', function () {
     expect($attachment)->toHaveKey('title');
     expect($attachment)->toHaveKey('text');
     expect($attachment['text'])->toBe('Test error message');
-    expect($attachment['title'])->toContain('ERROR');
+    expect(str_contains($attachment['title'], 'ERROR'))->toBeTrue();
 });
 
 test('SlackHandler использует правильные цвета для уровней', function () {
@@ -113,9 +113,9 @@ test('SlackHandler добавляет эмодзи к уровням', function 
     $handler->handle('error', 'msg');
     $handler->handle('critical', 'msg');
     
-    expect($handler->titles[0])->toContain('🐛');
-    expect($handler->titles[1])->toContain('ℹ️');
-    expect($handler->titles[2])->toContain('⚠️');
-    expect($handler->titles[3])->toContain('❌');
-    expect($handler->titles[4])->toContain('🔥');
+    expect(str_contains($handler->titles[0], '🐛'))->toBeTrue();
+    expect(str_contains($handler->titles[1], 'ℹ️'))->toBeTrue();
+    expect(str_contains($handler->titles[2], '⚠️'))->toBeTrue();
+    expect(str_contains($handler->titles[3], '❌'))->toBeTrue();
+    expect(str_contains($handler->titles[4], '🔥'))->toBeTrue();
 });

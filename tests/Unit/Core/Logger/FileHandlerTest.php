@@ -23,8 +23,8 @@ test('FileHandler записывает корректный формат лог�
     
     // Проверяем формат: [YYYY-MM-DD HH:MM:SS] [LEVEL] Message
     expect($content)->toMatch('/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/');
-    expect($content)->toContain('[ERROR]');
-    expect($content)->toContain('Test error message');
+    expect(str_contains($content, '[ERROR]'))->toBeTrue();
+    expect(str_contains($content, 'Test error message'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -38,8 +38,8 @@ test('FileHandler добавляет записи в существующий ф
     
     $content = file_get_contents($logFile);
     
-    expect($content)->toContain('First message');
-    expect($content)->toContain('Second message');
+    expect(str_contains($content, 'First message'))->toBeTrue();
+    expect(str_contains($content, 'Second message'))->toBeTrue();
     
     @unlink($logFile);
 });
@@ -56,11 +56,11 @@ test('FileHandler корректно обрабатывает разные ур�
     
     $content = file_get_contents($logFile);
     
-    expect($content)->toContain('[DEBUG]');
-    expect($content)->toContain('[INFO]');
-    expect($content)->toContain('[WARNING]');
-    expect($content)->toContain('[ERROR]');
-    expect($content)->toContain('[CRITICAL]');
+    expect(str_contains($content, '[DEBUG]'))->toBeTrue();
+    expect(str_contains($content, '[INFO]'))->toBeTrue();
+    expect(str_contains($content, '[WARNING]'))->toBeTrue();
+    expect(str_contains($content, '[ERROR]'))->toBeTrue();
+    expect(str_contains($content, '[CRITICAL]'))->toBeTrue();
     
     @unlink($logFile);
 });
