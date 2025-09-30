@@ -6,7 +6,7 @@ class DebugToolbar
 {
     private static bool $enabled = true;
     private static string $position = 'bottom'; // bottom | top
-    private static bool $collapsed = false;
+    private static bool $collapsed = true;
 
     /**
      * Рендерить toolbar
@@ -272,7 +272,7 @@ class DebugToolbar
             $html .= '</div>';
         }
         
-        $html .= '<div style="margin-left: auto; cursor: pointer;">▼</div>';
+        $html .= '<div style="margin-left: auto; cursor: pointer;" id="debug-toolbar-arrow">▲</div>';
         
         $html .= '</div>';
         
@@ -437,7 +437,9 @@ class DebugToolbar
         <script>
         function debugToolbarToggle() {
             const toolbar = document.getElementById('debug-toolbar');
+            const arrow = document.getElementById('debug-toolbar-arrow');
             toolbar.classList.toggle('collapsed');
+            arrow.textContent = toolbar.classList.contains('collapsed') ? '▲' : '▼';
         }
         
         function debugToolbarSwitchTab(tabName) {
