@@ -66,13 +66,21 @@ class Environment
      */
     public static function isDebug(): bool
     {
-        // В development режиме debug всегда включен
+        // Получаем значение APP_DEBUG (null если не установлено)
+        $debug = Env::get('APP_DEBUG', null);
+        
+        // В development режиме debug включен по умолчанию (если явно не выключен)
         if (self::isDevelopment()) {
-            return true;
+            // Если APP_DEBUG не установлен - включаем по умолчанию
+            if ($debug === null) {
+                return true;
+            }
+            // Проверяем явное значение
+            return $debug === true || $debug === 'true' || $debug === '1' || $debug === 1;
         }
 
-        // В других режимах проверяем переменную APP_DEBUG
-        return Env::get('APP_DEBUG', false) && !self::isProduction();
+        // В других режимах (production, testing) debug выключен по умолчанию (включаем только если явно true)
+        return $debug === true || $debug === 'true' || $debug === '1' || $debug === 1;
     }
 
     /**
