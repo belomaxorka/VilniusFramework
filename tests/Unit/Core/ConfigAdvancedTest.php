@@ -380,8 +380,12 @@ it('uses ArrayAccess with memoized macros', function (): void {
         return ++$counter;
     });
     
-    expect(Config::resolve($config['computed.value']))->toBe(1);
-    expect(Config::resolve($config['computed.value']))->toBe(1); // Cached
+    // ArrayAccess returns the callable
+    expect($config['computed.value'])->toBeCallable();
+    
+    // Resolve the macro by key
+    expect(Config::resolve('computed.value'))->toBe(1);
+    expect(Config::resolve('computed.value'))->toBe(1); // Cached
 });
 
 it('loads JSON and accesses via ArrayAccess', function (): void {
