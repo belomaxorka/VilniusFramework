@@ -4,6 +4,7 @@ namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
 use Core\Environment;
+use Core\Http;
 
 /**
  * Коллектор информации о HTTP-запросе
@@ -33,23 +34,23 @@ class RequestCollector extends AbstractCollector
     public function collect(): void
     {
         $this->data = [
-            'method' => $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
-            'uri' => $_SERVER['REQUEST_URI'] ?? '',
-            'query_string' => $_SERVER['QUERY_STRING'] ?? '',
-            'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? '',
-            'scheme' => $this->getScheme(),
-            'host' => $_SERVER['HTTP_HOST'] ?? 'localhost',
-            'port' => $_SERVER['SERVER_PORT'] ?? 80,
-            'path' => parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '',
-            'remote_addr' => $this->getClientIp(),
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-            'referer' => $_SERVER['HTTP_REFERER'] ?? '',
-            'request_time' => $_SERVER['REQUEST_TIME_FLOAT'] ?? $_SERVER['REQUEST_TIME'] ?? microtime(true),
-            'get' => $_GET ?? [],
-            'post' => $_POST ?? [],
-            'cookies' => $_COOKIE ?? [],
-            'files' => $_FILES ?? [],
-            'headers' => $this->getHeaders(),
+            'method' => Http::getMethod(),
+            'uri' => Http::getUri(),
+            'query_string' => Http::getQueryString(),
+            'protocol' => Http::getProtocol(),
+            'scheme' => Http::getScheme(),
+            'host' => Http::getHost(),
+            'port' => Http::getPort(),
+            'path' => Http::getPath(),
+            'remote_addr' => Http::getClientIp(),
+            'user_agent' => Http::getUserAgent(),
+            'referer' => Http::getReferer(),
+            'request_time' => Http::getRequestTime(),
+            'get' => Http::getQueryParams(),
+            'post' => Http::getPostData(),
+            'cookies' => Http::getCookies(),
+            'files' => Http::getFiles(),
+            'headers' => Http::getHeaders(),
             'server' => $this->filterServer($_SERVER),
         ];
     }
@@ -65,7 +66,7 @@ class RequestCollector extends AbstractCollector
         $html .= $this->renderSection('Basic Info', [
             'Method' => $this->renderBadge($this->data['method'], $this->getMethodColor($this->data['method'])),
             'URI' => '<code>' . htmlspecialchars($this->data['uri']) . '</code>',
-            'Full URL' => '<code>' . htmlspecialchars($this->getFullUrl()) . '</code>',
+            'Full URL' => '<code>' . htmlspecialchars(Http::getFullUrl()) . '</code>',
             'Protocol' => $this->data['protocol'],
             'Remote Address' => $this->data['remote_addr'],
             'Request Time' => date('Y-m-d H:i:s', (int)$this->data['request_time']),
@@ -136,69 +137,6 @@ class RequestCollector extends AbstractCollector
     }
 
     /**
-     * Получить схему (http/https)
-     */
-    private function getScheme(): string
-    {
-        if (
-            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || $_SERVER['SERVER_PORT'] == 443
-            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-        ) {
-            return 'https';
-        }
-        return 'http';
-    }
-
-    /**
-     * Получить IP клиента
-     */
-    private function getClientIp(): string
-    {
-        $keys = [
-            'HTTP_CLIENT_IP',
-            'HTTP_X_FORWARDED_FOR',
-            'HTTP_X_FORWARDED',
-            'HTTP_X_CLUSTER_CLIENT_IP',
-            'HTTP_FORWARDED_FOR',
-            'HTTP_FORWARDED',
-            'REMOTE_ADDR'
-        ];
-
-        foreach ($keys as $key) {
-            if (!empty($_SERVER[$key])) {
-                $ips = explode(',', $_SERVER[$key]);
-                $ip = trim($ips[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
-                }
-            }
-        }
-
-        return $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
-    }
-
-    /**
-     * Получить все HTTP заголовки
-     */
-    private function getHeaders(): array
-    {
-        if (function_exists('getallheaders')) {
-            return getallheaders() ?: [];
-        }
-
-        $headers = [];
-        foreach ($_SERVER as $key => $value) {
-            if (str_starts_with($key, 'HTTP_')) {
-                $header = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($key, 5)))));
-                $headers[$header] = $value;
-            }
-        }
-
-        return $headers;
-    }
-
-    /**
      * Фильтровать SERVER переменные (убрать чувствительные данные и дубликаты)
      */
     private function filterServer(array $server): array
@@ -221,25 +159,6 @@ class RequestCollector extends AbstractCollector
         }
 
         return $filtered;
-    }
-
-    /**
-     * Получить полный URL
-     */
-    private function getFullUrl(): string
-    {
-        $url = $this->data['scheme'] . '://' . $this->data['host'];
-
-        if (
-            ($this->data['scheme'] === 'http' && $this->data['port'] != 80)
-            || ($this->data['scheme'] === 'https' && $this->data['port'] != 443)
-        ) {
-            $url .= ':' . $this->data['port'];
-        }
-
-        $url .= $this->data['uri'];
-
-        return $url;
     }
 
     /**
