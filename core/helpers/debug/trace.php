@@ -10,7 +10,7 @@ use Core\Environment;
 if (!function_exists('trace')) {
     /**
      * Output backtrace
-     * 
+     *
      * @param string|null $label Optional label
      * @return void
      */
@@ -41,4 +41,3 @@ if (!function_exists('trace')) {
         }
     }
 }
-

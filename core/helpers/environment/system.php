@@ -7,7 +7,7 @@
 if (!function_exists('is_cli')) {
     /**
      * Check if running in CLI mode
-     * 
+     *
      * @return bool
      */
     function is_cli(): bool
@@ -19,7 +19,7 @@ if (!function_exists('is_cli')) {
 if (!function_exists('is_windows')) {
     /**
      * Check if running on Windows
-     * 
+     *
      * @return bool
      */
     function is_windows(): bool
@@ -31,7 +31,7 @@ if (!function_exists('is_windows')) {
 if (!function_exists('is_unix')) {
     /**
      * Check if running on Unix-like system
-     * 
+     *
      * @return bool
      */
     function is_unix(): bool

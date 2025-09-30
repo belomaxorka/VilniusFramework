@@ -7,7 +7,7 @@
 if (!function_exists('env')) {
     /**
      * Get environment variable
-     * 
+     *
      * @param string $key Variable name
      * @param mixed $default Default value
      * @return mixed
@@ -26,4 +26,3 @@ if (!function_exists('env')) {
         return $_SERVER[$key] ?? $default;
     }
 }
-

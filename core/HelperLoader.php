@@ -127,6 +127,29 @@ final class HelperLoader
         return !in_array(false, $results, true);
     }
 
+    /**
+     * Load all available helper groups automatically
+     *
+     * @return bool True if at least one group was loaded
+     */
+    public function loadAll(): bool
+    {
+        $groups = $this->getAvailableGroups();
+        
+        if (empty($groups)) {
+            return false;
+        }
+
+        $loadedCount = 0;
+        foreach ($groups as $group) {
+            if ($this->loadGroup($group)) {
+                $loadedCount++;
+            }
+        }
+
+        return $loadedCount > 0;
+    }
+
     public function isLoaded(string $name): bool
     {
         return isset($this->loadedHelpers[$name]);
@@ -141,6 +164,17 @@ final class HelperLoader
     {
         $files = glob($this->helpersPath . '*.php');
         return array_map(fn($file) => basename($file, '.php'), $files);
+    }
+
+    /**
+     * Get list of available helper groups (directories)
+     *
+     * @return array List of group names
+     */
+    public function getAvailableGroups(): array
+    {
+        $dirs = glob($this->helpersPath . '*', GLOB_ONLYDIR);
+        return array_map(fn($dir) => basename($dir), $dirs);
     }
 
     public function reload(string $name): bool
@@ -178,5 +212,15 @@ final class HelperLoader
     public static function loadHelperGroups(array $groups): bool
     {
         return self::getInstance()->loadGroups($groups);
+    }
+
+    /**
+     * Load all available helper groups
+     *
+     * @return bool True if at least one group was loaded
+     */
+    public static function loadAllHelpers(): bool
+    {
+        return self::getInstance()->loadAll();
     }
 }

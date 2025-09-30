@@ -12,6 +12,9 @@
 // Load bootstrap file
 require_once __DIR__ . '/../core/bootstrap.php';
 
+// Load all helpers
+\Core\HelperLoader::loadAllHelpers();
+
 /*
 |--------------------------------------------------------------------------
 | Test Case

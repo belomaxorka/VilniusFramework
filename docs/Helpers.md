@@ -369,8 +369,30 @@ dump($data); // Не будет показан, если вне указанны
 
 ## Порядок загрузки
 
-Группы хелперов загружаются в `core/bootstrap.php` в следующем порядке:
+Группы хелперов загружаются в `core/bootstrap.php`.
 
+### Способ 1: Загрузить все группы автоматически ⭐
+
+```php
+// Самый простой способ - загружает все доступные группы
+\Core\HelperLoader::loadAllHelpers();
+```
+
+### Способ 2: Выборочная загрузка
+
+```php
+// Загрузить только нужные группы
+\Core\HelperLoader::loadHelperGroups([
+    'app',          // Базовые функции
+    'environment',  // Определение окружения
+    'debug',        // Отладочные функции
+    'profiler',     // Профилирование
+    'database',     // Отладка БД
+    'context',      // Контексты
+]);
+```
+
+**Рекомендуемый порядок загрузки:**
 1. **app** - базовые функции (нужны везде)
 2. **environment** - определение окружения (нужно для debug)
 3. **debug** - основные отладочные функции
@@ -456,8 +478,36 @@ dump_all();
 - Timer и memory функции имеют минимальный overhead (~0.001ms)
 - QueryDebugger автоматически отключается в production
 
+## Дополнительные возможности
+
+### Загрузка отдельной группы
+
+```php
+// Загрузить одну группу по требованию
+\Core\HelperLoader::loadHelperGroup('profiler');
+```
+
+### Проверка загруженных групп
+
+```php
+$loader = \Core\HelperLoader::getInstance();
+
+// Список загруженных
+$loaded = $loader->getLoaded();
+
+// Список доступных
+$available = $loader->getAvailableGroups();
+
+// Проверка конкретной группы
+if ($loader->isLoaded('group:profiler')) {
+    echo "Profiler загружен";
+}
+```
+
 ## См. также
 
+- [HelperLoader API](HelperLoaderAPI.md) - Полная документация API загрузчика
+- [Helper Loading Flow](HelperLoadingFlow.md) - Как работает загрузка
 - [Debug Architecture](DebugArchitecture.md)
 - [Debug Toolbar](DebugToolbar.md)
 - [Query Debugger](QueryDebugger.md)

@@ -7,7 +7,7 @@
 if (!function_exists('__')) {
     /**
      * Get translated string
-     * 
+     *
      * @param string $key Translation key
      * @param array $params Optional placeholders
      * @return string
@@ -17,4 +17,3 @@ if (!function_exists('__')) {
         return \Core\Lang::get($key, $params);
     }
 }
-

@@ -9,7 +9,7 @@ use Core\Environment;
 if (!function_exists('is_debug')) {
     /**
      * Check if debug mode is enabled
-     * 
+     *
      * @return bool
      */
     function is_debug(): bool
@@ -21,7 +21,7 @@ if (!function_exists('is_debug')) {
 if (!function_exists('is_dev')) {
     /**
      * Check if environment is development
-     * 
+     *
      * @return bool
      */
     function is_dev(): bool
@@ -33,7 +33,7 @@ if (!function_exists('is_dev')) {
 if (!function_exists('is_prod')) {
     /**
      * Check if environment is production
-     * 
+     *
      * @return bool
      */
     function is_prod(): bool
@@ -45,7 +45,7 @@ if (!function_exists('is_prod')) {
 if (!function_exists('is_testing')) {
     /**
      * Check if environment is testing
-     * 
+     *
      * @return bool
      */
     function is_testing(): bool
@@ -54,22 +54,10 @@ if (!function_exists('is_testing')) {
     }
 }
 
-if (!function_exists('is_staging')) {
-    /**
-     * Check if environment is staging
-     * 
-     * @return bool
-     */
-    function is_staging(): bool
-    {
-        return Environment::isStaging();
-    }
-}
-
 if (!function_exists('app_env')) {
     /**
      * Get current environment name
-     * 
+     *
      * @return string Environment name (e.g. 'development', 'production')
      */
     function app_env(): string

@@ -9,7 +9,7 @@ use Core\Environment;
 if (!function_exists('debug_log')) {
     /**
      * Log message only in debug mode
-     * 
+     *
      * @param string $message Message to log
      * @return void
      */
@@ -20,4 +20,3 @@ if (!function_exists('debug_log')) {
         }
     }
 }
-

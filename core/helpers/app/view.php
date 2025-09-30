@@ -7,7 +7,7 @@
 if (!function_exists('view')) {
     /**
      * Render template and return as string
-     * 
+     *
      * @param string $template Template name
      * @param array $variables Template variables
      * @return string
@@ -21,7 +21,7 @@ if (!function_exists('view')) {
 if (!function_exists('display')) {
     /**
      * Display template (outputs directly)
-     * 
+     *
      * @param string $template Template name
      * @param array $variables Template variables
      * @return void
@@ -31,16 +31,3 @@ if (!function_exists('display')) {
         \Core\TemplateEngine::getInstance()->display($template, $variables);
     }
 }
-
-if (!function_exists('template')) {
-    /**
-     * Get template engine instance
-     * 
-     * @return \Core\TemplateEngine
-     */
-    function template(): \Core\TemplateEngine
-    {
-        return \Core\TemplateEngine::getInstance();
-    }
-}
-

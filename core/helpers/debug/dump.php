@@ -9,7 +9,7 @@ use Core\Debug;
 if (!function_exists('dd')) {
     /**
      * Dump and die - output variable and stop execution
-     * 
+     *
      * @param mixed $var Variable to dump
      * @param string|null $label Optional label
      * @return never
@@ -23,7 +23,7 @@ if (!function_exists('dd')) {
 if (!function_exists('dump')) {
     /**
      * Dump variable without stopping execution
-     * 
+     *
      * @param mixed $var Variable to dump
      * @param string|null $label Optional label
      * @return void
@@ -37,7 +37,7 @@ if (!function_exists('dump')) {
 if (!function_exists('dump_pretty')) {
     /**
      * Dump variable with pretty formatting
-     * 
+     *
      * @param mixed $var Variable to dump
      * @param string|null $label Optional label
      * @return void
@@ -51,7 +51,7 @@ if (!function_exists('dump_pretty')) {
 if (!function_exists('dd_pretty')) {
     /**
      * Dump pretty and die
-     * 
+     *
      * @param mixed $var Variable to dump
      * @param string|null $label Optional label
      * @return never
@@ -61,4 +61,3 @@ if (!function_exists('dd_pretty')) {
         Debug::dumpPretty($var, $label, true);
     }
 }
-

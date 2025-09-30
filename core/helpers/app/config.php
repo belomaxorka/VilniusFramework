@@ -7,7 +7,7 @@
 if (!function_exists('config')) {
     /**
      * Get configuration value
-     * 
+     *
      * @param string $key Configuration key
      * @param mixed $default Default value
      * @return mixed
@@ -17,4 +17,3 @@ if (!function_exists('config')) {
         return \Core\Config::get($key, $default);
     }
 }
-

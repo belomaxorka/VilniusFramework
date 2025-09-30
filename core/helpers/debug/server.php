@@ -7,7 +7,7 @@
 if (!function_exists('server_dump')) {
     /**
      * Send dump to dump server
-     * 
+     *
      * @param mixed $data Data to dump
      * @param string|null $label Optional label
      * @return bool
@@ -21,7 +21,7 @@ if (!function_exists('server_dump')) {
 if (!function_exists('dd_server')) {
     /**
      * Dump to server and die
-     * 
+     *
      * @param mixed $data Data to dump
      * @param string|null $label Optional label
      * @return never
@@ -36,7 +36,7 @@ if (!function_exists('dd_server')) {
 if (!function_exists('dump_server_available')) {
     /**
      * Check if dump server is available
-     * 
+     *
      * @return bool
      */
     function dump_server_available(): bool
@@ -44,4 +44,3 @@ if (!function_exists('dump_server_available')) {
         return \Core\DumpClient::isServerAvailable();
     }
 }
-

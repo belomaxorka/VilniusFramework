@@ -7,7 +7,7 @@
 if (!function_exists('context_start')) {
     /**
      * Start a debug context
-     * 
+     *
      * @param string $name Context name
      * @param array|null $config Optional configuration
      * @return void
@@ -21,7 +21,7 @@ if (!function_exists('context_start')) {
 if (!function_exists('context_end')) {
     /**
      * End a debug context
-     * 
+     *
      * @param string|null $name Context name (null for current context)
      * @return void
      */
@@ -34,7 +34,7 @@ if (!function_exists('context_end')) {
 if (!function_exists('context_run')) {
     /**
      * Execute code within a debug context
-     * 
+     *
      * @param string $name Context name
      * @param callable $callback Function to execute
      * @param array|null $config Optional configuration
@@ -49,7 +49,7 @@ if (!function_exists('context_run')) {
 if (!function_exists('context_dump')) {
     /**
      * Dump context(s) information
-     * 
+     *
      * @param array|null $contexts Specific contexts to dump (null for all)
      * @return void
      */
@@ -62,7 +62,7 @@ if (!function_exists('context_dump')) {
 if (!function_exists('context_clear')) {
     /**
      * Clear context(s)
-     * 
+     *
      * @param string|null $name Context name (null for all contexts)
      * @return void
      */
@@ -75,7 +75,7 @@ if (!function_exists('context_clear')) {
 if (!function_exists('context_current')) {
     /**
      * Get current context name
-     * 
+     *
      * @return string|null Current context name or null
      */
     function context_current(): ?string
@@ -87,7 +87,7 @@ if (!function_exists('context_current')) {
 if (!function_exists('context_filter')) {
     /**
      * Enable context filtering (only show specified contexts)
-     * 
+     *
      * @param array $contexts Context names to show
      * @return void
      */
@@ -96,4 +96,3 @@ if (!function_exists('context_filter')) {
         \Core\DebugContext::enableFilter($contexts);
     }
 }
-
