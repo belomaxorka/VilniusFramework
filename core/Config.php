@@ -413,6 +413,7 @@ class Config
         $data = [
             'items' => self::$items,
             'loadedPaths' => self::$loadedPaths,
+            'macros' => self::$macros,
             'timestamp' => time(),
         ];
 
@@ -455,6 +456,7 @@ class Config
 
         self::$items = $data['items'];
         self::$loadedPaths = $data['loadedPaths'];
+        self::$macros = $data['macros'] ?? [];
         self::$loadedFromCache = true;
 
         return true;

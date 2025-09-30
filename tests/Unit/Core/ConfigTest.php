@@ -392,3 +392,112 @@ it('pulls nested value', function (): void {
     expect(Config::has('app.temp.secret'))->toBeFalse();
     expect(Config::has('app.temp'))->toBeTrue(); // Parent still exists
 });
+
+// === Macro Tests ===
+
+it('registers and resolves a macro', function (): void {
+    $counter = 0;
+    
+    Config::macro('app.timestamp', function () use (&$counter) {
+        $counter++;
+        return time();
+    });
+
+    expect(Config::isMacro('app.timestamp'))->toBeTrue();
+    
+    // Resolving should execute the callable
+    $result = Config::resolve('app.timestamp');
+    expect($result)->toBeInt();
+    expect($counter)->toBe(1);
+    
+    // Each resolve executes it again (not memoized by default)
+    Config::resolve('app.timestamp');
+    expect($counter)->toBe(2);
+});
+
+it('get returns callable without executing for macros', function (): void {
+    Config::macro('app.factory', fn() => 'created');
+    
+    $value = Config::get('app.factory');
+    expect($value)->toBeCallable();
+});
+
+it('resolve executes macro only if registered', function (): void {
+    // Regular callable set without macro() should NOT be executed
+    Config::set('app.callback', fn() => 'should-not-execute');
+    
+    $result = Config::resolve('app.callback');
+    expect($result)->toBeCallable(); // Returns the callable itself
+});
+
+it('resolves nested macro with dot notation', function (): void {
+    Config::macro('database.connection.factory', function () {
+        return [
+            'host' => 'localhost',
+            'port' => 3306,
+        ];
+    });
+
+    $result = Config::resolve('database.connection.factory');
+    expect($result)->toBe([
+        'host' => 'localhost',
+        'port' => 3306,
+    ]);
+});
+
+it('resolves all macros recursively', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::macro('app.version', fn() => '1.0.0');
+    Config::macro('database.host', fn() => 'localhost');
+    Config::set('database.port', 3306);
+
+    $resolved = Config::resolveAll();
+    
+    expect($resolved['app']['name'])->toBe('MyApp');
+    expect($resolved['app']['version'])->toBe('1.0.0');
+    expect($resolved['database']['host'])->toBe('localhost');
+    expect($resolved['database']['port'])->toBe(3306);
+});
+
+it('clear removes macros', function (): void {
+    Config::macro('app.factory', fn() => 'value');
+    expect(Config::isMacro('app.factory'))->toBeTrue();
+    
+    Config::clear();
+    expect(Config::isMacro('app.factory'))->toBeFalse();
+});
+
+it('caches and loads macros', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::macro('app.factory', fn() => 'lazy-value');
+        Config::cache($cachePath);
+
+        Config::clear();
+        expect(Config::isMacro('app.factory'))->toBeFalse();
+
+        Config::loadCached($cachePath);
+        expect(Config::isMacro('app.factory'))->toBeTrue();
+        expect(Config::resolve('app.factory'))->toBe('lazy-value');
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('resolves with default when macro does not exist', function (): void {
+    $result = Config::resolve('nonexistent.macro', 'default-value');
+    expect($result)->toBe('default-value');
+});
+
+it('macro can access external state', function (): void {
+    $externalValue = 'external';
+    
+    Config::macro('app.dynamic', function () use ($externalValue) {
+        return "Value: {$externalValue}";
+    });
+
+    expect(Config::resolve('app.dynamic'))->toBe('Value: external');
+});
