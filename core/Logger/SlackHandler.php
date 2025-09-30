@@ -4,7 +4,7 @@ namespace Core\Logger;
 
 /**
  * Slack Handler для отправки логов в Slack через Incoming Webhooks
- * 
+ *
  * Для работы необходимо создать Incoming Webhook в Slack:
  * https://api.slack.com/messaging/webhooks
  */
@@ -30,7 +30,8 @@ class SlackHandler implements LogHandlerInterface
         string $username = 'Logger Bot',
         string $emoji = ':robot_face:',
         string $minLevel = 'error'
-    ) {
+    )
+    {
         $this->webhookUrl = $webhookUrl;
         $this->channel = $channel;
         $this->username = $username;
@@ -98,7 +99,7 @@ class SlackHandler implements LogHandlerInterface
      */
     protected function getColorForLevel(string $level): string
     {
-        return match($level) {
+        return match ($level) {
             'debug' => '#6c757d',      // серый
             'info' => '#17a2b8',       // голубой
             'warning' => '#ffc107',    // желтый
@@ -113,7 +114,7 @@ class SlackHandler implements LogHandlerInterface
      */
     protected function getEmojiForLevel(string $level): string
     {
-        return match($level) {
+        return match ($level) {
             'debug' => '🐛',
             'info' => 'ℹ️',
             'warning' => '⚠️',
@@ -129,7 +130,7 @@ class SlackHandler implements LogHandlerInterface
     protected function sendToSlack(array $payload): void
     {
         $ch = curl_init($this->webhookUrl);
-        
+
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -141,7 +142,7 @@ class SlackHandler implements LogHandlerInterface
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
+
         curl_close($ch);
 
         // В случае ошибки можно логировать в файл, но не создаем рекурсию

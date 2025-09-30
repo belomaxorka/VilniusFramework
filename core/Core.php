@@ -49,7 +49,7 @@ final class Core
         } else {
             // В dev/testing загружаем напрямую с поддержкой окружения
             Config::load(CONFIG_DIR, $environment);
-            
+
             // В production создаем/обновляем кэш после загрузки
             if ($environment === 'production') {
                 // Убедимся, что директория для кэша существует

@@ -10,16 +10,16 @@ test('SlackHandler создается с правильными параметр
         ':robot:',
         'error'
     );
-    
+
     expect($handler)->toBeInstanceOf(SlackHandler::class);
 });
 
 test('SlackHandler не отправляет если webhook пустой', function () {
     $handler = new SlackHandler('', '#logs', 'Bot', ':robot:', 'error');
-    
+
     // Не должно быть исключений
     $handler->handle('error', 'Test message');
-    
+
     expect(true)->toBeTrue();
 });
 
@@ -27,46 +27,48 @@ test('SlackHandler фильтрует по минимальному уровню
     // Создаем mock handler чтобы проверить фильтрацию
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'error') extends SlackHandler {
         public $sentMessages = [];
-        
-        protected function sendToSlack(array $payload): void {
+
+        protected function sendToSlack(array $payload): void
+        {
             $this->sentMessages[] = $payload;
         }
     };
-    
+
     // Эти не должны отправиться
     $handler->handle('debug', 'Debug');
     $handler->handle('info', 'Info');
     $handler->handle('warning', 'Warning');
-    
+
     expect($handler->sentMessages)->toHaveCount(0);
-    
+
     // Эти должны отправиться
     $handler->handle('error', 'Error');
     $handler->handle('critical', 'Critical');
-    
+
     expect($handler->sentMessages)->toHaveCount(2);
 });
 
 test('SlackHandler строит корректный payload', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'TestBot', ':robot:', 'debug') extends SlackHandler {
         public $lastPayload = null;
-        
-        protected function sendToSlack(array $payload): void {
+
+        protected function sendToSlack(array $payload): void
+        {
             $this->lastPayload = $payload;
         }
     };
-    
+
     $handler->handle('error', 'Test error message');
-    
+
     expect($handler->lastPayload)->toHaveKey('channel');
     expect($handler->lastPayload)->toHaveKey('username');
     expect($handler->lastPayload)->toHaveKey('icon_emoji');
     expect($handler->lastPayload)->toHaveKey('attachments');
-    
+
     expect($handler->lastPayload['channel'])->toBe('#logs');
     expect($handler->lastPayload['username'])->toBe('TestBot');
     expect($handler->lastPayload['icon_emoji'])->toBe(':robot:');
-    
+
     $attachment = $handler->lastPayload['attachments'][0];
     expect($attachment)->toHaveKey('color');
     expect($attachment)->toHaveKey('title');
@@ -78,18 +80,19 @@ test('SlackHandler строит корректный payload', function () {
 test('SlackHandler использует правильные цвета для уровней', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'debug') extends SlackHandler {
         public $colors = [];
-        
-        protected function sendToSlack(array $payload): void {
+
+        protected function sendToSlack(array $payload): void
+        {
             $this->colors[] = $payload['attachments'][0]['color'];
         }
     };
-    
+
     $handler->handle('debug', 'msg');
     $handler->handle('info', 'msg');
     $handler->handle('warning', 'msg');
     $handler->handle('error', 'msg');
     $handler->handle('critical', 'msg');
-    
+
     expect($handler->colors)->toHaveCount(5);
     expect($handler->colors[0])->toBe('#6c757d'); // debug - серый
     expect($handler->colors[1])->toBe('#17a2b8'); // info - голубой
@@ -101,18 +104,19 @@ test('SlackHandler использует правильные цвета для �
 test('SlackHandler добавляет эмодзи к уровням', function () {
     $handler = new class('https://hooks.slack.com/test', '#logs', 'Bot', ':robot:', 'debug') extends SlackHandler {
         public $titles = [];
-        
-        protected function sendToSlack(array $payload): void {
+
+        protected function sendToSlack(array $payload): void
+        {
             $this->titles[] = $payload['attachments'][0]['title'];
         }
     };
-    
+
     $handler->handle('debug', 'msg');
     $handler->handle('info', 'msg');
     $handler->handle('warning', 'msg');
     $handler->handle('error', 'msg');
     $handler->handle('critical', 'msg');
-    
+
     expect(str_contains($handler->titles[0], '🐛'))->toBeTrue();
     expect(str_contains($handler->titles[1], 'ℹ️'))->toBeTrue();
     expect(str_contains($handler->titles[2], '⚠️'))->toBeTrue();

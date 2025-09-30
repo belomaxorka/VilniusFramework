@@ -15,7 +15,7 @@ class HomeController
                 ['name' => 'Bob', 'email' => 'bob@example.com']
             ]
         ];
-        
+
         display('welcome.tpl', $data);
     }
 
@@ -28,7 +28,7 @@ class HomeController
             'message' => "Welcome, {$name}!",
             'users' => [] // Пустой массив пользователей
         ];
-        
+
         display('welcome.tpl', $data);
     }
 }

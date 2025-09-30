@@ -86,7 +86,7 @@ class Env
 
     /**
      * Загрузить .env файл
-     * 
+     *
      * @param string|null $path Путь к .env файлу (если null, ищет автоматически)
      * @param bool $required Выбросить исключение если файл не найден
      * @param bool $reload Перезагрузить даже если уже загружен (с переопределением переменных)
@@ -118,7 +118,7 @@ class Env
         // Загружаем переменные из файла
         self::loadFile($path, $reload);
         self::$loaded = true;
-        
+
         return true;
     }
 
@@ -145,14 +145,14 @@ class Env
 
     /**
      * Загрузить переменные из файла
-     * 
+     *
      * @param string $path Путь к файлу
      * @param bool $override Переопределять существующие переменные
      */
     protected static function loadFile(string $path, bool $override = false): void
     {
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        
+
         if ($lines === false) {
             return;
         }

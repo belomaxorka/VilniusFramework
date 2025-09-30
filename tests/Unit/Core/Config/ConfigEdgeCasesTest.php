@@ -11,7 +11,7 @@ beforeEach(function (): void {
 it('handles empty string key gracefully', function (): void {
     expect(fn() => Config::set('', 'value'))
         ->not->toThrow(Exception::class);
-    
+
     // Should still be able to get/set with empty key
     Config::set('', 'empty-key-value');
     expect(Config::get('', 'default'))->toBe('empty-key-value');
@@ -42,7 +42,7 @@ it('handles special characters in keys', function (): void {
     Config::set('key-with-dash', 'value1');
     Config::set('key_with_underscore', 'value2');
     Config::set('key@special', 'value3');
-    
+
     expect(Config::get('key-with-dash'))->toBe('value1');
     expect(Config::get('key_with_underscore'))->toBe('value2');
     expect(Config::get('key@special'))->toBe('value3');
@@ -89,10 +89,10 @@ it('handles empty array values correctly', function (): void {
 
 it('distinguishes between non-existent and null values', function (): void {
     Config::set('exists_but_null', null);
-    
+
     expect(Config::has('exists_but_null'))->toBeTrue();
     expect(Config::has('does_not_exist'))->toBeFalse();
-    
+
     expect(Config::get('exists_but_null'))->toBeNull();
     expect(Config::get('does_not_exist'))->toBeNull();
 });
@@ -100,7 +100,7 @@ it('distinguishes between non-existent and null values', function (): void {
 it('handles overwriting array with scalar', function (): void {
     Config::set('config', ['nested' => ['value' => 123]]);
     expect(Config::get('config.nested.value'))->toBe(123);
-    
+
     // Overwrite the whole nested structure with a scalar
     Config::set('config.nested', 'now-scalar');
     expect(Config::get('config.nested'))->toBe('now-scalar');
@@ -110,7 +110,7 @@ it('handles overwriting array with scalar', function (): void {
 it('handles overwriting scalar with array', function (): void {
     Config::set('config.item', 'scalar');
     expect(Config::get('config.item'))->toBe('scalar');
-    
+
     // Overwrite scalar with array
     Config::set('config.item', ['key' => 'value']);
     expect(Config::get('config.item'))->toBe(['key' => 'value']);
@@ -120,7 +120,7 @@ it('handles overwriting scalar with array', function (): void {
 it('handles numeric string keys', function (): void {
     Config::set('array.123', 'numeric-key');
     Config::set('array.456.nested', 'deep-numeric');
-    
+
     expect(Config::get('array.123'))->toBe('numeric-key');
     expect(Config::get('array.456.nested'))->toBe('deep-numeric');
 });
@@ -135,7 +135,7 @@ it('handles mixed array types', function (): void {
         'array' => [1, 2, 3],
         'nested' => ['deep' => 'value'],
     ]);
-    
+
     expect(Config::get('mixed.string'))->toBe('value');
     expect(Config::get('mixed.number'))->toBe(123);
     expect(Config::get('mixed.float'))->toBe(45.67);
@@ -150,9 +150,9 @@ it('handles large configuration arrays', function (): void {
     for ($i = 0; $i < 1000; $i++) {
         $largeArray["key_$i"] = "value_$i";
     }
-    
+
     Config::set('large', $largeArray);
-    
+
     expect(Config::get('large.key_0'))->toBe('value_0');
     expect(Config::get('large.key_500'))->toBe('value_500');
     expect(Config::get('large.key_999'))->toBe('value_999');
@@ -163,9 +163,9 @@ it('handles deeply nested arrays', function (): void {
     for ($i = 0; $i < 50; $i++) {
         $deep = ['level' => $deep];
     }
-    
+
     Config::set('deep', $deep);
-    
+
     $key = 'deep' . str_repeat('.level', 50) . '.value';
     expect(Config::get($key))->toBe('found');
 });
@@ -176,7 +176,7 @@ it('handles rapid sequential operations', function (): void {
     for ($i = 0; $i < 100; $i++) {
         Config::set("key_$i", "value_$i");
     }
-    
+
     for ($i = 0; $i < 100; $i++) {
         expect(Config::get("key_$i"))->toBe("value_$i");
     }
@@ -185,11 +185,11 @@ it('handles rapid sequential operations', function (): void {
 it('handles interleaved set and get operations', function (): void {
     Config::set('a', 1);
     expect(Config::get('a'))->toBe(1);
-    
+
     Config::set('b', 2);
     expect(Config::get('a'))->toBe(1);
     expect(Config::get('b'))->toBe(2);
-    
+
     Config::set('a', 10);
     expect(Config::get('a'))->toBe(10);
     expect(Config::get('b'))->toBe(2);
@@ -201,7 +201,7 @@ it('handles macro that throws exception', function (): void {
     Config::macro('throwing', function () {
         throw new RuntimeException('Macro error');
     });
-    
+
     expect(fn() => Config::resolve('throwing'))
         ->toThrow(RuntimeException::class, 'Macro error');
 });
@@ -213,7 +213,7 @@ it('handles macro that returns null', function (): void {
 
 it('handles macro that returns another callable', function (): void {
     Config::macro('factory', fn() => fn() => 'nested');
-    
+
     $result = Config::resolve('factory');
     expect($result)->toBeCallable();
     expect($result())->toBe('nested');
@@ -223,7 +223,7 @@ it('handles macro accessing non-existent config', function (): void {
     Config::macro('dependent', function () {
         return Config::get('nonexistent', 'fallback');
     });
-    
+
     expect(Config::resolve('dependent'))->toBe('fallback');
 });
 
@@ -232,10 +232,10 @@ it('handles multiple macros with same callable', function (): void {
     $callable = function () use (&$counter) {
         return ++$counter;
     };
-    
+
     Config::macro('macro1', $callable);
     Config::macro('macro2', $callable);
-    
+
     expect(Config::resolve('macro1'))->toBe(1);
     expect(Config::resolve('macro2'))->toBe(2);
 });
@@ -244,11 +244,11 @@ it('handles multiple macros with same callable', function (): void {
 
 it('handles caching empty configuration', function (): void {
     $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
-    
+
     try {
         Config::clear();
         expect(Config::cache($cachePath))->toBeTrue();
-        
+
         Config::clear();
         expect(Config::loadCached($cachePath))->toBeTrue();
         expect(Config::all())->toBe([]);
@@ -261,7 +261,7 @@ it('handles caching empty configuration', function (): void {
 
 it('handles cache with special characters in values', function (): void {
     $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
-    
+
     try {
         Config::set('special', [
             'quotes' => "It's \"quoted\"",
@@ -269,11 +269,11 @@ it('handles cache with special characters in values', function (): void {
             'tabs' => "Tab\there",
             'unicode' => 'Привет 世界 🚀',
         ]);
-        
+
         Config::cache($cachePath);
         Config::clear();
         Config::loadCached($cachePath);
-        
+
         expect(Config::get('special.quotes'))->toBe("It's \"quoted\"");
         expect(Config::get('special.newlines'))->toBe("Line1\nLine2");
         expect(Config::get('special.tabs'))->toBe("Tab\there");
@@ -301,11 +301,11 @@ it('merges nested arrays with different structures', function (): void {
             'new' => 'value',
         ],
     ]);
-    
+
     try {
         Config::loadFile($dir1 . DIRECTORY_SEPARATOR . 'app.php');
         Config::loadFile($dir2 . DIRECTORY_SEPARATOR . 'app.php');
-        
+
         expect(Config::get('app.features'))->toBe(['a', 'b', 'c']);
         expect(Config::get('app.config'))->toBe(['x' => 1, 'y' => 2]);
         expect(Config::get('app.new'))->toBe('value');
@@ -323,10 +323,10 @@ it('handles associative array keys that look numeric', function (): void {
             'key' => 'value',
         ],
     ]);
-    
+
     try {
         Config::load($dir);
-        
+
         expect(Config::get('app.0'))->toBe('zero');
         expect(Config::get('app.1'))->toBe('one');
         expect(Config::get('app.key'))->toBe('value');
@@ -340,16 +340,16 @@ it('handles associative array keys that look numeric', function (): void {
 it('handles files with side effects', function (): void {
     $dir = createTempConfigDir([]);
     $file = $dir . DIRECTORY_SEPARATOR . 'sideeffect.php';
-    
+
     // Create file that has side effects but returns array
     file_put_contents($file, '<?php
         // This should not cause issues
         $someVar = "test";
         define("TEST_CONSTANT", "value");
-        
+
         return ["key" => "value"];
     ');
-    
+
     try {
         Config::loadFile($file);
         expect(Config::get('sideeffect.key'))->toBe('value');
@@ -363,12 +363,12 @@ it('handles multiple loads of same file with loadFile()', function (): void {
     $dir = createTempConfigDir([
         'app.php' => ['items' => ['A']],
     ]);
-    
+
     try {
         $file = $dir . DIRECTORY_SEPARATOR . 'app.php';
         Config::loadFile($file);
         Config::loadFile($file); // Load again
-        
+
         // Should merge, resulting in ['A', 'A']
         expect(Config::get('app.items'))->toBe(['A', 'A']);
     } finally {
@@ -380,25 +380,25 @@ it('handles multiple loads of same file with loadFile()', function (): void {
 
 it('allows lock and unlock multiple times', function (): void {
     Config::set('key', 'value');
-    
+
     Config::lock();
     Config::unlock();
     Config::lock();
     Config::unlock();
-    
+
     Config::set('key', 'new-value');
     expect(Config::get('key'))->toBe('new-value');
 });
 
 it('handles operations on locked config with different error messages', function (): void {
     Config::lock();
-    
+
     expect(fn() => Config::set('key', 'value'))
         ->toThrow(RuntimeException::class, 'locked');
-    
+
     expect(fn() => Config::forget('key'))
         ->toThrow(RuntimeException::class, 'locked');
-    
+
     expect(fn() => Config::push('arr', 'val'))
         ->toThrow(RuntimeException::class, 'locked');
 });
@@ -409,7 +409,7 @@ it('handles environment name with special characters', function (): void {
     $dir = createTempConfigDir([
         'app.php' => ['name' => 'Base'],
     ]);
-    
+
     try {
         // Should not crash with unusual environment names
         Config::load($dir, 'prod-us-west-2');
@@ -423,21 +423,21 @@ it('handles environment name with special characters', function (): void {
 
 it('handles many unique keys efficiently', function (): void {
     $start = microtime(true);
-    
+
     for ($i = 0; $i < 1000; $i++) {
         Config::set("perf.key_$i", "value_$i");
     }
-    
+
     $setTime = microtime(true) - $start;
-    
+
     $start = microtime(true);
-    
+
     for ($i = 0; $i < 1000; $i++) {
         Config::get("perf.key_$i");
     }
-    
+
     $getTime = microtime(true) - $start;
-    
+
     // Should complete in reasonable time (< 100ms each)
     expect($setTime)->toBeLessThan(0.1);
     expect($getTime)->toBeLessThan(0.1);
@@ -447,14 +447,14 @@ it('handles has() checks efficiently on large config', function (): void {
     for ($i = 0; $i < 100; $i++) {
         Config::set("large.section_$i.key", "value");
     }
-    
+
     $start = microtime(true);
-    
+
     for ($i = 0; $i < 100; $i++) {
         Config::has("large.section_$i.key");
     }
-    
+
     $time = microtime(true) - $start;
-    
+
     expect($time)->toBeLessThan(0.05); // Should be very fast
 });

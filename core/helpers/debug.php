@@ -138,14 +138,14 @@ if (!function_exists('trace')) {
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $output = $label ? "[{$label}] " : '';
         $output .= "Backtrace:\n";
-        
+
         foreach ($backtrace as $index => $trace) {
             $file = $trace['file'] ?? 'unknown';
             $line = $trace['line'] ?? 0;
             $function = $trace['function'] ?? 'unknown';
             $class = $trace['class'] ?? '';
             $type = $trace['type'] ?? '';
-            
+
             $output .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
         }
 
@@ -177,7 +177,7 @@ if (!function_exists('benchmark')) {
         $time = ($end - $start) * 1000; // в миллисекундах
 
         $message = ($label ? "[{$label}] " : '') . "Execution time: {$time}ms";
-        
+
         if (Environment::isDevelopment()) {
             echo '<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
             echo '<h4 style="color: #7b1fa2; margin-top: 0;">Benchmark</h4>';

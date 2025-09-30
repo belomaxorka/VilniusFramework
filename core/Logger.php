@@ -24,7 +24,7 @@ class Logger
         }
 
         $config = Config::get('logging', []);
-        
+
         if (empty($config)) {
             // Fallback: создаем базовый file handler
             self::addHandler(new FileHandler(LOG_DIR . '/app.log'));
@@ -38,7 +38,7 @@ class Logger
 
         // Определяем какие каналы использовать
         $channels = self::parseChannels($config['channels'] ?? $config['default'] ?? 'file');
-        
+
         // Инициализируем драйверы для каждого канала
         foreach ($channels as $channel) {
             $driver = self::createDriver($channel, $config['drivers'][$channel] ?? []);

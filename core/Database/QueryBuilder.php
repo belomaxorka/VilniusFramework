@@ -48,12 +48,12 @@ class QueryBuilder
         if (empty($columns)) {
             $columns = ['*'];
         }
-        
+
         // Поддержка массива или отдельных аргументов
         if (count($columns) === 1 && is_array($columns[0])) {
             $columns = $columns[0];
         }
-        
+
         $this->selects = $columns;
         return $this;
     }
@@ -95,9 +95,9 @@ class QueryBuilder
             'value' => $value,
             'boolean' => $boolean
         ];
-        
+
         $this->bindings['where'][] = $value;
-        
+
         return $this;
     }
 
@@ -115,18 +115,18 @@ class QueryBuilder
     public function whereIn(string $column, array $values, string $boolean = 'AND', bool $not = false): self
     {
         $type = $not ? 'not_in' : 'in';
-        
+
         $this->wheres[] = [
             'type' => $type,
             'column' => $column,
             'values' => $values,
             'boolean' => $boolean
         ];
-        
+
         foreach ($values as $value) {
             $this->bindings['where'][] = $value;
         }
-        
+
         return $this;
     }
 
@@ -160,13 +160,13 @@ class QueryBuilder
     public function whereNull(string $column, string $boolean = 'AND', bool $not = false): self
     {
         $type = $not ? 'not_null' : 'null';
-        
+
         $this->wheres[] = [
             'type' => $type,
             'column' => $column,
             'boolean' => $boolean
         ];
-        
+
         return $this;
     }
 
@@ -200,17 +200,17 @@ class QueryBuilder
     public function whereBetween(string $column, array $values, string $boolean = 'AND', bool $not = false): self
     {
         $type = $not ? 'not_between' : 'between';
-        
+
         $this->wheres[] = [
             'type' => $type,
             'column' => $column,
             'values' => $values,
             'boolean' => $boolean
         ];
-        
+
         $this->bindings['where'][] = $values[0];
         $this->bindings['where'][] = $values[1];
-        
+
         return $this;
     }
 
@@ -245,21 +245,21 @@ class QueryBuilder
     {
         $query = $this->newQuery();
         $callback($query);
-        
+
         if (!empty($query->wheres)) {
             $this->wheres[] = [
                 'type' => 'nested',
                 'query' => $query,
                 'boolean' => $boolean
             ];
-            
+
             // Копируем биндинги из вложенного запроса
             $this->bindings['where'] = array_merge(
                 $this->bindings['where'],
                 $query->getBindings()['where']
             );
         }
-        
+
         return $this;
     }
 
@@ -271,7 +271,7 @@ class QueryBuilder
         foreach ($columns as $column => $value) {
             $this->where($column, '=', $value, $boolean);
         }
-        
+
         return $this;
     }
 
@@ -292,7 +292,7 @@ class QueryBuilder
             'operator' => $operator,
             'second' => $second
         ];
-        
+
         return $this;
     }
 
@@ -321,7 +321,7 @@ class QueryBuilder
             'type' => 'CROSS',
             'table' => $table
         ];
-        
+
         return $this;
     }
 
@@ -332,9 +332,9 @@ class QueryBuilder
     {
         $joinBuilder = new JoinClause($table, $type);
         $callback($joinBuilder);
-        
+
         $this->joins[] = $joinBuilder;
-        
+
         return $this;
     }
 
@@ -346,9 +346,9 @@ class QueryBuilder
         if (count($columns) === 1 && is_array($columns[0])) {
             $columns = $columns[0];
         }
-        
+
         $this->groups = array_merge($this->groups, $columns);
-        
+
         return $this;
     }
 
@@ -363,9 +363,9 @@ class QueryBuilder
             'value' => $value,
             'boolean' => $boolean
         ];
-        
+
         $this->bindings['having'][] = $value;
-        
+
         return $this;
     }
 
@@ -383,13 +383,13 @@ class QueryBuilder
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
         $direction = strtoupper($direction);
-        
+
         if (!in_array($direction, ['ASC', 'DESC'])) {
             throw new QueryException("Order direction must be ASC or DESC");
         }
-        
+
         $this->orders[] = ['column' => $column, 'direction' => $direction];
-        
+
         return $this;
     }
 
@@ -425,7 +425,7 @@ class QueryBuilder
         if ($limit > 0) {
             $this->limit = $limit;
         }
-        
+
         return $this;
     }
 
@@ -445,7 +445,7 @@ class QueryBuilder
         if ($offset >= 0) {
             $this->offset = $offset;
         }
-        
+
         return $this;
     }
 
@@ -463,19 +463,19 @@ class QueryBuilder
     public function paginate(int $page = 1, int $perPage = 15): array
     {
         $offset = ($page - 1) * $perPage;
-        
+
         // Получаем общее количество записей
         $total = $this->count();
-        
+
         // Получаем данные для текущей страницы
         $data = $this->offset($offset)->limit($perPage)->get();
-        
+
         return [
             'data' => $data,
             'total' => $total,
             'per_page' => $perPage,
             'current_page' => $page,
-            'last_page' => (int) ceil($total / $perPage),
+            'last_page' => (int)ceil($total / $perPage),
             'from' => $offset + 1,
             'to' => min($offset + $perPage, $total)
         ];
@@ -514,11 +514,11 @@ class QueryBuilder
     public function pluck(string $column, ?string $key = null): array
     {
         $results = $this->get();
-        
+
         if ($key === null) {
             return array_column($results, $column);
         }
-        
+
         return array_column($results, $column, $key);
     }
 
@@ -543,7 +543,7 @@ class QueryBuilder
      */
     public function count(string $column = '*'): int
     {
-        return (int) $this->aggregate('COUNT', $column);
+        return (int)$this->aggregate('COUNT', $column);
     }
 
     /**
@@ -584,13 +584,13 @@ class QueryBuilder
     protected function aggregate(string $function, string $column)
     {
         $previousSelects = $this->selects;
-        
+
         $this->selects = ["{$function}({$column}) as aggregate"];
-        
+
         $result = $this->first();
-        
+
         $this->selects = $previousSelects;
-        
+
         return $result['aggregate'] ?? null;
     }
 
@@ -606,9 +606,9 @@ class QueryBuilder
 
         $columns = array_keys($values);
         $placeholders = array_fill(0, count($values), '?');
-        
+
         $sql = "INSERT INTO {$this->table} (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
-        
+
         return $this->db->insert($sql, array_values($values));
     }
 
@@ -618,7 +618,7 @@ class QueryBuilder
     public function insertGetId(array $values): int
     {
         $this->insert($values);
-        return (int) $this->db->lastInsertId();
+        return (int)$this->db->lastInsertId();
     }
 
     /**
@@ -633,14 +633,14 @@ class QueryBuilder
         $columns = array_keys(reset($values));
         $placeholders = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
         $allPlaceholders = implode(', ', array_fill(0, count($values), $placeholders));
-        
+
         $sql = "INSERT INTO {$this->table} (" . implode(', ', $columns) . ") VALUES " . $allPlaceholders;
-        
+
         $bindings = [];
         foreach ($values as $row) {
             $bindings = array_merge($bindings, array_values($row));
         }
-        
+
         return $this->db->insert($sql, $bindings);
     }
 
@@ -651,20 +651,20 @@ class QueryBuilder
     {
         $setParts = [];
         $bindings = [];
-        
+
         foreach ($values as $column => $value) {
             $setParts[] = "{$column} = ?";
             $bindings[] = $value;
         }
-        
+
         $sql = "UPDATE {$this->table} SET " . implode(', ', $setParts);
-        
+
         // Добавляем WHERE условия
         if (!empty($this->wheres)) {
             $sql .= $this->compileWheres();
             $bindings = array_merge($bindings, $this->bindings['where']);
         }
-        
+
         return $this->db->update($sql, $bindings);
     }
 
@@ -692,12 +692,12 @@ class QueryBuilder
     public function delete(): int
     {
         $sql = "DELETE FROM {$this->table}";
-        
+
         // Добавляем WHERE условия
         if (!empty($this->wheres)) {
             $sql .= $this->compileWheres();
         }
-        
+
         return $this->db->delete($sql, $this->bindings['where']);
     }
 
@@ -707,14 +707,14 @@ class QueryBuilder
     public function truncate(): bool
     {
         $driver = $this->db->getDriverName();
-        
+
         // SQLite не поддерживает TRUNCATE, используем DELETE
         if ($driver === 'sqlite') {
             $sql = "DELETE FROM {$this->table}";
         } else {
             $sql = "TRUNCATE TABLE {$this->table}";
         }
-        
+
         return $this->db->statement($sql);
     }
 
@@ -724,11 +724,11 @@ class QueryBuilder
     public function toSql(): string
     {
         $sql = 'SELECT ';
-        
+
         if ($this->distinct) {
             $sql .= 'DISTINCT ';
         }
-        
+
         $sql .= implode(', ', $this->selects) . ' FROM ' . $this->table;
 
         // JOINs
@@ -780,7 +780,7 @@ class QueryBuilder
     protected function compileJoins(): string
     {
         $sql = '';
-        
+
         foreach ($this->joins as $join) {
             if ($join instanceof JoinClause) {
                 $sql .= ' ' . $join->toSql();
@@ -790,7 +790,7 @@ class QueryBuilder
                 $sql .= " {$join['type']} JOIN {$join['table']} ON {$join['first']} {$join['operator']} {$join['second']}";
             }
         }
-        
+
         return $sql;
     }
 
@@ -802,51 +802,51 @@ class QueryBuilder
         if (empty($this->wheres)) {
             return '';
         }
-        
+
         $sql = ' WHERE ';
         $conditions = [];
-        
+
         foreach ($this->wheres as $index => $where) {
             $boolean = $index === 0 ? '' : " {$where['boolean']} ";
-            
+
             switch ($where['type']) {
                 case 'basic':
                     $conditions[] = $boolean . "{$where['column']} {$where['operator']} ?";
                     break;
-                    
+
                 case 'in':
                     $placeholders = implode(', ', array_fill(0, count($where['values']), '?'));
                     $conditions[] = $boolean . "{$where['column']} IN ({$placeholders})";
                     break;
-                    
+
                 case 'not_in':
                     $placeholders = implode(', ', array_fill(0, count($where['values']), '?'));
                     $conditions[] = $boolean . "{$where['column']} NOT IN ({$placeholders})";
                     break;
-                    
+
                 case 'null':
                     $conditions[] = $boolean . "{$where['column']} IS NULL";
                     break;
-                    
+
                 case 'not_null':
                     $conditions[] = $boolean . "{$where['column']} IS NOT NULL";
                     break;
-                    
+
                 case 'between':
                     $conditions[] = $boolean . "{$where['column']} BETWEEN ? AND ?";
                     break;
-                    
+
                 case 'not_between':
                     $conditions[] = $boolean . "{$where['column']} NOT BETWEEN ? AND ?";
                     break;
-                    
+
                 case 'nested':
                     $nestedSql = $this->compileNestedWhere($where['query']);
                     $conditions[] = $boolean . "({$nestedSql})";
                     break;
             }
         }
-        
+
         return $sql . implode('', $conditions);
     }
 
@@ -857,10 +857,10 @@ class QueryBuilder
     {
         $sql = '';
         $conditions = [];
-        
+
         foreach ($query->wheres as $index => $where) {
             $boolean = $index === 0 ? '' : " {$where['boolean']} ";
-            
+
             switch ($where['type']) {
                 case 'basic':
                     $conditions[] = $boolean . "{$where['column']} {$where['operator']} ?";
@@ -874,7 +874,7 @@ class QueryBuilder
                     break;
             }
         }
-        
+
         return implode('', $conditions);
     }
 
@@ -886,15 +886,15 @@ class QueryBuilder
         if (empty($this->havings)) {
             return '';
         }
-        
+
         $sql = ' HAVING ';
         $conditions = [];
-        
+
         foreach ($this->havings as $index => $having) {
             $boolean = $index === 0 ? '' : " {$having['boolean']} ";
             $conditions[] = $boolean . "{$having['column']} {$having['operator']} ?";
         }
-        
+
         return $sql . implode('', $conditions);
     }
 
@@ -945,7 +945,7 @@ class QueryBuilder
             'sql' => $this->toSql(),
             'bindings' => $this->getAllBindings()
         ]);
-        
+
         return $this;
     }
 
@@ -984,7 +984,7 @@ class JoinClause
             'second' => $second,
             'boolean' => $boolean
         ];
-        
+
         return $this;
     }
 
@@ -996,19 +996,19 @@ class JoinClause
     public function toSql(): string
     {
         $sql = "{$this->type} JOIN {$this->table}";
-        
+
         if (!empty($this->conditions)) {
             $sql .= ' ON ';
             $parts = [];
-            
+
             foreach ($this->conditions as $index => $condition) {
                 $boolean = $index === 0 ? '' : " {$condition['boolean']} ";
                 $parts[] = $boolean . "{$condition['first']} {$condition['operator']} {$condition['second']}";
             }
-            
+
             $sql .= implode('', $parts);
         }
-        
+
         return $sql;
     }
 }

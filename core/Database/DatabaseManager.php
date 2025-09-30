@@ -80,10 +80,10 @@ class DatabaseManager implements DatabaseInterface
     public function reconnect(?string $name = null): PDO
     {
         $name = $name ?: $this->defaultConnection;
-        
+
         // Удаляем существующее соединение
         unset($this->connections[$name]);
-        
+
         // Создаем новое
         return $this->connection($name);
     }
@@ -161,23 +161,23 @@ class DatabaseManager implements DatabaseInterface
     protected function run(string $query, array $bindings, callable $callback)
     {
         $start = microtime(true);
-        
+
         try {
             $result = $callback($query, $bindings);
-            
+
             // Логируем успешный запрос
             $this->logQuery($query, $bindings, microtime(true) - $start);
-            
+
             return $result;
         } catch (PDOException $e) {
             // Логируем неудачный запрос
             $this->logQuery($query, $bindings, microtime(true) - $start, $e->getMessage());
-            
+
             // Пробуем переподключиться при потере соединения
             if ($this->causedByLostConnection($e)) {
                 return $this->tryAgainIfCausedByLostConnection($e, $query, $bindings, $callback);
             }
-            
+
             throw new QueryException("Query failed: " . $e->getMessage() . " | SQL: " . $query);
         }
     }
@@ -195,7 +195,7 @@ class DatabaseManager implements DatabaseInterface
                 if ($attempt >= $this->reconnectAttempts) {
                     throw new QueryException("Query failed after {$this->reconnectAttempts} reconnection attempts: " . $e->getMessage());
                 }
-                
+
                 // Небольшая задержка перед следующей попыткой
                 usleep(100000 * $attempt); // 100ms, 200ms, 300ms...
             }
@@ -208,7 +208,7 @@ class DatabaseManager implements DatabaseInterface
     protected function causedByLostConnection(PDOException $e): bool
     {
         $message = $e->getMessage();
-        
+
         $lostConnectionMessages = [
             'server has gone away',
             'no connection to the server',
@@ -223,13 +223,13 @@ class DatabaseManager implements DatabaseInterface
             'Transaction() on null',
             'child connection forced to terminate due to client_idle_limit',
         ];
-        
+
         foreach ($lostConnectionMessages as $lostMessage) {
             if (stripos($message, $lostMessage) !== false) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -241,7 +241,7 @@ class DatabaseManager implements DatabaseInterface
         if (!$this->loggingQueries) {
             return;
         }
-        
+
         $this->queryLog[] = [
             'query' => $query,
             'bindings' => $bindings,
@@ -315,12 +315,12 @@ class DatabaseManager implements DatabaseInterface
     {
         try {
             $pdo = $this->connection();
-            
+
             // Проверяем, нет ли уже активной транзакции
             if ($pdo->inTransaction()) {
                 return false;
             }
-            
+
             return $pdo->beginTransaction();
         } catch (PDOException $e) {
             throw new DatabaseException("Could not begin transaction: " . $e->getMessage());
@@ -334,11 +334,11 @@ class DatabaseManager implements DatabaseInterface
     {
         try {
             $pdo = $this->connection();
-            
+
             if (!$pdo->inTransaction()) {
                 return false;
             }
-            
+
             return $pdo->commit();
         } catch (PDOException $e) {
             throw new DatabaseException("Could not commit transaction: " . $e->getMessage());
@@ -352,11 +352,11 @@ class DatabaseManager implements DatabaseInterface
     {
         try {
             $pdo = $this->connection();
-            
+
             if (!$pdo->inTransaction()) {
                 return false;
             }
-            
+
             return $pdo->rollBack();
         } catch (PDOException $e) {
             throw new DatabaseException("Could not rollback transaction: " . $e->getMessage());
@@ -418,12 +418,12 @@ class DatabaseManager implements DatabaseInterface
     {
         $name = $name ?: $this->defaultConnection;
         $info = $this->config['connections'][$name] ?? [];
-        
+
         // Скрываем пароль в информации о соединении
         if (isset($info['password'])) {
             $info['password'] = '******';
         }
-        
+
         return $info;
     }
 
@@ -475,16 +475,16 @@ class DatabaseManager implements DatabaseInterface
     public function getTables(): array
     {
         $driver = $this->getDriverName();
-        
-        $query = match($driver) {
+
+        $query = match ($driver) {
             'mysql' => "SHOW TABLES",
             'pgsql' => "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'",
             'sqlite' => "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
             default => throw new DatabaseException("Getting tables is not supported for driver: {$driver}")
         };
-        
+
         $results = $this->select($query);
-        
+
         // Извлекаем имена таблиц из результата
         return array_map(fn($row) => reset($row), $results);
     }
@@ -504,14 +504,14 @@ class DatabaseManager implements DatabaseInterface
     public function getColumns(string $table): array
     {
         $driver = $this->getDriverName();
-        
-        $query = match($driver) {
+
+        $query = match ($driver) {
             'mysql' => "SHOW COLUMNS FROM {$table}",
             'pgsql' => "SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}'",
             'sqlite' => "PRAGMA table_info({$table})",
             default => throw new DatabaseException("Getting columns is not supported for driver: {$driver}")
         };
-        
+
         return $this->select($query);
     }
 
@@ -530,10 +530,10 @@ class DatabaseManager implements DatabaseInterface
                 'failed_queries' => 0
             ];
         }
-        
+
         $times = array_column($this->queryLog, 'time');
         $failedCount = count(array_filter($this->queryLog, fn($log) => $log['error'] !== null));
-        
+
         return [
             'total_queries' => count($this->queryLog),
             'total_time' => round(array_sum($times), 2),

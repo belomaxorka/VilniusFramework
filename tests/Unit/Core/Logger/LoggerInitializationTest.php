@@ -27,15 +27,15 @@ test('Logger инициализируется из конфигурации', fu
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(1);
     expect($handlers[0])->toBeInstanceOf(FileHandler::class);
-    
+
     deleteDir($tempDir);
 });
 
@@ -43,12 +43,12 @@ test('Logger использует fallback если конфигурация п�
     // Очищаем конфигурацию
     $tempDir = createTempConfigDir([]);
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(1);
-    
+
     deleteDir($tempDir);
 });
 
@@ -71,14 +71,14 @@ test('Logger может инициализировать несколько др
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(2);
-    
+
     deleteDir($tempDir);
 });
 
@@ -105,14 +105,14 @@ test('Logger пропускает драйверы с некорректной �
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(1); // Только file handler
-    
+
     deleteDir($tempDir);
 });
 
@@ -130,15 +130,15 @@ test('Logger не инициализируется повторно', function (
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
     Logger::init(); // Повторная инициализация
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(1); // Не должно быть дубликатов
-    
+
     deleteDir($tempDir);
 });
 
@@ -165,14 +165,14 @@ test('Logger парсит строку каналов', function () {
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     $handlers = Logger::getHandlers();
     expect($handlers)->toHaveCount(3);
-    
+
     deleteDir($tempDir);
 });
 
@@ -190,12 +190,12 @@ test('Logger устанавливает минимальный уровень и
             ]
         ]
     ]);
-    
+
     Config::load($tempDir, 'testing');
-    
+
     Logger::init();
-    
+
     expect(Logger::getMinLevel())->toBe('warning');
-    
+
     deleteDir($tempDir);
 });

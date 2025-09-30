@@ -4,9 +4,9 @@ namespace Core;
 
 /**
  * Multilingual System
- * 
+ *
  * Handles translations, language detection, and localization.
- * 
+ *
  * @package Core
  */
 class Lang
@@ -72,7 +72,7 @@ class Lang
     protected static function detectUserLang(): string
     {
         $autoDetectEnabled = Config::get('language.auto_detect', false);
-        
+
         if (!$autoDetectEnabled || empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
             return self::$fallbackLang;
         }
@@ -93,8 +93,8 @@ class Lang
 
         // Extract language codes with quality scores
         foreach ($matches[1] as $i => $lang) {
-            $quality = isset($matches[2][$i]) && $matches[2][$i] !== '' 
-                ? (float)$matches[2][$i] 
+            $quality = isset($matches[2][$i]) && $matches[2][$i] !== ''
+                ? (float)$matches[2][$i]
                 : 1.0;
             $langCode = strtolower(substr($lang, 0, 2));
 
@@ -154,7 +154,7 @@ class Lang
     {
         $currentValue = self::getNestedValue(self::$messages[self::$currentLang] ?? [], $key);
         $fallbackValue = self::getNestedValue(self::$messages[self::$fallbackLang] ?? [], $key);
-        
+
         if ($currentValue === null && $fallbackValue === null) {
             self::logMissingKey($key);
         }
@@ -263,7 +263,7 @@ class Lang
         if (!isset(self::$messages[$lang])) {
             self::$messages[$lang] = [];
         }
-        
+
         self::$messages[$lang] = array_merge(self::$messages[$lang], $messages);
     }
 
@@ -329,7 +329,7 @@ class Lang
 
         $languages = [];
         $files = glob(LANG_DIR . '/*.php');
-        
+
         if ($files === false) {
             return [];
         }
@@ -386,7 +386,7 @@ class Lang
             self::$currentLang,
             self::$fallbackLang
         );
-        
+
         if (class_exists('\\Core\\Logger')) {
             \Core\Logger::warning($message, ['context' => 'language']);
         } else {

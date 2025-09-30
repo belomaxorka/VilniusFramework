@@ -4,7 +4,7 @@ namespace Core\Logger;
 
 /**
  * Telegram Handler для отправки логов в Telegram через Bot API
- * 
+ *
  * Для работы необходимо:
  * 1. Создать бота через @BotFather и получить Bot Token
  * 2. Получить Chat ID (можно через @userinfobot или @getmyid_bot)
@@ -28,7 +28,8 @@ class TelegramHandler implements LogHandlerInterface
         string $chatId,
         string $parseMode = 'HTML',
         string $minLevel = 'error'
-    ) {
+    )
+    {
         $this->botToken = $botToken;
         $this->chatId = $chatId;
         $this->parseMode = $parseMode;
@@ -115,7 +116,7 @@ class TelegramHandler implements LogHandlerInterface
      */
     protected function getEmojiForLevel(string $level): string
     {
-        return match($level) {
+        return match ($level) {
             'debug' => '🐛',
             'info' => 'ℹ️',
             'warning' => '⚠️',
@@ -131,7 +132,7 @@ class TelegramHandler implements LogHandlerInterface
     protected function sendToTelegram(string $message): void
     {
         $url = sprintf('https://api.telegram.org/bot%s/sendMessage', $this->botToken);
-        
+
         $payload = [
             'chat_id' => $this->chatId,
             'text' => $message,
@@ -140,7 +141,7 @@ class TelegramHandler implements LogHandlerInterface
         ];
 
         $ch = curl_init($url);
-        
+
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -152,7 +153,7 @@ class TelegramHandler implements LogHandlerInterface
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
+
         curl_close($ch);
 
         // В случае ошибки можно логировать в файл, но не создаем рекурсию
