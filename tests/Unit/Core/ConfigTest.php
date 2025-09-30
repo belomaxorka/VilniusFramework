@@ -162,3 +162,233 @@ it('has and forget work for top-level keys without dot notation', function (): v
     expect(Config::get('top', 'default'))
         ->toBe('default');
 });
+
+// === Cache Tests ===
+
+it('caches configuration to file', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::set('database.host', 'localhost');
+
+        expect(Config::cache($cachePath))->toBeTrue();
+        expect(file_exists($cachePath))->toBeTrue();
+
+        // Verify cache file content
+        $cached = require $cachePath;
+        expect($cached)->toBeArray();
+        expect($cached['items']['app']['name'])->toBe('TestApp');
+        expect($cached['items']['database']['host'])->toBe('localhost');
+        expect($cached['timestamp'])->toBeInt();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('loads configuration from cache', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::set('database.host', 'localhost');
+        Config::cache($cachePath);
+
+        Config::clear();
+        expect(Config::get('app.name'))->toBeNull();
+
+        expect(Config::loadCached($cachePath))->toBeTrue();
+        expect(Config::get('app.name'))->toBe('TestApp');
+        expect(Config::get('database.host'))->toBe('localhost');
+        expect(Config::isLoadedFromCache())->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('returns false when loading non-existent cache', function (): void {
+    expect(Config::loadCached('/nonexistent/cache.php'))->toBeFalse();
+});
+
+it('throws when cache file is corrupted', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        file_put_contents($cachePath, '<?php return "invalid";');
+        expect(fn() => Config::loadCached($cachePath))
+            ->toThrow(RuntimeException::class, 'corrupted or invalid');
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('checks if cache exists', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        expect(Config::isCached($cachePath))->toBeFalse();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        expect(Config::isCached($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('clears cache file', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+        expect(file_exists($cachePath))->toBeTrue();
+
+        expect(Config::clearCache($cachePath))->toBeTrue();
+        expect(file_exists($cachePath))->toBeFalse();
+
+        // Clearing non-existent cache should return true
+        expect(Config::clearCache($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('gets cache info', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        expect(Config::getCacheInfo($cachePath))->toBeNull();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        $info = Config::getCacheInfo($cachePath);
+        expect($info)->toBeArray();
+        expect($info['timestamp'])->toBeInt();
+        expect($info['size'])->toBeInt();
+        expect($info['size'])->toBeGreaterThan(0);
+        expect($info['created_at'])->toBeString();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+it('creates cache directory if not exists', function (): void {
+    $cacheDir = sys_get_temp_dir() . '/config_test_' . uniqid();
+    $cachePath = $cacheDir . '/cache.php';
+
+    try {
+        expect(is_dir($cacheDir))->toBeFalse();
+
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        expect(is_dir($cacheDir))->toBeTrue();
+        expect(file_exists($cachePath))->toBeTrue();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+        if (is_dir($cacheDir)) {
+            @rmdir($cacheDir);
+        }
+    }
+});
+
+it('clear() resets loadedFromCache flag', function (): void {
+    $cachePath = sys_get_temp_dir() . '/config_cache_' . uniqid() . '.php';
+
+    try {
+        Config::set('app.name', 'TestApp');
+        Config::cache($cachePath);
+
+        Config::clear();
+        Config::loadCached($cachePath);
+        expect(Config::isLoadedFromCache())->toBeTrue();
+
+        Config::clear();
+        expect(Config::isLoadedFromCache())->toBeFalse();
+    } finally {
+        if (file_exists($cachePath)) {
+            @unlink($cachePath);
+        }
+    }
+});
+
+// === Array Methods Tests ===
+
+it('pushes value to array', function (): void {
+    Config::set('app.providers', ['Provider1']);
+    Config::push('app.providers', 'Provider2');
+    Config::push('app.providers', 'Provider3');
+
+    expect(Config::get('app.providers'))->toBe(['Provider1', 'Provider2', 'Provider3']);
+});
+
+it('pushes to non-existent key creates array', function (): void {
+    Config::push('new.array', 'FirstValue');
+    expect(Config::get('new.array'))->toBe(['FirstValue']);
+});
+
+it('throws when pushing to non-array value', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(fn() => Config::push('app.name', 'value'))
+        ->toThrow(RuntimeException::class, 'not an array');
+});
+
+it('prepends value to array', function (): void {
+    Config::set('app.middleware', ['MiddlewareC']);
+    Config::prepend('app.middleware', 'MiddlewareB');
+    Config::prepend('app.middleware', 'MiddlewareA');
+
+    expect(Config::get('app.middleware'))->toBe(['MiddlewareA', 'MiddlewareB', 'MiddlewareC']);
+});
+
+it('prepends to non-existent key creates array', function (): void {
+    Config::prepend('new.array', 'FirstValue');
+    expect(Config::get('new.array'))->toBe(['FirstValue']);
+});
+
+it('throws when prepending to non-array value', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(fn() => Config::prepend('app.name', 'value'))
+        ->toThrow(RuntimeException::class, 'not an array');
+});
+
+it('pulls value and removes it', function (): void {
+    Config::set('temp.value', 'temporary');
+    
+    $value = Config::pull('temp.value');
+    
+    expect($value)->toBe('temporary');
+    expect(Config::has('temp.value'))->toBeFalse();
+});
+
+it('pulls with default when key missing', function (): void {
+    $value = Config::pull('nonexistent.key', 'default_value');
+    expect($value)->toBe('default_value');
+});
+
+it('pulls nested value', function (): void {
+    Config::set('app.temp.secret', 'sensitive_data');
+    
+    $value = Config::pull('app.temp.secret', null);
+    
+    expect($value)->toBe('sensitive_data');
+    expect(Config::has('app.temp.secret'))->toBeFalse();
+    expect(Config::has('app.temp'))->toBeTrue(); // Parent still exists
+});
