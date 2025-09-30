@@ -284,7 +284,7 @@ class DebugToolbar
      */
     private static function renderJavaScript(): string
     {
-        return <<<'HTML'
+        return "
         <script>
         let debugSearchMatches = [];
         let debugCurrentMatch = 0;
@@ -454,7 +454,7 @@ class DebugToolbar
             50% { opacity: 0.7; }
         }
         </style>
-        HTML;
+        ";
     }
 
     // Styles
