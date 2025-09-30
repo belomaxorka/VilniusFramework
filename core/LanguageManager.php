@@ -30,27 +30,23 @@ class LanguageManager
     /**
      * Determine which language to use
      *
+     * Priority order:
+     * 1. Explicitly set default language (if valid)
+     * 2. Auto-detection from browser (if enabled)
+     * 3. Fallback to 'en'
+     *
      * @param string $defaultLang Default language from config
      * @return string|null Language code or null for auto-detection
      */
     protected static function determineLanguage(string $defaultLang): ?string
     {
-        // Priority 1: URL parameter
-        // if (!empty($_GET['lang']) && self::isValidLanguage($_GET['lang'])) {
-        //     $_SESSION['user_lang'] = $_GET['lang'];
-        //     return $_GET['lang'];
-        // }
-
-        // Priority 2: Session
-        // if (!empty($_SESSION['user_lang']) && self::isValidLanguage($_SESSION['user_lang'])) {
-        //     return $_SESSION['user_lang'];
-        // }
-
-        // Priority 3: Auto-detection or specific default
+        // Auto-detection enabled
         if ($defaultLang === 'auto' && Config::get('language.auto_detect', true)) {
-            // Use Lang class auto-detection
             return null; // Let Lang::setLang() handle auto-detection
-        } elseif ($defaultLang !== 'auto' && self::isValidLanguage($defaultLang)) {
+        }
+        
+        // Use specific default language if valid
+        if ($defaultLang !== 'auto' && self::isValidLanguage($defaultLang)) {
             return $defaultLang;
         }
 
@@ -86,8 +82,6 @@ class LanguageManager
         }
 
         Lang::setLang($lang);
-        // $_SESSION['user_lang'] = $lang;
-
         return true;
     }
 
@@ -144,5 +138,33 @@ class LanguageManager
         $lang = $lang ?? self::getCurrentLanguage();
         $rtlLanguages = Config::get('language.rtl_languages', []);
         return in_array($lang, $rtlLanguages, true);
+    }
+
+    /**
+     * Get available language codes
+     *
+     * @return array<string> Available language codes from lang directory
+     */
+    public static function getAvailableLanguages(): array
+    {
+        if (!defined('LANG_DIR') || !is_dir(LANG_DIR)) {
+            return [];
+        }
+
+        $languages = [];
+        $files = glob(LANG_DIR . '/*.php');
+        
+        if ($files === false) {
+            return [];
+        }
+
+        foreach ($files as $file) {
+            $langCode = basename($file, '.php');
+            if (preg_match('/^[a-z]{2}$/', $langCode)) {
+                $languages[] = $langCode;
+            }
+        }
+
+        return $languages;
     }
 }

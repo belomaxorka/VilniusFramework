@@ -101,19 +101,20 @@ class Lang
     /**
      * Get a translation by key with optional placeholders
      *
-     * @param string $key Translation key
+     * @param string $key Translation key (supports nested: 'user.profile.title')
      * @param array $params Associative array of placeholders (['name' => 'John'])
      * @return string
      */
     public static function get(string $key, array $params = []): string
     {
-        if (!isset(self::$messages[self::$currentLang][$key]) && !isset(self::$messages[self::$fallbackLang][$key])) {
-            // TODO: Log missing language keys
+        $currentValue = self::getNestedValue(self::$messages[self::$currentLang] ?? [], $key);
+        $fallbackValue = self::getNestedValue(self::$messages[self::$fallbackLang] ?? [], $key);
+        
+        if ($currentValue === null && $fallbackValue === null) {
+            self::logMissingKey($key);
         }
 
-        $message = self::getNestedValue(self::$messages[self::$currentLang], $key)
-            ?? self::getNestedValue(self::$messages[self::$fallbackLang], $key)
-            ?? $key;
+        $message = $currentValue ?? $fallbackValue ?? $key;
 
         // Replace placeholders
         if (!empty($params)) {
@@ -125,6 +126,36 @@ class Lang
         return $message;
     }
 
+    /**
+     * Log missing translation key
+     *
+     * @param string $key Missing key
+     */
+    protected static function logMissingKey(string $key): void
+    {
+        if (Config::get('language.log_missing', false)) {
+            $message = sprintf(
+                'Missing translation key "%s" for language "%s" (fallback: "%s")',
+                $key,
+                self::$currentLang,
+                self::$fallbackLang
+            );
+            
+            if (class_exists('\\Core\\Logger')) {
+                \Core\Logger::warning($message, ['context' => 'language']);
+            } else {
+                error_log($message);
+            }
+        }
+    }
+
+    /**
+     * Get a value from nested array using dot notation
+     *
+     * @param array $array Source array
+     * @param string $key Key in dot notation (e.g., 'user.profile.title')
+     * @return mixed|null
+     */
     private static function getNestedValue(array $array, string $key)
     {
         $keys = explode('.', $key);
@@ -162,10 +193,16 @@ class Lang
         return array_keys(self::$messages);
     }
 
+    /**
+     * Check if a translation key exists (supports nested keys)
+     *
+     * @param string $key Translation key (e.g., 'user.profile.title')
+     * @return bool
+     */
     public static function has(string $key): bool
     {
-        return isset(self::$messages[self::$currentLang][$key])
-            || isset(self::$messages[self::$fallbackLang][$key]);
+        return self::getNestedValue(self::$messages[self::$currentLang] ?? [], $key) !== null
+            || self::getNestedValue(self::$messages[self::$fallbackLang] ?? [], $key) !== null;
     }
 
     public static function all(): array
@@ -181,5 +218,45 @@ class Lang
     public static function setFallbackLang(string $lang): void
     {
         self::$fallbackLang = $lang;
+    }
+
+    /**
+     * Reset language state (useful for testing)
+     *
+     * @return void
+     */
+    public static function reset(): void
+    {
+        self::$messages = [];
+        self::$currentLang = 'en';
+        self::$fallbackLang = 'en';
+    }
+
+    /**
+     * Get all messages for a specific language
+     *
+     * @param string|null $lang Language code (null = current language)
+     * @return array
+     */
+    public static function getMessages(?string $lang = null): array
+    {
+        $lang = $lang ?? self::$currentLang;
+        return self::$messages[$lang] ?? [];
+    }
+
+    /**
+     * Add or override translations at runtime
+     *
+     * @param string $lang Language code
+     * @param array $messages Messages to add/override
+     * @return void
+     */
+    public static function addMessages(string $lang, array $messages): void
+    {
+        if (!isset(self::$messages[$lang])) {
+            self::$messages[$lang] = [];
+        }
+        
+        self::$messages[$lang] = array_merge(self::$messages[$lang], $messages);
     }
 }
