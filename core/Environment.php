@@ -33,15 +33,15 @@ class Environment
 
         self::$environment = $environment;
         self::$isDebugCache = null; // Сбрасываем кеш при изменении окружения
-        
+
         // Удаляем APP_DEBUG из окружения чтобы не было конфликтов между тестами
         // Это позволит isDebug() использовать значения по умолчанию для каждого окружения
         unset($_ENV['APP_DEBUG'], $_SERVER['APP_DEBUG']);
         putenv('APP_DEBUG');
-        
+
         // Очищаем кеш Env ПЕРЕД установкой нового окружения
         Env::clearCache();
-        
+
         // Теперь устанавливаем новое окружение
         Env::set('APP_ENV', $environment);
     }
@@ -89,19 +89,18 @@ class Environment
         if (self::isTesting() && self::$isDebugCache !== null) {
             self::$isDebugCache = null; // Сбрасываем кеш в тестах
         }
-        
+
         // Кешируем результат для производительности (вызывается очень часто)
         if (self::$isDebugCache !== null) {
             return self::$isDebugCache;
         }
 
         $debug = Env::get('APP_DEBUG', null);
-        
+
         // В development режиме debug включен по умолчанию (если явно не выключен)
         if (self::isDevelopment()) {
             self::$isDebugCache = $debug === null ? true : self::parseBool($debug);
-        } 
-        // В других режимах (production, testing) debug выключен по умолчанию
+        } // В других режимах (production, testing) debug выключен по умолчанию
         else {
             self::$isDebugCache = self::parseBool($debug);
         }
@@ -117,11 +116,11 @@ class Environment
         if ($value === null) {
             return false;
         }
-        
+
         if (is_bool($value)) {
             return $value;
         }
-        
+
         // Проверяем строки и числа
         return $value === true || $value === 'true' || $value === '1' || $value === 1;
     }

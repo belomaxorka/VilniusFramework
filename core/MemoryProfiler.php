@@ -18,7 +18,7 @@ class MemoryProfiler
 
         self::$startMemory = memory_get_usage(true);
         self::$snapshots = [];
-        
+
         self::snapshot('start', 'Memory profiling started');
     }
 
@@ -33,7 +33,7 @@ class MemoryProfiler
 
         $current = memory_get_usage(true);
         $peak = memory_get_peak_usage(true);
-        
+
         $snapshot = [
             'name' => $name,
             'label' => $label,
@@ -128,12 +128,12 @@ class MemoryProfiler
         $output .= '<div style="display: flex; justify-content: space-between;">';
         $output .= '<strong>Memory Limit:</strong> <span style="color: #757575;">' . self::formatBytes($limit) . '</span>';
         $output .= '</div>';
-        
+
         // Progress bar
         if ($limit > 0) {
             $percentage = min(100, ($peak / $limit) * 100);
             $color = $percentage > 80 ? '#d32f2f' : ($percentage > 50 ? '#f57c00' : '#388e3c');
-            
+
             $output .= '<div style="margin-top: 10px;">';
             $output .= '<div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">';
             $output .= '<div style="background: ' . $color . '; width: ' . $percentage . '%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">';
@@ -141,7 +141,7 @@ class MemoryProfiler
             $output .= '</div></div>';
             $output .= '</div>';
         }
-        
+
         $output .= '</div>';
 
         // Таблица снимков
@@ -161,7 +161,7 @@ class MemoryProfiler
             foreach (self::$snapshots as $index => $snapshot) {
                 $diffColor = $snapshot['diff'] > 0 ? '#d32f2f' : ($snapshot['diff'] < 0 ? '#388e3c' : '#757575');
                 $diffSign = $snapshot['diff'] > 0 ? '+' : '';
-                
+
                 $output .= '<tr style="' . ($index % 2 ? 'background: #f5f5f5;' : '') . '">';
                 $output .= '<td style="padding: 5px;">#' . ($index + 1) . '</td>';
                 $output .= '<td style="padding: 5px;">' . htmlspecialchars($snapshot['name']) . '</td>';
@@ -178,7 +178,8 @@ class MemoryProfiler
 
         $output .= '</div>';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             Debug::addOutput($output);
         } else {
             Logger::debug("Memory: Current=" . self::formatBytes($current) . ", Peak=" . self::formatBytes($peak));
@@ -202,12 +203,13 @@ class MemoryProfiler
         } finally {
             $after = memory_get_usage(true);
             self::snapshot($name . '_end', 'After ' . $name);
-            
+
             $diff = $after - $before;
             $diffFormatted = self::formatBytes(abs($diff));
             $sign = $diff >= 0 ? '+' : '-';
-            
-            if (Environment::isDevelopment()) {
+
+            // Когда debug включен - отправляем в toolbar
+            if (Environment::isDebug()) {
                 $color = $diff > 1048576 ? '#d32f2f' : '#757575'; // красный если > 1MB
                 Debug::addOutput(
                     '<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 10px; border-radius: 5px; font-family: monospace;">' .
@@ -245,7 +247,7 @@ class MemoryProfiler
     public static function getMemoryLimit(): int
     {
         $limit = ini_get('memory_limit');
-        
+
         if ($limit === '-1') {
             return 0; // неограниченно
         }
@@ -272,7 +274,7 @@ class MemoryProfiler
     public static function getUsagePercentage(): float
     {
         $limit = self::getMemoryLimit();
-        
+
         if ($limit === 0) {
             return 0.0;
         }

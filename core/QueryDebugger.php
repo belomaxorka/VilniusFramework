@@ -97,11 +97,11 @@ class QueryDebugger
 
         foreach (self::$queries as $index => $query) {
             $key = self::normalizeQuery($query['sql']);
-            
+
             if (!isset($normalized[$key])) {
                 $normalized[$key] = [];
             }
-            
+
             $normalized[$key][] = $index;
         }
 
@@ -175,15 +175,15 @@ class QueryDebugger
         // Статистика
         $output .= '<div style="background: white; padding: 10px; border-radius: 3px; margin-bottom: 10px;">';
         $output .= '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">';
-        
+
         $output .= '<div><strong>Total Queries:</strong> ' . $stats['total'] . '</div>';
         $output .= '<div><strong>Slow Queries:</strong> <span style="color: ' . ($stats['slow'] > 0 ? '#d32f2f' : '#388e3c') . ';">' . $stats['slow'] . '</span></div>';
         $output .= '<div><strong>Duplicates:</strong> <span style="color: ' . ($stats['duplicates'] > 0 ? '#f57c00' : '#388e3c') . ';">' . $stats['duplicates'] . '</span></div>';
-        
+
         $output .= '<div><strong>Total Time:</strong> ' . number_format($stats['total_time'], 2) . 'ms</div>';
         $output .= '<div><strong>Avg Time:</strong> ' . number_format($stats['avg_time'], 2) . 'ms</div>';
         $output .= '<div><strong>Total Rows:</strong> ' . $stats['total_rows'] . '</div>';
-        
+
         $output .= '</div>';
         $output .= '</div>';
 
@@ -191,28 +191,28 @@ class QueryDebugger
         if ($stats['slow'] > 0 || $stats['duplicates'] > 0) {
             $output .= '<div style="background: #ffebee; border-left: 4px solid #d32f2f; padding: 10px; margin-bottom: 10px; border-radius: 3px;">';
             $output .= '<strong style="color: #c62828;">⚠️ Issues Detected:</strong><br>';
-            
+
             if ($stats['slow'] > 0) {
                 $output .= '• ' . $stats['slow'] . ' slow queries (>' . self::$slowQueryThreshold . 'ms)<br>';
             }
-            
+
             if ($stats['duplicates'] > 0) {
                 $output .= '• ' . $stats['duplicates'] . ' duplicate queries (possible N+1 problem)';
             }
-            
+
             $output .= '</div>';
         }
 
         // Список запросов
         $output .= '<div style="background: white; padding: 10px; border-radius: 3px;">';
         $output .= '<strong>Query Log:</strong><br>';
-        
+
         foreach (self::$queries as $index => $query) {
             $bgColor = $query['is_slow'] ? '#ffebee' : 'white';
             $borderColor = $query['is_slow'] ? '#d32f2f' : '#e0e0e0';
-            
+
             $output .= '<div style="background: ' . $bgColor . '; border: 1px solid ' . $borderColor . '; padding: 8px; margin: 5px 0; border-radius: 3px; font-size: 12px;">';
-            
+
             // Заголовок запроса
             $output .= '<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">';
             $output .= '<strong>#' . ($index + 1) . '</strong>';
@@ -221,33 +221,34 @@ class QueryDebugger
             $output .= '<span style="color: #757575;">' . $query['rows'] . ' rows</span>';
             $output .= '</div>';
             $output .= '</div>';
-            
+
             // SQL с подсветкой
             $output .= '<pre style="background: #f5f5f5; padding: 8px; border-radius: 3px; margin: 5px 0; overflow-x: auto; font-size: 11px;">';
             $output .= self::highlightSql($query['sql']);
             $output .= '</pre>';
-            
+
             // Bindings
             if (!empty($query['bindings'])) {
                 $output .= '<div style="font-size: 11px; color: #757575; margin-top: 5px;">';
                 $output .= '<strong>Bindings:</strong> ' . htmlspecialchars(json_encode($query['bindings']));
                 $output .= '</div>';
             }
-            
+
             // Caller
             if ($query['caller']) {
                 $output .= '<div style="font-size: 10px; color: #9e9e9e; margin-top: 3px;">';
                 $output .= '📍 ' . htmlspecialchars($query['caller']['file']) . ':' . $query['caller']['line'];
                 $output .= '</div>';
             }
-            
+
             $output .= '</div>';
         }
-        
+
         $output .= '</div>';
         $output .= '</div>';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе ничего не делаем (уже логируется отдельно)
+        if (Environment::isDebug()) {
             Debug::addOutput($output);
         }
     }
@@ -269,7 +270,7 @@ class QueryDebugger
         $normalized = preg_replace('/\d+/', '?', $sql);
         $normalized = preg_replace("/'[^']*'/", '?', $normalized);
         $normalized = preg_replace('/\s+/', ' ', $normalized);
-        
+
         return strtoupper(trim($normalized));
     }
 
@@ -279,9 +280,9 @@ class QueryDebugger
     private static function highlightSql(string $sql): string
     {
         $keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'ON', 'AND', 'OR', 'ORDER', 'BY', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'CREATE', 'TABLE', 'ALTER', 'DROP', 'AS', 'DISTINCT', 'COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
-        
+
         $highlighted = htmlspecialchars($sql);
-        
+
         foreach ($keywords as $keyword) {
             $highlighted = preg_replace(
                 '/\b(' . $keyword . ')\b/i',
@@ -289,21 +290,21 @@ class QueryDebugger
                 $highlighted
             );
         }
-        
+
         // Строки
         $highlighted = preg_replace(
             "/'([^']*)'/",
             '<span style="color: #d32f2f;">\'$1\'</span>',
             $highlighted
         );
-        
+
         // Числа
         $highlighted = preg_replace(
             '/\b(\d+)\b/',
             '<span style="color: #388e3c;">$1</span>',
             $highlighted
         );
-        
+
         return $highlighted;
     }
 
@@ -321,7 +322,7 @@ class QueryDebugger
                 ];
             }
         }
-        
+
         return null;
     }
 
@@ -335,23 +336,23 @@ class QueryDebugger
         }
 
         $start = microtime(true);
-        
+
         try {
             $result = $callback();
             $time = (microtime(true) - $start) * 1000;
-            
+
             if ($label) {
                 self::log($label, [], $time, 0);
             }
-            
+
             return $result;
         } catch (\Throwable $e) {
             $time = (microtime(true) - $start) * 1000;
-            
+
             if ($label) {
                 self::log($label . ' [ERROR]', [], $time, 0);
             }
-            
+
             throw $e;
         }
     }

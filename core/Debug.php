@@ -16,10 +16,6 @@ class Debug
      */
     public static function dump(mixed $var, ?string $label = null, bool $die = false): void
     {
-        if (!Environment::isDebug()) {
-            return;
-        }
-
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
         $caller = $backtrace[0] ?? [];
         $file = $caller['file'] ?? 'unknown';
@@ -27,7 +23,8 @@ class Debug
 
         $output = self::formatVariable($var, $label, $file, $line);
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             // Сохраняем в буфер вместо прямого echo
             self::$debugOutput[] = [
                 'type' => 'dump',
@@ -54,10 +51,6 @@ class Debug
      */
     public static function dumpPretty(mixed $var, ?string $label = null, bool $die = false): void
     {
-        if (!Environment::isDebug()) {
-            return;
-        }
-
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
         $caller = $backtrace[0] ?? [];
         $file = $caller['file'] ?? 'unknown';
@@ -65,7 +58,8 @@ class Debug
 
         $output = self::formatVariablePretty($var, $label, $file, $line);
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             // Сохраняем в буфер вместо прямого echo
             self::$debugOutput[] = [
                 'type' => 'dump_pretty',
@@ -87,6 +81,7 @@ class Debug
      */
     public static function collect(mixed $var, ?string $label = null): void
     {
+        // Collect работает только в debug режиме, в prod ничего не делаем
         if (!Environment::isDebug()) {
             return;
         }
@@ -108,7 +103,7 @@ class Debug
      */
     public static function dumpAll(bool $die = false): void
     {
-        if (!Environment::isDebug() || empty(self::$debugData)) {
+        if (empty(self::$debugData)) {
             return;
         }
 
@@ -130,7 +125,8 @@ class Debug
 
         $output .= '</div>';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - отправляем в toolbar, иначе в логи
+        if (Environment::isDebug()) {
             self::addOutput($output);
         } else {
             Logger::debug($output);
@@ -163,7 +159,7 @@ class Debug
      */
     public static function addOutput(string $output): void
     {
-        if (!Environment::isDebug() || !Environment::isDevelopment()) {
+        if (!Environment::isDebug()) {
             return;
         }
 
@@ -275,10 +271,10 @@ class Debug
         register_shutdown_function(function () {
             // Выводим на страницу только если:
             // 1. Включен autoDisplay
-            // 2. Окружение development
+            // 2. Включен debug режим
             // 3. Есть данные для вывода
             // 4. Включен renderOnPage (иначе данные будут только в toolbar)
-            if (self::$autoDisplay && Environment::isDevelopment() && self::hasOutput() && self::$renderOnPage) {
+            if (self::$autoDisplay && Environment::isDebug() && self::hasOutput() && self::$renderOnPage) {
                 self::flush();
             }
         });
@@ -291,7 +287,8 @@ class Debug
     {
         $output = '';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - форматируем для toolbar (HTML), иначе для логов (текст)
+        if (Environment::isDebug()) {
             $output .= '<div style="background: #f8f9fa; border: 1px solid #dee2e6; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
 
             if ($label) {
@@ -319,7 +316,8 @@ class Debug
     {
         $output = '';
 
-        if (Environment::isDevelopment()) {
+        // Когда debug включен - форматируем для toolbar (HTML), иначе для логов (текст)
+        if (Environment::isDebug()) {
             $output .= '<div style="background: #1e1e1e; color: #d4d4d4; margin: 10px; padding: 15px; border-radius: 5px; font-family: \'Consolas\', \'Monaco\', monospace; font-size: 13px;">';
 
             if ($label) {

@@ -28,7 +28,7 @@ class DumpServer
         }
 
         $address = self::$host . ':' . self::$port;
-        
+
         echo "🚀 Dump Server started on {$address}\n";
         echo "Waiting for dumps...\n\n";
 
@@ -47,7 +47,7 @@ class DumpServer
 
         // Обработка SIGINT для корректного завершения
         if (function_exists('pcntl_signal')) {
-            pcntl_signal(SIGINT, function() {
+            pcntl_signal(SIGINT, function () {
                 self::stop();
                 exit(0);
             });
@@ -59,14 +59,14 @@ class DumpServer
             }
 
             $client = @stream_socket_accept(self::$socket, 1);
-            
+
             if ($client) {
                 $data = stream_get_contents($client);
                 fclose($client);
 
                 if ($data) {
                     $decoded = json_decode($data, true);
-                    
+
                     if ($decoded) {
                         if ($outputHandler) {
                             $outputHandler($decoded);
@@ -92,7 +92,7 @@ class DumpServer
         }
 
         self::$running = false;
-        
+
         echo "\n👋 Dump Server stopped\n";
     }
 
@@ -142,11 +142,11 @@ class DumpServer
         // Заголовок
         echo str_repeat('─', 80) . "\n";
         echo "⏰ {$timestamp} ";
-        
+
         if ($label) {
             echo "📝 {$label} ";
         }
-        
+
         echo "📍 " . basename($file) . ":{$line}\n";
         echo str_repeat('─', 80) . "\n";
 

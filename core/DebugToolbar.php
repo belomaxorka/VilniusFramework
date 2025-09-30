@@ -177,7 +177,7 @@ class DebugToolbar
         $collapsedClass = self::$collapsed ? 'collapsed' : '';
 
         $html = '<div id="debug-toolbar" class="' . $collapsedClass . '" style="' . self::getBaseStyles() . '">';
-        
+
         // Header with stats
         $html .= '<div class="debug-toolbar-header" style="' . self::getHeaderStyles() . '" onclick="debugToolbarToggle()">';
         $html .= self::renderHeader($stats);
@@ -185,7 +185,7 @@ class DebugToolbar
 
         // Content with tabs
         $html .= '<div class="debug-toolbar-content" style="' . self::getContentStyles() . '">';
-        
+
         // Tab navigation
         $html .= '<div class="debug-toolbar-tabs" style="' . self::getTabsStyles() . '">';
         foreach ($tabs as $key => $tab) {
@@ -208,10 +208,10 @@ class DebugToolbar
         $html .= '</div>';
 
         $html .= '</div>';
-        
+
         // JavaScript
         $html .= self::renderJavaScript();
-        
+
         $html .= '</div>';
 
         return $html;
@@ -223,26 +223,26 @@ class DebugToolbar
     private static function renderHeader(array $stats): string
     {
         $html = '<div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">';
-        
+
         $html .= '<div style="font-weight: bold; color: #fff;">🐛 Debug Toolbar</div>';
-        
+
         // Time
         $timeColor = $stats['time'] > 1000 ? '#ef5350' : '#66bb6a';
         $html .= '<div style="display: flex; align-items: center; gap: 5px;">';
         $html .= '<span>⏱️</span>';
         $html .= '<span style="color: ' . $timeColor . ';">' . number_format($stats['time'], 2) . 'ms</span>';
         $html .= '</div>';
-        
+
         // Memory
-        $memoryPercent = $stats['peak_memory'] > 0 && ini_get('memory_limit') !== '-1' 
-            ? ($stats['peak_memory'] / self::parseMemoryLimit(ini_get('memory_limit'))) * 100 
+        $memoryPercent = $stats['peak_memory'] > 0 && ini_get('memory_limit') !== '-1'
+            ? ($stats['peak_memory'] / self::parseMemoryLimit(ini_get('memory_limit'))) * 100
             : 0;
         $memoryColor = $memoryPercent > 75 ? '#ef5350' : ($memoryPercent > 50 ? '#ffa726' : '#66bb6a');
         $html .= '<div style="display: flex; align-items: center; gap: 5px;">';
         $html .= '<span>💾</span>';
         $html .= '<span style="color: ' . $memoryColor . ';">' . self::formatBytes($stats['peak_memory']) . '</span>';
         $html .= '</div>';
-        
+
         // Queries
         if ($stats['queries'] > 0) {
             $queryColor = $stats['slow_queries'] > 0 ? '#ef5350' : '#66bb6a';
@@ -255,7 +255,7 @@ class DebugToolbar
             $html .= '</span>';
             $html .= '</div>';
         }
-        
+
         // Contexts
         if ($stats['contexts'] > 0) {
             $html .= '<div style="display: flex; align-items: center; gap: 5px;">';
@@ -263,7 +263,7 @@ class DebugToolbar
             $html .= '<span>' . $stats['contexts'] . ' contexts</span>';
             $html .= '</div>';
         }
-        
+
         // Dumps
         if ($stats['dumps'] > 0) {
             $html .= '<div style="display: flex; align-items: center; gap: 5px;">';
@@ -271,11 +271,11 @@ class DebugToolbar
             $html .= '<span>' . $stats['dumps'] . ' dumps</span>';
             $html .= '</div>';
         }
-        
+
         $html .= '<div style="margin-left: auto; cursor: pointer;" id="debug-toolbar-arrow">▲</div>';
-        
+
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -285,12 +285,12 @@ class DebugToolbar
     private static function renderOverview(): string
     {
         $stats = self::collectStats();
-        
+
         $html = '<div style="padding: 20px;">';
         $html .= '<h3 style="margin-top: 0;">📊 Request Overview</h3>';
-        
+
         $html .= '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
-        
+
         // Performance
         $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
         $html .= '<h4 style="margin: 0 0 10px 0; color: #1976d2;">⚡ Performance</h4>';
@@ -299,14 +299,14 @@ class DebugToolbar
             $html .= '<div><strong>Query Time:</strong> ' . number_format($stats['query_time'], 2) . 'ms</div>';
         }
         $html .= '</div>';
-        
+
         // Memory
         $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
         $html .= '<h4 style="margin: 0 0 10px 0; color: #388e3c;">💾 Memory</h4>';
         $html .= '<div><strong>Current:</strong> ' . self::formatBytes($stats['memory']) . '</div>';
         $html .= '<div><strong>Peak:</strong> ' . self::formatBytes($stats['peak_memory']) . '</div>';
         $html .= '</div>';
-        
+
         // Database
         if ($stats['queries'] > 0) {
             $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
@@ -315,17 +315,17 @@ class DebugToolbar
             $html .= '<div><strong>Slow:</strong> ' . $stats['slow_queries'] . '</div>';
             $html .= '</div>';
         }
-        
+
         // Debug
         $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
         $html .= '<h4 style="margin: 0 0 10px 0; color: #7b1fa2;">🐛 Debug</h4>';
         $html .= '<div><strong>Dumps:</strong> ' . $stats['dumps'] . '</div>';
         $html .= '<div><strong>Contexts:</strong> ' . $stats['contexts'] . '</div>';
         $html .= '</div>';
-        
+
         $html .= '</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -343,7 +343,7 @@ class DebugToolbar
             $html .= '<div style="margin-bottom: 10px;">' . $dump['output'] . '</div>';
         }
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -357,25 +357,25 @@ class DebugToolbar
         }
 
         $html = '<div style="padding: 10px; max-height: 400px; overflow-y: auto;">';
-        
+
         foreach ($queries as $index => $query) {
             $bgColor = $query['is_slow'] ? '#ffebee' : 'white';
             $borderColor = $query['is_slow'] ? '#ef5350' : '#e0e0e0';
-            
+
             $html .= '<div style="background: ' . $bgColor . '; border: 1px solid ' . $borderColor . '; padding: 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">';
-            
+
             $html .= '<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">';
             $html .= '<strong>#' . ($index + 1) . '</strong>';
             $html .= '<span style="color: ' . ($query['is_slow'] ? '#ef5350' : '#66bb6a') . ';">' . number_format($query['time'], 2) . 'ms | ' . $query['rows'] . ' rows</span>';
             $html .= '</div>';
-            
+
             $html .= '<pre style="background: #f5f5f5; padding: 8px; border-radius: 3px; margin: 0; overflow-x: auto; font-size: 11px;">' . htmlspecialchars($query['sql']) . '</pre>';
-            
+
             $html .= '</div>';
         }
-        
+
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -387,7 +387,7 @@ class DebugToolbar
         $html = '<div style="padding: 20px;">';
         $html .= '<div style="text-align: center; color: #757575;">Use timer_dump() to display timers</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -399,7 +399,7 @@ class DebugToolbar
         $html = '<div style="padding: 20px;">';
         $html .= '<div style="text-align: center; color: #757575;">Use memory_dump() to display memory profile</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -413,18 +413,18 @@ class DebugToolbar
         }
 
         $html = '<div style="padding: 10px; max-height: 400px; overflow-y: auto;">';
-        
+
         foreach ($contexts as $name => $context) {
             $config = $context['config'];
-            
+
             $html .= '<div style="background: white; border-left: 4px solid ' . $config['color'] . '; padding: 10px; margin-bottom: 8px; border-radius: 4px;">';
             $html .= '<div style="font-weight: bold; color: ' . $config['color'] . ';">' . $config['icon'] . ' ' . $config['label'] . '</div>';
             $html .= '<div style="font-size: 12px; color: #757575; margin-top: 5px;">Items: ' . count($context['items']) . '</div>';
             $html .= '</div>';
         }
-        
+
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -441,12 +441,12 @@ class DebugToolbar
             toolbar.classList.toggle('collapsed');
             arrow.textContent = toolbar.classList.contains('collapsed') ? '▲' : '▼';
         }
-        
+
         function debugToolbarSwitchTab(tabName) {
             // Remove active from all
             document.querySelectorAll('.debug-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.debug-panel').forEach(p => p.classList.remove('active'));
-            
+
             // Add active to selected
             document.querySelector('.debug-tab[data-tab=\"' + tabName + '\"]').classList.add('active');
             document.querySelector('.debug-panel[data-panel=\"' + tabName + '\"]').classList.add('active');
@@ -520,7 +520,7 @@ class DebugToolbar
         if (class_exists('\Core\MemoryProfiler')) {
             return \Core\MemoryProfiler::formatBytes($bytes);
         }
-        
+
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = 0;
         while ($bytes >= 1024 && $i < count($units) - 1) {
@@ -534,12 +534,15 @@ class DebugToolbar
     {
         $limit = trim($limit);
         $last = strtolower($limit[strlen($limit) - 1]);
-        $value = (int) $limit;
+        $value = (int)$limit;
 
         switch ($last) {
-            case 'g': $value *= 1024;
-            case 'm': $value *= 1024;
-            case 'k': $value *= 1024;
+            case 'g':
+                $value *= 1024;
+            case 'm':
+                $value *= 1024;
+            case 'k':
+                $value *= 1024;
         }
         return $value;
     }
