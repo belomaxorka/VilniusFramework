@@ -14,8 +14,8 @@ require_once ROOT . '/vendor/autoload.php';
 
 // Early error handling initialization
 error_reporting(E_ERROR | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_COMPILE_WARNING);
-ini_set('display_errors', '0');
-ini_set('display_startup_errors', '0');
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
 ini_set('log_errors', '1');
 ini_set('error_log', LOG_DIR . '/php_errors.log');
 
