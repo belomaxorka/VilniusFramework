@@ -43,7 +43,7 @@ Response Collector автоматически собирает данные пр
 // Response Collector сам определит:
 // - Status code (через http_response_code())
 // - Headers (через headers_list())
-// - Response time (через APP_START/VILNIUS_START)
+// - Response time (через VILNIUS_START)
 ```
 
 ### Ручная установка данных (опционально)
@@ -254,12 +254,12 @@ Response Collector имеет **минимальное влияние**:
 
 ### Response time = null
 
-Возможная причина: константа `APP_START` или `VILNIUS_START` не определена.
+Возможная причина: константа `VILNIUS_START` не определена.
 
 **Решение:** Определите в начале `index.php`:
 
 ```php
-define('APP_START', microtime(true));
+define('VILNIUS_START', microtime(true));
 ```
 
 ### Status code = 200 всегда

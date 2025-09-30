@@ -72,7 +72,7 @@
 6. ✅ MemoryCollector - корректная проверка isEnabled()
 7. ✅ ContextsCollector - корректная проверка isEnabled()
 8. ✅ ContextsCollector - явное создание контекстов в тестах
-9. ✅ OverviewCollector - определение APP_START константы
+9. ✅ OverviewCollector - определение VILNIUS_START константы
 10. ✅ DebugToolbarCollectorManagementTest - переработка на API-тесты вместо HTML-рендеринга
 
 ### В коде
@@ -151,7 +151,7 @@ vendor/bin/pest tests/Unit/Core/DebugToolbar --coverage
 Свойство `$enabled` используется DebugToolbar для управления отображением.
 
 ### Константы времени
-OverviewCollector использует `APP_START` или `VILNIUS_START` для расчета времени выполнения.
+OverviewCollector использует `VILNIUS_START` для расчета времени выполнения.
 
 ### Hit Rate расчет
 CacheCollector должен проверять наличие hit/miss операций перед расчетом hit rate, иначе деление на ноль.

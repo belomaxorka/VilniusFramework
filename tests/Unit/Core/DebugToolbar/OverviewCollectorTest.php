@@ -43,9 +43,9 @@ describe('OverviewCollector Configuration', function () {
 
 describe('OverviewCollector Data Collection', function () {
     test('collects execution time', function () {
-        // Define APP_START constant for time calculation
-        if (!defined('APP_START')) {
-            define('APP_START', microtime(true) - 0.1); // Simulate 100ms execution
+        // Define VILNIUS_START constant for time calculation
+        if (!defined('VILNIUS_START')) {
+            define('VILNIUS_START', microtime(true) - 0.1); // Simulate 100ms execution
         }
         
         $this->collector->collect();
@@ -285,9 +285,9 @@ describe('OverviewCollector Header Stats', function () {
 
 describe('OverviewCollector Integration', function () {
     test('provides comprehensive overview with all data types', function () {
-        // Define APP_START if not defined
-        if (!defined('APP_START')) {
-            define('APP_START', microtime(true) - 0.05);
+        // Define VILNIUS_START if not defined
+        if (!defined('VILNIUS_START')) {
+            define('VILNIUS_START', microtime(true) - 0.05);
         }
         
         // Add various data
