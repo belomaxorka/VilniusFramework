@@ -33,7 +33,7 @@ class Debug
                 'output' => $output,
                 'die' => $die
             ];
-            
+
             // Добавляем в контекст если активен
             if (class_exists('\Core\DebugContext')) {
                 \Core\DebugContext::add('dump', $label ?? 'Variable dump');
@@ -321,7 +321,7 @@ class Debug
     /**
      * Преобразовать переменную в строку
      */
-    private static function varToString(mixed $var, int $depth = 0, array &$objectHashes = []): string
+    public static function varToString(mixed $var, int $depth = 0, array &$objectHashes = []): string
     {
         if ($depth > self::$maxDepth) {
             return '... (max depth reached)';
@@ -360,15 +360,15 @@ class Debug
 
         if (is_object($var)) {
             $objectId = spl_object_id($var);
-            
+
             // Проверяем циклическую ссылку
             if (in_array($objectId, $objectHashes)) {
                 return '*CIRCULAR REFERENCE*';
             }
-            
+
             // Добавляем объект в список посещенных
             $objectHashes[] = $objectId;
-            
+
             $class = get_class($var);
             $result = "object({$class}) {\n";
 
@@ -382,10 +382,10 @@ class Debug
             }
 
             $result .= $indent . '}';
-            
+
             // Убираем объект из списка при возврате (для обработки разных веток)
             array_pop($objectHashes);
-            
+
             return $result;
         }
 
@@ -439,15 +439,15 @@ class Debug
 
         if (is_object($var)) {
             $objectId = spl_object_id($var);
-            
+
             // Проверяем циклическую ссылку
             if (in_array($objectId, $objectHashes)) {
                 return '<span style="color: #f44336;">*CIRCULAR REFERENCE*</span>';
             }
-            
+
             // Добавляем объект в список посещенных
             $objectHashes[] = $objectId;
-            
+
             $class = get_class($var);
             $result = '<span style="color: #4ec9b0;">object</span> <span style="color: #4ec9b0;">(' . htmlspecialchars($class) . ')</span> <span style="color: #808080;">{</span><br>';
 
@@ -461,10 +461,10 @@ class Debug
             }
 
             $result .= $indent . '<span style="color: #808080;">}</span>';
-            
+
             // Убираем объект из списка при возврате
             array_pop($objectHashes);
-            
+
             return $result;
         }
 
