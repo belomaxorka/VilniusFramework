@@ -9,3 +9,4 @@ Thumbs.db
 .env
 vendor
 storage/cache/templates
+storage/cache/config.php
