@@ -89,7 +89,7 @@ class Env
      * 
      * @param string|null $path Путь к .env файлу (если null, ищет автоматически)
      * @param bool $required Выбросить исключение если файл не найден
-     * @param bool $reload Перезагрузить даже если уже загружен
+     * @param bool $reload Перезагрузить даже если уже загружен (с переопределением переменных)
      * @return bool true если файл загружен успешно, false если не найден
      */
     public static function load(?string $path = null, bool $required = false, bool $reload = false): bool
@@ -116,7 +116,7 @@ class Env
         }
 
         // Загружаем переменные из файла
-        self::loadFile($path);
+        self::loadFile($path, $reload);
         self::$loaded = true;
         
         return true;
@@ -145,8 +145,11 @@ class Env
 
     /**
      * Загрузить переменные из файла
+     * 
+     * @param string $path Путь к файлу
+     * @param bool $override Переопределять существующие переменные
      */
-    protected static function loadFile(string $path): void
+    protected static function loadFile(string $path, bool $override = false): void
     {
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         
@@ -171,8 +174,10 @@ class Env
                 // Удаляем кавычки если есть
                 $value = self::removeQuotes($value);
 
-                // Устанавливаем только если переменная еще не установлена
-                if (!isset($_ENV[$key]) && !isset($_SERVER[$key])) {
+                // Устанавливаем переменную
+                // При reload (override=true) переопределяем существующие
+                // При обычной загрузке - только если еще не установлена
+                if ($override || (!isset($_ENV[$key]) && !isset($_SERVER[$key]))) {
                     self::setRaw($key, $value);
                 }
             }

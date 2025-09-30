@@ -185,6 +185,52 @@ describe('Env::load()', function () {
 
         expect($result)->toBeTrue();
     });
+
+    test('reload parameter forces file reload', function () {
+        $envFile = sys_get_temp_dir() . '/test_reload.env';
+        file_put_contents($envFile, "RELOAD_VAR=original_value");
+
+        // Загружаем первый раз
+        Env::load($envFile);
+        expect(Env::get('RELOAD_VAR'))->toBe('original_value');
+
+        // Изменяем файл
+        file_put_contents($envFile, "RELOAD_VAR=updated_value");
+
+        // Без reload - значение не меняется (не перезагружается)
+        Env::load($envFile);
+        expect(Env::get('RELOAD_VAR'))->toBe('original_value');
+
+        // С reload=true - значение обновляется
+        Env::clearCache();
+        Env::load($envFile, reload: true);
+        expect(Env::get('RELOAD_VAR'))->toBe('updated_value');
+
+        unlink($envFile);
+    });
+
+    test('reload parameter works with default path', function () {
+        // Первая загрузка
+        Env::load();
+        
+        // Повторная загрузка без reload возвращает true сразу
+        $result = Env::load();
+        expect($result)->toBeTrue();
+        
+        // С reload=true пытается загрузить заново
+        $result = Env::load(reload: true);
+        expect($result)->toBeBool();
+    });
+
+    test('returns true on subsequent calls after file not found', function () {
+        // Первый вызов с несуществующим файлом
+        $result1 = Env::load('/non/existent/path.env');
+        expect($result1)->toBeFalse();
+
+        // Повторный вызов без пути возвращает true (уже загружен)
+        $result2 = Env::load();
+        expect($result2)->toBeTrue();
+    });
 });
 
 describe('Env::clearCache()', function () {
