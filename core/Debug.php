@@ -5,8 +5,10 @@ namespace Core;
 class Debug
 {
     private static array $debugData = [];
+    private static array $debugOutput = []; // Буфер для вывода
     private static int $maxDepth = 10;
     private static bool $showBacktrace = true;
+    private static bool $autoDisplay = true; // Автоматический вывод в конце
 
     /**
      * Дебаг переменной (аналог var_dump)
@@ -25,12 +27,18 @@ class Debug
         $output = self::formatVariable($var, $label, $file, $line);
 
         if (Environment::isDevelopment()) {
-            echo $output;
+            // Сохраняем в буфер вместо прямого echo
+            self::$debugOutput[] = [
+                'type' => 'dump',
+                'output' => $output,
+                'die' => $die
+            ];
         } else {
             Logger::debug($output);
         }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -52,12 +60,18 @@ class Debug
         $output = self::formatVariablePretty($var, $label, $file, $line);
 
         if (Environment::isDevelopment()) {
-            echo $output;
+            // Сохраняем в буфер вместо прямого echo
+            self::$debugOutput[] = [
+                'type' => 'dump_pretty',
+                'output' => $output,
+                'die' => $die
+            ];
         } else {
             Logger::debug($output);
         }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -92,25 +106,32 @@ class Debug
             return;
         }
 
-        echo '<div style="background: #f8f9fa; border: 1px solid #dee2e6; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
-        echo '<h3 style="color: #495057; margin-top: 0;">Debug Collection</h3>';
+        $output = '<div style="background: #f8f9fa; border: 1px solid #dee2e6; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
+        $output .= '<h3 style="color: #495057; margin-top: 0;">Debug Collection</h3>';
 
         foreach (self::$debugData as $index => $item) {
-            echo '<div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">';
-            echo '<strong>#' . ($index + 1) . '</strong> ';
+            $output .= '<div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">';
+            $output .= '<strong>#' . ($index + 1) . '</strong> ';
             if ($item['label']) {
-                echo '<span style="color: #007bff;">' . htmlspecialchars($item['label']) . '</span> ';
+                $output .= '<span style="color: #007bff;">' . htmlspecialchars($item['label']) . '</span> ';
             }
-            echo '<small style="color: #6c757d;">(' . basename($item['file']) . ':' . $item['line'] . ')</small><br>';
-            echo '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            echo htmlspecialchars(self::varToString($item['data']));
-            echo '</pre>';
-            echo '</div>';
+            $output .= '<small style="color: #6c757d;">(' . basename($item['file']) . ':' . $item['line'] . ')</small><br>';
+            $output .= '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
+            $output .= htmlspecialchars(self::varToString($item['data']));
+            $output .= '</pre>';
+            $output .= '</div>';
         }
 
-        echo '</div>';
+        $output .= '</div>';
+
+        if (Environment::isDevelopment()) {
+            self::addOutput($output);
+        } else {
+            Logger::debug($output);
+        }
 
         if ($die) {
+            self::flush();
             exit;
         }
     }
@@ -121,6 +142,87 @@ class Debug
     public static function clear(): void
     {
         self::$debugData = [];
+    }
+
+    /**
+     * Очистить буфер debug вывода
+     */
+    public static function clearOutput(): void
+    {
+        self::$debugOutput = [];
+    }
+
+    /**
+     * Добавить вывод в буфер напрямую
+     */
+    public static function addOutput(string $output): void
+    {
+        if (!Environment::isDebug() || !Environment::isDevelopment()) {
+            return;
+        }
+
+        self::$debugOutput[] = [
+            'type' => 'custom',
+            'output' => $output,
+            'die' => false
+        ];
+    }
+
+    /**
+     * Вывести все накопленные debug данные
+     */
+    public static function flush(): void
+    {
+        if (empty(self::$debugOutput)) {
+            return;
+        }
+
+        foreach (self::$debugOutput as $item) {
+            echo $item['output'];
+        }
+
+        self::clearOutput();
+    }
+
+    /**
+     * Получить все накопленные debug данные как строку
+     */
+    public static function getOutput(): string
+    {
+        if (empty(self::$debugOutput)) {
+            return '';
+        }
+
+        $output = '';
+        foreach (self::$debugOutput as $item) {
+            $output .= $item['output'];
+        }
+
+        return $output;
+    }
+
+    /**
+     * Проверить, есть ли накопленные debug данные
+     */
+    public static function hasOutput(): bool
+    {
+        return !empty(self::$debugOutput);
+    }
+
+    /**
+     * Установить автоматический вывод в конце выполнения
+     */
+    public static function setAutoDisplay(bool $auto): void
+    {
+        self::$autoDisplay = $auto;
+    }
+
+    /**
+     * Получить статус автоматического вывода
+     */
+    public static function isAutoDisplay(): bool
+    {
+        return self::$autoDisplay;
     }
 
     /**
@@ -137,6 +239,18 @@ class Debug
     public static function setShowBacktrace(bool $show): void
     {
         self::$showBacktrace = $show;
+    }
+
+    /**
+     * Регистрирует shutdown handler для автоматического вывода debug данных
+     */
+    public static function registerShutdownHandler(): void
+    {
+        register_shutdown_function(function () {
+            if (self::$autoDisplay && Environment::isDevelopment() && self::hasOutput()) {
+                self::flush();
+            }
+        });
     }
 
     /**

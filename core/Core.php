@@ -28,6 +28,9 @@ final class Core
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
 
+        // Регистрируем shutdown handler для автоматического вывода debug данных
+        Debug::registerShutdownHandler();
+
         // Убеждаемся, что директория для логов существует
         if (!is_dir(LOG_DIR)) {
             mkdir(LOG_DIR, 0755, true);

@@ -150,11 +150,11 @@ if (!function_exists('trace')) {
         }
 
         if (Environment::isDevelopment()) {
-            echo '<div style="background: #e3f2fd; border: 1px solid #2196f3; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
-            echo '<h4 style="color: #1976d2; margin-top: 0;">Backtrace</h4>';
-            echo '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">';
-            echo htmlspecialchars($output);
-            echo '</pre></div>';
+            Debug::addOutput('<div style="background: #e3f2fd; border: 1px solid #2196f3; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">' .
+                '<h4 style="color: #1976d2; margin-top: 0;">Backtrace</h4>' .
+                '<pre style="background: white; padding: 10px; border-radius: 3px; overflow-x: auto;">' .
+                htmlspecialchars($output) .
+                '</pre></div>');
         } else {
             \Core\Logger::debug($output);
         }
@@ -176,17 +176,47 @@ if (!function_exists('benchmark')) {
         $end = microtime(true);
         $time = ($end - $start) * 1000; // в миллисекундах
 
-        $message = ($label ? "[{$label}] " : '') . "Execution time: {$time}ms";
+        $message = ($label ? "[{$label}] " : '') . "Execution time: " . number_format($time, 2) . "ms";
 
         if (Environment::isDevelopment()) {
-            echo '<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
-            echo '<h4 style="color: #7b1fa2; margin-top: 0;">Benchmark</h4>';
-            echo '<p style="margin: 0; color: #4a148c;">' . htmlspecialchars($message) . '</p>';
-            echo '</div>';
+            Debug::addOutput('<div style="background: #f3e5f5; border: 1px solid #9c27b0; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">' .
+                '<h4 style="color: #7b1fa2; margin-top: 0;">Benchmark</h4>' .
+                '<p style="margin: 0; color: #4a148c;">' . htmlspecialchars($message) . '</p>' .
+                '</div>');
         } else {
             \Core\Logger::debug($message);
         }
 
         return $result;
+    }
+}
+
+if (!function_exists('debug_flush')) {
+    /**
+     * Debug flush - выводит все накопленные debug данные
+     */
+    function debug_flush(): void
+    {
+        Debug::flush();
+    }
+}
+
+if (!function_exists('debug_output')) {
+    /**
+     * Debug output - получает все накопленные debug данные как строку
+     */
+    function debug_output(): string
+    {
+        return Debug::getOutput();
+    }
+}
+
+if (!function_exists('has_debug_output')) {
+    /**
+     * Has debug output - проверяет, есть ли накопленные debug данные
+     */
+    function has_debug_output(): bool
+    {
+        return Debug::hasOutput();
     }
 }

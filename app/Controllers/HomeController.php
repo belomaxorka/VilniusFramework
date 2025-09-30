@@ -6,6 +6,19 @@ class HomeController
 {
     public function index(): void
     {
+        // Примеры использования debug функций
+        dump(['test' => 'data', 'number' => 42], 'Test Dump');
+        
+        dump_pretty([
+            'user' => ['name' => 'John', 'age' => 30],
+            'settings' => ['theme' => 'dark', 'lang' => 'ru']
+        ], 'Pretty Dump Example');
+
+        $result = benchmark(function() {
+            usleep(100); // Имитация работы
+            return 'Benchmark result';
+        }, 'Sleep Test');
+
         $data = [
             'title' => 'Welcome to TorrentPier',
             'message' => 'Hello from HomeController!',
