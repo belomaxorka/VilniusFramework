@@ -64,7 +64,7 @@ class CacheCollector extends AbstractCollector
         $html .= '<div><strong>Misses:</strong> <span style="color: #ffa726;">' . $stats['misses'] . '</span></div>';
         $html .= '<div><strong>Writes:</strong> ' . $stats['writes'] . '</div>';
         $html .= '<div><strong>Deletes:</strong> ' . $stats['deletes'] . '</div>';
-        if ($stats['total'] > 0) {
+        if (($stats['hits'] + $stats['misses']) > 0) {
             $hitRate = ($stats['hits'] / ($stats['hits'] + $stats['misses'])) * 100;
             $html .= '<div><strong>Hit Rate:</strong> ' . number_format($hitRate, 1) . '%</div>';
         }
@@ -172,7 +172,20 @@ class CacheCollector extends AbstractCollector
         ];
 
         foreach (self::$operations as $op) {
-            $stats[$op['type'] . 's']++;
+            switch ($op['type']) {
+                case 'hit':
+                    $stats['hits']++;
+                    break;
+                case 'miss':
+                    $stats['misses']++;
+                    break;
+                case 'write':
+                    $stats['writes']++;
+                    break;
+                case 'delete':
+                    $stats['deletes']++;
+                    break;
+            }
         }
 
         return $stats;
