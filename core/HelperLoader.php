@@ -61,6 +61,41 @@ final class HelperLoader
     }
 
     /**
+     * Load all helper files from a directory (group)
+     *
+     * @param string $groupName Directory name inside helpers folder
+     * @return bool True if loaded successfully
+     */
+    public function loadGroup(string $groupName): bool
+    {
+        $groupKey = "group:{$groupName}";
+        
+        if ($this->isLoaded($groupKey)) {
+            return false; // Already loaded
+        }
+
+        $groupPath = $this->helpersPath . $groupName . '/';
+        
+        if (!is_dir($groupPath)) {
+            throw new RuntimeException("Helper group not found: {$groupPath}");
+        }
+
+        $files = glob($groupPath . '*.php');
+        
+        if (empty($files)) {
+            throw new RuntimeException("No helper files found in group: {$groupName}");
+        }
+
+        foreach ($files as $file) {
+            require_once $file;
+        }
+
+        $this->loadedHelpers[$groupKey] = true;
+
+        return true;
+    }
+
+    /**
      * Load multiple helper files at once
      *
      * @param array $names Array of helper names
@@ -71,6 +106,22 @@ final class HelperLoader
         $results = [];
         foreach ($names as $name) {
             $results[] = $this->load($name);
+        }
+
+        return !in_array(false, $results, true);
+    }
+
+    /**
+     * Load multiple helper groups at once
+     *
+     * @param array $groups Array of group names
+     * @return bool True if all loaded successfully
+     */
+    public function loadGroups(array $groups): bool
+    {
+        $results = [];
+        foreach ($groups as $group) {
+            $results[] = $this->loadGroup($group);
         }
 
         return !in_array(false, $results, true);
@@ -117,5 +168,15 @@ final class HelperLoader
     public static function isHelperLoaded(string $name): bool
     {
         return self::getInstance()->isLoaded($name);
+    }
+
+    public static function loadHelperGroup(string $groupName): bool
+    {
+        return self::getInstance()->loadGroup($groupName);
+    }
+
+    public static function loadHelperGroups(array $groups): bool
+    {
+        return self::getInstance()->loadGroups($groups);
     }
 }

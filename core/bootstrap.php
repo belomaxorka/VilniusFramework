@@ -19,5 +19,12 @@ ini_set('display_startup_errors', '0');
 ini_set('log_errors', '1');
 ini_set('error_log', LOG_DIR . '/php_errors.log');
 
-// Load basic helper
-\Core\HelperLoader::loadHelper('basic');
+// Load helper groups
+\Core\HelperLoader::loadHelperGroups([
+    'app',          // Core application functions (config, lang, view, env)
+    'environment',  // Environment detection (is_debug, is_dev, is_prod)
+    'debug',        // Debug functions (dd, dump, trace)
+    'profiler',     // Performance profiling (timer, memory, benchmark)
+    'database',     // Database debugging (query_log, query_stats)
+    'context',      // Debug contexts (context_start, context_run)
+]);
