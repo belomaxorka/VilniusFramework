@@ -6,17 +6,51 @@ class HomeController
 {
     public function index(): void
     {
-        $data = [
-            'title' => 'Welcome to TorrentPier',
-            'message' => 'Hello from HomeController!',
-            'users' => [
-                ['name' => 'John', 'email' => 'john@example.com'],
-                ['name' => 'Jane', 'email' => 'jane@example.com'],
-                ['name' => 'Bob', 'email' => 'bob@example.com']
-            ]
-        ];
-
-        display('welcome.tpl', $data);
+        // Пример использования Debug системы
+        context_run('page_load', function() {
+            timer_start('total');
+            memory_start();
+            
+            // Подготовка данных
+            context_run('data_preparation', function() {
+                timer_start('prepare_data');
+                
+                $data = [
+                    'title' => 'Welcome to TorrentPier',
+                    'message' => 'Hello from HomeController!',
+                    'users' => [
+                        ['name' => 'John', 'email' => 'john@example.com'],
+                        ['name' => 'Jane', 'email' => 'jane@example.com'],
+                        ['name' => 'Bob', 'email' => 'bob@example.com']
+                    ]
+                ];
+                
+                // Debug вывод
+                dump($data['users'], 'Users Array');
+                
+                timer_stop('prepare_data');
+                memory_snapshot('after_prepare');
+            });
+            
+            // Симуляция SQL запроса
+            query_log('SELECT * FROM users WHERE active = 1', ['active' => 1], 15.5, 3);
+            query_log('SELECT * FROM posts WHERE user_id = ?', [1], 8.2, 5);
+            
+            $data = [
+                'title' => 'Welcome to TorrentPier',
+                'message' => 'Hello from HomeController!',
+                'users' => [
+                    ['name' => 'John', 'email' => 'john@example.com'],
+                    ['name' => 'Jane', 'email' => 'jane@example.com'],
+                    ['name' => 'Bob', 'email' => 'bob@example.com']
+                ]
+            ];
+            
+            timer_stop('total');
+            memory_dump();
+            
+            display('welcome.tpl', $data);
+        });
     }
 
     public function name(string $name): void
