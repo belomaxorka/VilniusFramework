@@ -2,10 +2,12 @@
 
 namespace Core;
 
+use ArrayAccess;
+use Countable;
 use InvalidArgumentException;
 use RuntimeException;
 
-class Config
+class Config implements ArrayAccess, Countable
 {
     protected static array $items = [];
     protected static array $loadedPaths = [];
@@ -14,6 +16,9 @@ class Config
     protected static bool $locked = false;
     protected static array $allowedBasePaths = [];
     protected static array $resolvingMacros = [];
+    protected static ?self $instance = null;
+    protected static array $memoizedMacros = [];
+    protected static array $memoizedValues = [];
 
     /**
      * Loads configuration files from the specified directory
@@ -250,11 +255,11 @@ class Config
     }
 
     /**
-     * Loads a single configuration file
+     * Loads a single configuration file (supports .php and .json)
      *
      * @param string $filePath Path to the configuration file
      * @throws InvalidArgumentException If file doesn't exist or is not readable
-     * @throws RuntimeException If configuration file doesn't return an array
+     * @throws RuntimeException If configuration file doesn't return an array or has invalid format
      */
     public static function loadFile(string $filePath): void
     {
@@ -269,13 +274,18 @@ class Config
         // Security: validate path
         self::validatePath($filePath);
 
-        $key = basename($filePath, '.php');
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $key = basename($filePath, '.' . $extension);
 
-        // Check that the file returns an array
-        $config = require $filePath;
+        // Load configuration based on file type
+        $config = match($extension) {
+            'php' => self::loadPhpFile($filePath),
+            'json' => self::loadJsonFile($filePath),
+            default => throw new RuntimeException("Unsupported file format: {$extension}. Supported formats: php, json")
+        };
 
         if (!is_array($config)) {
-            throw new \RuntimeException("Configuration file must return an array: {$filePath}");
+            throw new RuntimeException("Configuration file must contain an array: {$filePath}");
         }
 
         // Merge configurations if key already exists
@@ -284,6 +294,45 @@ class Config
         } else {
             self::$items[$key] = $config;
         }
+    }
+
+    /**
+     * Loads a PHP configuration file
+     *
+     * @param string $filePath Path to PHP file
+     * @return mixed The result of requiring the file
+     */
+    protected static function loadPhpFile(string $filePath): mixed
+    {
+        return require $filePath;
+    }
+
+    /**
+     * Loads a JSON configuration file
+     *
+     * @param string $filePath Path to JSON file
+     * @return array The decoded JSON array
+     * @throws RuntimeException If JSON is invalid
+     */
+    protected static function loadJsonFile(string $filePath): array
+    {
+        $content = file_get_contents($filePath);
+        
+        if ($content === false) {
+            throw new RuntimeException("Failed to read JSON file: {$filePath}");
+        }
+
+        $config = json_decode($content, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new RuntimeException("Invalid JSON in file {$filePath}: " . json_last_error_msg());
+        }
+
+        if (!is_array($config)) {
+            throw new RuntimeException("JSON file must contain an object/array: {$filePath}");
+        }
+
+        return $config;
     }
 
     /**
@@ -386,6 +435,8 @@ class Config
         self::$locked = false;
         self::$allowedBasePaths = [];
         self::$resolvingMacros = [];
+        self::$memoizedMacros = [];
+        self::$memoizedValues = [];
     }
 
     /**
@@ -480,6 +531,37 @@ class Config
         $wasLocked = self::$locked;
         self::$locked = false;
         self::set($key, $callback);
+        self::$locked = $wasLocked;
+    }
+
+    /**
+     * Registers a memoized macro (result is cached after first execution)
+     *
+     * @param string $key The configuration key (supports dot notation)
+     * @param callable $callback The callback to execute once
+     * @throws RuntimeException If configuration is locked
+     */
+    public static function memoizedMacro(string $key, callable $callback): void
+    {
+        self::ensureNotLocked();
+
+        // Mark this key as memoized
+        self::$memoizedMacros[$key] = true;
+        
+        // Create a wrapper that caches the result
+        $memoized = function() use ($key, $callback) {
+            if (!isset(self::$memoizedValues[$key])) {
+                self::$memoizedValues[$key] = $callback();
+            }
+            return self::$memoizedValues[$key];
+        };
+        
+        self::$macros[$key] = $memoized;
+        
+        // Temporarily unlock to allow set() to work
+        $wasLocked = self::$locked;
+        self::$locked = false;
+        self::set($key, $memoized);
         self::$locked = $wasLocked;
     }
 
@@ -923,5 +1005,77 @@ class Config
             $result[$key] = self::get($key, $default);
         }
         return $result;
+    }
+
+    /**
+     * Gets singleton instance for ArrayAccess support
+     *
+     * @return self
+     */
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    // === ArrayAccess Implementation ===
+
+    /**
+     * Checks if a configuration key exists (ArrayAccess)
+     *
+     * @param mixed $offset The configuration key
+     * @return bool
+     */
+    public function offsetExists(mixed $offset): bool
+    {
+        return self::has((string)$offset);
+    }
+
+    /**
+     * Gets a configuration value (ArrayAccess)
+     *
+     * @param mixed $offset The configuration key
+     * @return mixed
+     */
+    public function offsetGet(mixed $offset): mixed
+    {
+        return self::get((string)$offset);
+    }
+
+    /**
+     * Sets a configuration value (ArrayAccess)
+     *
+     * @param mixed $offset The configuration key
+     * @param mixed $value The value to set
+     * @return void
+     */
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        self::set((string)$offset, $value);
+    }
+
+    /**
+     * Removes a configuration key (ArrayAccess)
+     *
+     * @param mixed $offset The configuration key
+     * @return void
+     */
+    public function offsetUnset(mixed $offset): void
+    {
+        self::forget((string)$offset);
+    }
+
+    // === Countable Implementation ===
+
+    /**
+     * Counts the number of top-level configuration items
+     *
+     * @return int
+     */
+    public function count(): int
+    {
+        return count(self::$items);
     }
 }
