@@ -167,7 +167,7 @@ it('returns zero for existing key with zero value', function (): void {
     expect(Config::getRequired('zero'))->toBe(0);
 });
 
-it('works with nested keys', function (): void {
+it('getRequired() works with nested keys', function (): void {
     Config::set('database.connections.mysql.host', 'localhost');
     
     $value = Config::getRequired('database.connections.mysql.host');
@@ -202,7 +202,7 @@ it('returns defaults for missing keys', function (): void {
     ]);
 });
 
-it('works with nested keys', function (): void {
+it('getMany() works with nested keys', function (): void {
     Config::set('database.host', 'localhost');
     Config::set('database.port', 3306);
     Config::set('cache.driver', 'redis');
