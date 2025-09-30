@@ -8,8 +8,8 @@ final class Core
     {
         HelperLoader::loadHelper('basic');
         self::initEnvironment();
-        self::initDebugSystem();
         self::initConfigLoader();
+        self::initDebugSystem();
         self::initializeLangManager();
         self::initializeDatabase();
         self::initializeTemplateEngine();
