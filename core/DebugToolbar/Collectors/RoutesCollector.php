@@ -79,7 +79,7 @@ class RoutesCollector extends AbstractCollector
         }
 
         $html = '<div style="padding: 20px;">';
-        
+
         // Current route
         if ($this->data['current']) {
             $html .= '<div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin-bottom: 20px; border-radius: 4px;">';
@@ -94,7 +94,7 @@ class RoutesCollector extends AbstractCollector
 
         // All routes
         $html .= '<h3>All Routes (' . $this->data['total'] . ')</h3>';
-        
+
         // Group by method
         $grouped = [];
         foreach ($this->data['routes'] as $route) {
@@ -114,14 +114,14 @@ class RoutesCollector extends AbstractCollector
 
         foreach ($grouped as $method => $routes) {
             foreach ($routes as $route) {
-                $isCurrent = $this->data['current'] 
+                $isCurrent = $this->data['current']
                     && $route['method'] === $this->data['current']['method']
                     && $route['uri'] === $this->data['current']['uri'];
 
                 $rowStyle = $isCurrent ? 'background: #e8f5e9;' : '';
-                
+
                 $html .= '<tr style="' . $rowStyle . '">';
-                
+
                 // Method
                 $methodColor = $this->getMethodColor($method);
                 $html .= '<td style="padding: 8px; border: 1px solid #ddd;">';
@@ -132,17 +132,17 @@ class RoutesCollector extends AbstractCollector
                     $html .= ' <span style="color: #4caf50;">✓</span>';
                 }
                 $html .= '</td>';
-                
+
                 // URI
                 $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">';
                 $html .= htmlspecialchars($route['uri']);
                 $html .= '</td>';
-                
+
                 // Action
                 $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 13px;">';
                 $html .= htmlspecialchars($route['action']);
                 $html .= '</td>';
-                
+
                 $html .= '</tr>';
             }
         }
@@ -153,18 +153,18 @@ class RoutesCollector extends AbstractCollector
         // Stats
         $html .= '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">';
         $html .= '<strong>Statistics:</strong> ';
-        
+
         $methodCounts = [];
         foreach ($this->data['routes'] as $route) {
             $methodCounts[$route['method']] = ($methodCounts[$route['method']] ?? 0) + 1;
         }
-        
+
         $stats = [];
         foreach ($methodCounts as $method => $count) {
             $color = $this->getMethodColor($method);
             $stats[] = '<span style="color: ' . $color . '; font-weight: bold;">' . $method . '</span>: ' . $count;
         }
-        
+
         $html .= implode(' | ', $stats);
         $html .= '</div>';
 
@@ -199,7 +199,7 @@ class RoutesCollector extends AbstractCollector
     private function extractRoutes(): array
     {
         $routes = [];
-        
+
         // Используем Reflection для доступа к protected $routes
         try {
             $reflection = new \ReflectionClass($this->router);
@@ -255,7 +255,7 @@ class RoutesCollector extends AbstractCollector
         $uri = preg_replace('#\$$#', '', $uri);
         $uri = preg_replace('#\(\?P<(\w+)>[^)]+\)#', '{$1}', $uri);
         $uri = '/' . $uri;
-        
+
         return $uri;
     }
 
@@ -266,12 +266,12 @@ class RoutesCollector extends AbstractCollector
     {
         if (is_array($action)) {
             [$controller, $method] = $action;
-            
+
             // Убираем полный namespace для краткости
-            $shortController = is_string($controller) 
+            $shortController = is_string($controller)
                 ? (class_exists($controller) ? basename(str_replace('\\', '/', $controller)) : $controller)
                 : 'Closure';
-            
+
             return $shortController . '::' . $method;
         }
 

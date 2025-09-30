@@ -57,10 +57,10 @@ class RequestCollector extends AbstractCollector
     public function render(): string
     {
         $html = '<div style="padding: 20px;">';
-        
+
         // Request Info Section
         $html .= '<h3 style="margin-top: 0;">🌐 Request Information</h3>';
-        
+
         // Basic Info
         $html .= $this->renderSection('Basic Info', [
             'Method' => $this->renderBadge($this->data['method'], $this->getMethodColor($this->data['method'])),
@@ -106,11 +106,11 @@ class RequestCollector extends AbstractCollector
         if (!empty($this->data['server'])) {
             $isProduction = Environment::isProduction();
             $title = 'Server Variables';
-            
+
             if ($isProduction) {
                 $title .= ' <span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">🔒 PRODUCTION MODE</span>';
             }
-            
+
             $html .= $this->renderDataTable($title, $this->data['server'], true, $isProduction);
         }
 
@@ -229,7 +229,7 @@ class RequestCollector extends AbstractCollector
     private function getFullUrl(): string
     {
         $url = $this->data['scheme'] . '://' . $this->data['host'];
-        
+
         if (
             ($this->data['scheme'] === 'http' && $this->data['port'] != 80)
             || ($this->data['scheme'] === 'https' && $this->data['port'] != 443)
@@ -262,7 +262,7 @@ class RequestCollector extends AbstractCollector
      */
     private function renderBadge(string $text, string $color): string
     {
-        return '<span style="background: ' . $color . '; color: white; padding: 4px 8px; border-radius: 3px; font-weight: bold;">' 
+        return '<span style="background: ' . $color . '; color: white; padding: 4px 8px; border-radius: 3px; font-weight: bold;">'
             . htmlspecialchars($text) . '</span>';
     }
 
@@ -274,17 +274,17 @@ class RequestCollector extends AbstractCollector
         $html = '<div style="margin-bottom: 20px;">';
         $html .= '<h4 style="color: #1976d2; margin-bottom: 10px;">📋 ' . htmlspecialchars($title) . '</h4>';
         $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
-        
+
         foreach ($data as $key => $value) {
             $html .= '<div style="margin-bottom: 8px;">';
             $html .= '<strong>' . htmlspecialchars($key) . ':</strong> ';
             $html .= is_string($value) ? $value : htmlspecialchars(print_r($value, true));
             $html .= '</div>';
         }
-        
+
         $html .= '</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -299,7 +299,7 @@ class RequestCollector extends AbstractCollector
         $html .= htmlspecialchars($message);
         $html .= '</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -309,22 +309,22 @@ class RequestCollector extends AbstractCollector
     private function renderDataTable(string $title, array $data, bool $collapsible = false, bool $isProduction = false): string
     {
         $tableId = 'table_' . md5($title . random_bytes(8));
-        
+
         $html = '<div style="margin-bottom: 20px;">';
         $html .= '<h4 style="color: #1976d2; margin-bottom: 10px; cursor: ' . ($collapsible ? 'pointer' : 'default') . ';" ';
-        
+
         if ($collapsible) {
             $html .= 'onclick="document.getElementById(\'' . $tableId . '\').style.display = document.getElementById(\'' . $tableId . '\').style.display === \'none\' ? \'table\' : \'none\'"';
         }
-        
+
         $html .= '>📋 ' . $title . ' <span style="color: #757575; font-size: 12px;">(' . count($data) . ')</span>';
-        
+
         if ($collapsible) {
             $html .= ' <span style="font-size: 12px; color: #757575;">[click to toggle]</span>';
         }
-        
+
         $html .= '</h4>';
-        
+
         // Предупреждение для production режима
         if ($isProduction) {
             $html .= '<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 10px; color: #856404;">';
@@ -332,7 +332,7 @@ class RequestCollector extends AbstractCollector
             $html .= 'Server variables are only visible in development mode.';
             $html .= '</div>';
         }
-        
+
         $html .= '<table id="' . $tableId . '" style="width: 100%; border-collapse: collapse; background: white; ' . ($collapsible ? 'display: none;' : '') . '">';
         $html .= '<thead>';
         $html .= '<tr style="background: #e3f2fd;">';
@@ -341,20 +341,20 @@ class RequestCollector extends AbstractCollector
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
-        
+
         foreach ($data as $key => $value) {
             $html .= '<tr>';
-            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; vertical-align: top; width: 30%;">' 
+            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; vertical-align: top; width: 30%;">'
                 . htmlspecialchars($key) . '</td>';
-            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; word-break: break-all;">' 
+            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; word-break: break-all;">'
                 . htmlspecialchars($this->formatValue($value)) . '</td>';
             $html .= '</tr>';
         }
-        
+
         $html .= '</tbody>';
         $html .= '</table>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -365,7 +365,7 @@ class RequestCollector extends AbstractCollector
     {
         $html = '<div style="margin-bottom: 20px;">';
         $html .= '<h4 style="color: #1976d2; margin-bottom: 10px;">📋 ' . htmlspecialchars($title) . '</h4>';
-        
+
         $html .= '<table style="width: 100%; border-collapse: collapse; background: white;">';
         $html .= '<thead>';
         $html .= '<tr style="background: #e3f2fd;">';
@@ -377,7 +377,7 @@ class RequestCollector extends AbstractCollector
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
-        
+
         foreach ($files as $key => $file) {
             if (is_array($file['name'] ?? null)) {
                 // Множественная загрузка
@@ -403,11 +403,11 @@ class RequestCollector extends AbstractCollector
                 );
             }
         }
-        
+
         $html .= '</tbody>';
         $html .= '</table>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
@@ -418,16 +418,16 @@ class RequestCollector extends AbstractCollector
     {
         $errorText = $error === UPLOAD_ERR_OK ? '✓ OK' : $this->getUploadErrorMessage($error);
         $errorColor = $error === UPLOAD_ERR_OK ? '#4caf50' : '#f44336';
-        
+
         $html = '<tr>';
         $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">' . htmlspecialchars($name) . '</td>';
         $html .= '<td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($type) . '</td>';
         $html .= '<td style="padding: 8px; border: 1px solid #ddd;">' . $this->formatBytes($size) . '</td>';
         $html .= '<td style="padding: 8px; border: 1px solid #ddd; color: ' . $errorColor . ';">' . htmlspecialchars($errorText) . '</td>';
-        $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 11px;">' 
+        $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 11px;">'
             . htmlspecialchars($tmpName) . '</td>';
         $html .= '</tr>';
-        
+
         return $html;
     }
 
@@ -456,19 +456,19 @@ class RequestCollector extends AbstractCollector
         if (is_array($value)) {
             return json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
-        
+
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
-        
+
         if (is_null($value)) {
             return 'null';
         }
-        
+
         if (is_object($value)) {
             return get_class($value);
         }
-        
+
         return (string)$value;
     }
 }

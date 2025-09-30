@@ -18,9 +18,8 @@ class TemplateEngine
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
-        $root = defined('ROOT') ? ROOT : dirname(__DIR__, 2);
-        $this->templateDir = $templateDir ?? $root . '/resources/views';
-        $this->cacheDir = $cacheDir ?? $root . '/storage/cache/templates';
+        $this->templateDir = $templateDir ?? RESOURCES_DIR . '/views';
+        $this->cacheDir = $cacheDir ?? STORAGE_DIR . '/cache/templates';
 
         // Создаем директорию кэша если её нет
         if (!is_dir($this->cacheDir)) {
