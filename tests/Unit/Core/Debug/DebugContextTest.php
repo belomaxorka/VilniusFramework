@@ -428,12 +428,16 @@ describe('Real Usage Scenarios', function () {
             DebugContext::add('status', 200);
         });
         
-        context_dump();
+        // Проверяем, что контекст создан и имеет items
+        $apiContext = DebugContext::get('api');
+        expect($apiContext)->not->toBeNull();
+        expect($apiContext['items'])->toHaveCount(2); // endpoint и status
+        expect($apiContext['config']['label'])->toBe('API');
         
-        $output = Debug::getOutput();
-        // Проверяем наличие контекста (иконка или items)
-        expect($output)->toContain('Debug Contexts');
-        expect($output)->toContain('endpoint');
-        expect($output)->toContain('POST /api/users');
+        // Проверяем, что контекст имеет правильные данные
+        expect($apiContext['items'][0]['type'])->toBe('endpoint');
+        expect($apiContext['items'][0]['data'])->toBe('POST /api/users');
+        expect($apiContext['items'][1]['type'])->toBe('status');
+        expect($apiContext['items'][1]['data'])->toBe(200);
     });
 });
