@@ -501,3 +501,261 @@ it('macro can access external state', function (): void {
 
     expect(Config::resolve('app.dynamic'))->toBe('Value: external');
 });
+
+// === Environment-specific Config Tests ===
+
+it('loads environment-specific configs from subdirectory', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'debug' => false, 'version' => '1.0'],
+        'database.php' => ['host' => 'localhost', 'port' => 3306],
+    ]);
+
+    // Create production subdirectory with overrides
+    $prodDir = $dir . DIRECTORY_SEPARATOR . 'production';
+    mkdir($prodDir, 0755, true);
+    file_put_contents(
+        $prodDir . DIRECTORY_SEPARATOR . 'app.php',
+        '<?php return ' . var_export(['debug' => false, 'log_level' => 'error'], true) . ';'
+    );
+    file_put_contents(
+        $prodDir . DIRECTORY_SEPARATOR . 'database.php',
+        '<?php return ' . var_export(['host' => 'prod-server.com'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'production');
+
+        // Base config values
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.version'))->toBe('1.0');
+        
+        // Overridden by environment
+        expect(Config::get('app.debug'))->toBe(false);
+        expect(Config::get('app.log_level'))->toBe('error');
+        expect(Config::get('database.host'))->toBe('prod-server.com');
+        
+        // Not overridden
+        expect(Config::get('database.port'))->toBe(3306);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads environment-specific configs with suffix', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'debug' => true],
+        'database.php' => ['host' => 'localhost'],
+    ]);
+
+    // Create local environment files with suffix
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.local.php',
+        '<?php return ' . var_export(['debug' => true, 'dev_mode' => true], true) . ';'
+    );
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'database.local.php',
+        '<?php return ' . var_export(['host' => '127.0.0.1', 'logging' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'local');
+
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.debug'))->toBe(true);
+        expect(Config::get('app.dev_mode'))->toBe(true);
+        expect(Config::get('database.host'))->toBe('127.0.0.1');
+        expect(Config::get('database.logging'))->toBe(true);
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads both subdirectory and suffix environment configs', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'priority' => 'base'],
+    ]);
+
+    // Subdirectory approach
+    $testDir = $dir . DIRECTORY_SEPARATOR . 'testing';
+    mkdir($testDir, 0755, true);
+    file_put_contents(
+        $testDir . DIRECTORY_SEPARATOR . 'app.php',
+        '<?php return ' . var_export(['priority' => 'subdirectory', 'from_dir' => true], true) . ';'
+    );
+
+    // Suffix approach (loaded after subdirectory, so has higher priority)
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.testing.php',
+        '<?php return ' . var_export(['priority' => 'suffix', 'from_suffix' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'testing');
+
+        // Suffix has priority (loaded last)
+        expect(Config::get('app.priority'))->toBe('suffix');
+        expect(Config::get('app.from_dir'))->toBe(true);
+        expect(Config::get('app.from_suffix'))->toBe(true);
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('works without environment parameter (backward compatible)', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    try {
+        Config::load($dir); // No environment parameter
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('ignores non-existent environment configs gracefully', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    try {
+        Config::load($dir, 'nonexistent-env');
+        // Should load base configs without errors
+        expect(Config::get('app.name'))->toBe('MyApp');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+// === Immutable/Lock Tests ===
+
+it('locks configuration to prevent modifications', function (): void {
+    Config::set('app.name', 'MyApp');
+    expect(Config::isLocked())->toBeFalse();
+    
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    expect(fn() => Config::set('app.name', 'NewName'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents set() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    expect(fn() => Config::set('app.version', '2.0'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents forget() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    expect(fn() => Config::forget('app.name'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents push() when locked', function (): void {
+    Config::set('app.providers', ['Provider1']);
+    Config::lock();
+    
+    expect(fn() => Config::push('app.providers', 'Provider2'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents prepend() when locked', function (): void {
+    Config::set('app.middleware', ['Middleware1']);
+    Config::lock();
+    
+    expect(fn() => Config::prepend('app.middleware', 'Middleware0'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents pull() when locked', function (): void {
+    Config::set('temp.value', 'temporary');
+    Config::lock();
+    
+    expect(fn() => Config::pull('temp.value'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('prevents macro() when locked', function (): void {
+    Config::lock();
+    
+    expect(fn() => Config::macro('app.factory', fn() => 'value'))
+        ->toThrow(RuntimeException::class, 'Configuration is locked');
+});
+
+it('allows get() and has() when locked', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    
+    // Read operations should work
+    expect(Config::get('app.name'))->toBe('MyApp');
+    expect(Config::has('app.name'))->toBeTrue();
+});
+
+it('allows resolve() when locked', function (): void {
+    Config::macro('app.factory', fn() => 'value');
+    Config::lock();
+    
+    // Resolving should work even when locked
+    expect(Config::resolve('app.factory'))->toBe('value');
+});
+
+it('unlocks configuration', function (): void {
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    Config::unlock();
+    expect(Config::isLocked())->toBeFalse();
+    
+    // Should be able to modify again
+    Config::set('app.name', 'MyApp');
+    expect(Config::get('app.name'))->toBe('MyApp');
+});
+
+it('clear() unlocks configuration', function (): void {
+    Config::set('app.name', 'MyApp');
+    Config::lock();
+    expect(Config::isLocked())->toBeTrue();
+    
+    Config::clear();
+    expect(Config::isLocked())->toBeFalse();
+    
+    // Should be able to set again
+    Config::set('app.name', 'NewApp');
+    expect(Config::get('app.name'))->toBe('NewApp');
+});
+
+it('typical workflow: load, configure, lock', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'version' => '1.0'],
+    ]);
+
+    try {
+        // 1. Load configuration
+        Config::load($dir);
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // 2. Make runtime modifications
+        Config::set('app.initialized', true);
+        expect(Config::get('app.initialized'))->toBeTrue();
+        
+        // 3. Lock for production safety
+        Config::lock();
+        
+        // 4. Reading still works
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.initialized'))->toBeTrue();
+        
+        // 5. Modifications are prevented
+        expect(fn() => Config::set('app.hacked', true))
+            ->toThrow(RuntimeException::class);
+    } finally {
+        deleteDir($dir);
+    }
+});

@@ -11,15 +11,18 @@ class Config
     protected static array $loadedPaths = [];
     protected static bool $loadedFromCache = false;
     protected static array $macros = [];
+    protected static bool $locked = false;
 
     /**
      * Loads configuration files from the specified directory
      *
      * @param string $path Path to the directory containing config files
+     * @param string|null $environment Optional environment name to load environment-specific configs
+     * @param bool $recursive Whether to load configuration files recursively from subdirectories
      * @throws InvalidArgumentException If path doesn't exist or is not a directory
      * @throws RuntimeException If glob pattern fails
      */
-    public static function load(string $path): void
+    public static function load(string $path, ?string $environment = null, bool $recursive = false): void
     {
         $realPath = realpath($path);
 
@@ -36,18 +39,174 @@ class Config
             return;
         }
 
-        $pattern = $realPath . '/*.php';
-        $files = glob($pattern);
+        if ($recursive) {
+            self::loadRecursive($realPath);
+        } else {
+            $pattern = $realPath . '/*.php';
+            $files = glob($pattern);
 
-        if ($files === false) {
-            throw new RuntimeException("Error searching for files with pattern: {$pattern}");
-        }
+            if ($files === false) {
+                throw new RuntimeException("Error searching for files with pattern: {$pattern}");
+            }
 
-        foreach ($files as $file) {
-            self::loadFile($file);
+            foreach ($files as $file) {
+                self::loadFile($file);
+            }
         }
 
         self::$loadedPaths[] = $realPath;
+
+        // Load environment-specific configurations if environment is specified
+        if ($environment !== null) {
+            self::loadEnvironmentConfigs($realPath, $environment);
+        }
+    }
+
+    /**
+     * Recursively loads configuration files from directory and subdirectories
+     *
+     * Directory structure defines the configuration namespace:
+     * - config/app.php → 'app'
+     * - config/services/mail.php → 'services.mail'
+     * - config/external/api/github.php → 'external.api.github'
+     *
+     * @param string $basePath Base directory to load from
+     * @param string $namespace Current namespace prefix
+     */
+    protected static function loadRecursive(string $basePath, string $namespace = ''): void
+    {
+        $items = scandir($basePath);
+
+        if ($items === false) {
+            throw new RuntimeException("Failed to scan directory: {$basePath}");
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $fullPath = $basePath . DIRECTORY_SEPARATOR . $item;
+
+            if (is_dir($fullPath)) {
+                // Recursively load subdirectories
+                $newNamespace = $namespace === '' ? $item : $namespace . '.' . $item;
+                self::loadRecursive($fullPath, $newNamespace);
+            } elseif (is_file($fullPath) && pathinfo($fullPath, PATHINFO_EXTENSION) === 'php') {
+                // Load PHP config file
+                $filename = pathinfo($fullPath, PATHINFO_FILENAME);
+                $key = $namespace === '' ? $filename : $namespace . '.' . $filename;
+                
+                // Load with the computed namespace key
+                $config = require $fullPath;
+
+                if (!is_array($config)) {
+                    throw new RuntimeException("Configuration file must return an array: {$fullPath}");
+                }
+
+                // Set using nested key structure
+                self::setByPath($key, $config);
+            }
+        }
+    }
+
+    /**
+     * Sets a configuration value by path, handling nested structures
+     *
+     * @param string $path Dot-notation path
+     * @param array $value Configuration array to set
+     */
+    protected static function setByPath(string $path, array $value): void
+    {
+        $parts = explode('.', $path);
+        $current = &self::$items;
+
+        foreach ($parts as $i => $part) {
+            if ($i === count($parts) - 1) {
+                // Last part: merge if exists, otherwise set
+                if (isset($current[$part]) && is_array($current[$part])) {
+                    $current[$part] = array_merge_recursive($current[$part], $value);
+                } else {
+                    $current[$part] = $value;
+                }
+            } else {
+                if (!isset($current[$part]) || !is_array($current[$part])) {
+                    $current[$part] = [];
+                }
+                $current = &$current[$part];
+            }
+        }
+    }
+
+    /**
+     * Loads environment-specific configuration files
+     *
+     * Supports two approaches:
+     * 1. Subdirectory: config/production/app.php
+     * 2. Suffix: config/app.production.php
+     *
+     * @param string $basePath Base configuration directory path
+     * @param string $environment Environment name (e.g., 'local', 'production', 'testing')
+     */
+    protected static function loadEnvironmentConfigs(string $basePath, string $environment): void
+    {
+        // Approach 1: Load from environment subdirectory (e.g., config/production/)
+        $envDir = $basePath . DIRECTORY_SEPARATOR . $environment;
+        if (is_dir($envDir)) {
+            $pattern = $envDir . '/*.php';
+            $files = glob($pattern);
+
+            if ($files !== false) {
+                foreach ($files as $file) {
+                    self::loadFile($file);
+                }
+            }
+        }
+
+        // Approach 2: Load files with environment suffix (e.g., app.production.php)
+        $pattern = $basePath . '/*.' . $environment . '.php';
+        $files = glob($pattern);
+
+        if ($files !== false) {
+            foreach ($files as $file) {
+                // Extract base name without environment suffix
+                $basename = basename($file, '.' . $environment . '.php');
+                self::loadFileWithKey($file, $basename);
+            }
+        }
+    }
+
+    /**
+     * Loads a single configuration file with a specific key
+     *
+     * @param string $filePath Path to the configuration file
+     * @param string $key The configuration key to use
+     * @throws InvalidArgumentException If file doesn't exist or is not readable
+     * @throws RuntimeException If configuration file doesn't return an array
+     */
+    protected static function loadFileWithKey(string $filePath, string $key): void
+    {
+        if (!file_exists($filePath)) {
+            throw new InvalidArgumentException("File not found: {$filePath}");
+        }
+
+        if (!is_readable($filePath)) {
+            throw new InvalidArgumentException("File is not readable: {$filePath}");
+        }
+
+        // Check that the file returns an array
+        $config = require $filePath;
+
+        if (!is_array($config)) {
+            throw new RuntimeException("Configuration file must return an array: {$filePath}");
+        }
+
+        // Merge configurations if key already exists
+        if (isset(self::$items[$key]) && is_array(self::$items[$key])) {
+            self::$items[$key] = array_merge_recursive(self::$items[$key], $config);
+        } else {
+            self::$items[$key] = $config;
+        }
     }
 
     /**
@@ -105,9 +264,12 @@ class Config
      *
      * @param string $key The configuration key (supports dot notation)
      * @param mixed $value The value to set
+     * @throws RuntimeException If configuration is locked
      */
     public static function set(string $key, mixed $value): void
     {
+        self::ensureNotLocked();
+
         if (str_contains($key, '.')) {
             self::setNestedValue($key, $value);
         } else {
@@ -144,9 +306,12 @@ class Config
      * Removes a configuration key
      *
      * @param string $key The configuration key to remove (supports dot notation)
+     * @throws RuntimeException If configuration is locked
      */
     public static function forget(string $key): void
     {
+        self::ensureNotLocked();
+
         if (str_contains($key, '.')) {
             self::forgetNestedValue($key);
         } else {
@@ -166,6 +331,8 @@ class Config
 
     /**
      * Clears all configuration data and loaded paths
+     *
+     * Note: This also unlocks the configuration.
      */
     public static function clear(): void
     {
@@ -173,6 +340,7 @@ class Config
         self::$loadedPaths = [];
         self::$loadedFromCache = false;
         self::$macros = [];
+        self::$locked = false;
     }
 
     /**
@@ -180,10 +348,12 @@ class Config
      *
      * @param string $key The configuration key (supports dot notation)
      * @param mixed $value The value to push
-     * @throws RuntimeException If the configuration value is not an array
+     * @throws RuntimeException If the configuration value is not an array or if configuration is locked
      */
     public static function push(string $key, mixed $value): void
     {
+        self::ensureNotLocked();
+
         $array = self::get($key, []);
 
         if (!is_array($array)) {
@@ -191,7 +361,12 @@ class Config
         }
 
         $array[] = $value;
+        
+        // Temporarily unlock to allow set() to work
+        $wasLocked = self::$locked;
+        self::$locked = false;
         self::set($key, $array);
+        self::$locked = $wasLocked;
     }
 
     /**
@@ -199,10 +374,12 @@ class Config
      *
      * @param string $key The configuration key (supports dot notation)
      * @param mixed $value The value to prepend
-     * @throws RuntimeException If the configuration value is not an array
+     * @throws RuntimeException If the configuration value is not an array or if configuration is locked
      */
     public static function prepend(string $key, mixed $value): void
     {
+        self::ensureNotLocked();
+
         $array = self::get($key, []);
 
         if (!is_array($array)) {
@@ -210,7 +387,12 @@ class Config
         }
 
         array_unshift($array, $value);
+        
+        // Temporarily unlock to allow set() to work
+        $wasLocked = self::$locked;
+        self::$locked = false;
         self::set($key, $array);
+        self::$locked = $wasLocked;
     }
 
     /**
@@ -219,11 +401,19 @@ class Config
      * @param string $key The configuration key (supports dot notation)
      * @param mixed $default Default value if key doesn't exist
      * @return mixed The pulled value or default
+     * @throws RuntimeException If configuration is locked
      */
     public static function pull(string $key, mixed $default = null): mixed
     {
+        self::ensureNotLocked();
+
         $value = self::get($key, $default);
+        
+        // Temporarily unlock to allow forget() to work
+        $wasLocked = self::$locked;
+        self::$locked = false;
         self::forget($key);
+        self::$locked = $wasLocked;
 
         return $value;
     }
@@ -233,11 +423,19 @@ class Config
      *
      * @param string $key The configuration key (supports dot notation)
      * @param callable $callback The callback to execute when resolved
+     * @throws RuntimeException If configuration is locked
      */
     public static function macro(string $key, callable $callback): void
     {
+        self::ensureNotLocked();
+
         self::$macros[$key] = $callback;
+        
+        // Temporarily unlock to allow set() to work
+        $wasLocked = self::$locked;
+        self::$locked = false;
         self::set($key, $callback);
+        self::$locked = $wasLocked;
     }
 
     /**
@@ -521,5 +719,48 @@ class Config
             'size' => filesize($cachePath),
             'created_at' => $data['timestamp'] ? date('Y-m-d H:i:s', $data['timestamp']) : null,
         ];
+    }
+
+    /**
+     * Locks the configuration to prevent modifications
+     *
+     * Once locked, any attempt to modify configuration will throw an exception.
+     * This is useful for ensuring configuration immutability after initialization.
+     */
+    public static function lock(): void
+    {
+        self::$locked = true;
+    }
+
+    /**
+     * Unlocks the configuration to allow modifications
+     *
+     * Use with caution - this should primarily be used in testing scenarios.
+     */
+    public static function unlock(): void
+    {
+        self::$locked = false;
+    }
+
+    /**
+     * Checks if configuration is currently locked
+     *
+     * @return bool True if locked, false otherwise
+     */
+    public static function isLocked(): bool
+    {
+        return self::$locked;
+    }
+
+    /**
+     * Ensures configuration is not locked, throws exception if it is
+     *
+     * @throws RuntimeException If configuration is locked
+     */
+    protected static function ensureNotLocked(): void
+    {
+        if (self::$locked) {
+            throw new RuntimeException("Cannot modify configuration: Configuration is locked");
+        }
     }
 }
