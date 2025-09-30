@@ -294,3 +294,87 @@ if (!function_exists('timer_measure')) {
         return \Core\DebugTimer::measure($name, $callback);
     }
 }
+
+// ============================================================================
+// Memory Profiler Functions
+// ============================================================================
+
+if (!function_exists('memory_start')) {
+    /**
+     * Memory start - начать профилирование памяти
+     */
+    function memory_start(): void
+    {
+        \Core\MemoryProfiler::start();
+    }
+}
+
+if (!function_exists('memory_snapshot')) {
+    /**
+     * Memory snapshot - сделать снимок памяти
+     */
+    function memory_snapshot(string $name, ?string $label = null): array
+    {
+        return \Core\MemoryProfiler::snapshot($name, $label);
+    }
+}
+
+if (!function_exists('memory_current')) {
+    /**
+     * Memory current - получить текущее использование памяти
+     */
+    function memory_current(): int
+    {
+        return \Core\MemoryProfiler::current();
+    }
+}
+
+if (!function_exists('memory_peak')) {
+    /**
+     * Memory peak - получить пиковое использование памяти
+     */
+    function memory_peak(): int
+    {
+        return \Core\MemoryProfiler::peak();
+    }
+}
+
+if (!function_exists('memory_dump')) {
+    /**
+     * Memory dump - вывести профиль памяти
+     */
+    function memory_dump(): void
+    {
+        \Core\MemoryProfiler::dump();
+    }
+}
+
+if (!function_exists('memory_clear')) {
+    /**
+     * Memory clear - очистить снимки памяти
+     */
+    function memory_clear(): void
+    {
+        \Core\MemoryProfiler::clear();
+    }
+}
+
+if (!function_exists('memory_measure')) {
+    /**
+     * Memory measure - измерить использование памяти функцией
+     */
+    function memory_measure(string $name, callable $callback): mixed
+    {
+        return \Core\MemoryProfiler::measure($name, $callback);
+    }
+}
+
+if (!function_exists('memory_format')) {
+    /**
+     * Memory format - форматировать байты в читаемый вид
+     */
+    function memory_format(int $bytes, int $precision = 2): string
+    {
+        return \Core\MemoryProfiler::formatBytes($bytes, $precision);
+    }
+}
