@@ -759,3 +759,161 @@ it('typical workflow: load, configure, lock', function (): void {
         deleteDir($dir);
     }
 });
+
+// === Recursive Loading Tests ===
+
+it('loads configuration recursively from subdirectories', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    // Create subdirectories with configs
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp', 'host' => 'mail.example.com'], true) . ';'
+    );
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'sms.php',
+        '<?php return ' . var_export(['provider' => 'twilio'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true); // recursive = true
+
+        // Root level config
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Namespaced by directory
+        expect(Config::get('services.mail.driver'))->toBe('smtp');
+        expect(Config::get('services.mail.host'))->toBe('mail.example.com');
+        expect(Config::get('services.sms.provider'))->toBe('twilio');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('loads deeply nested configuration recursively', function (): void {
+    $dir = createTempConfigDir([]);
+
+    // Create deep nested structure
+    $deepPath = $dir . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'v1';
+    mkdir($deepPath, 0755, true);
+    file_put_contents(
+        $deepPath . DIRECTORY_SEPARATOR . 'github.php',
+        '<?php return ' . var_export(['token' => 'secret123', 'endpoint' => 'api.github.com'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true);
+
+        expect(Config::get('external.api.v1.github.token'))->toBe('secret123');
+        expect(Config::get('external.api.v1.github.endpoint'))->toBe('api.github.com');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('merges configs when loading multiple files with same namespace', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'version' => '1.0'],
+    ]);
+
+    $subDir = $dir . DIRECTORY_SEPARATOR . 'app';
+    mkdir($subDir, 0755, true);
+    file_put_contents(
+        $subDir . DIRECTORY_SEPARATOR . 'extra.php',
+        '<?php return ' . var_export(['feature' => 'enabled'], true) . ';'
+    );
+
+    try {
+        Config::load($dir, null, true);
+
+        // Top-level app config
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.version'))->toBe('1.0');
+        
+        // Subdirectory config in app.extra
+        expect(Config::get('app.extra.feature'))->toBe('enabled');
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('works with non-recursive mode (backward compatible)', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp'], true) . ';'
+    );
+
+    try {
+        Config::load($dir); // recursive = false (default)
+
+        // Root level should be loaded
+        expect(Config::get('app.name'))->toBe('MyApp');
+        
+        // Subdirectory should NOT be loaded
+        expect(Config::get('services.mail.driver'))->toBeNull();
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('ignores non-php files in recursive mode', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp'],
+    ]);
+
+    // Create non-PHP files
+    file_put_contents($dir . DIRECTORY_SEPARATOR . 'readme.txt', 'Just a text file');
+    file_put_contents($dir . DIRECTORY_SEPARATOR . 'config.json', '{"json": true}');
+
+    try {
+        Config::load($dir, null, true);
+
+        // Should only load PHP files
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::has('readme'))->toBeFalse();
+        expect(Config::has('config'))->toBeFalse();
+    } finally {
+        deleteDir($dir);
+    }
+});
+
+it('combines recursive loading with environment configs', function (): void {
+    $dir = createTempConfigDir([
+        'app.php' => ['name' => 'MyApp', 'env' => 'base'],
+    ]);
+
+    // Create services subdirectory
+    $servicesDir = $dir . DIRECTORY_SEPARATOR . 'services';
+    mkdir($servicesDir, 0755, true);
+    file_put_contents(
+        $servicesDir . DIRECTORY_SEPARATOR . 'mail.php',
+        '<?php return ' . var_export(['driver' => 'smtp'], true) . ';'
+    );
+
+    // Create local environment override
+    file_put_contents(
+        $dir . DIRECTORY_SEPARATOR . 'app.local.php',
+        '<?php return ' . var_export(['env' => 'local', 'debug' => true], true) . ';'
+    );
+
+    try {
+        Config::load($dir, 'local', true);
+
+        expect(Config::get('app.name'))->toBe('MyApp');
+        expect(Config::get('app.env'))->toBe('local'); // Overridden by environment
+        expect(Config::get('app.debug'))->toBe(true);
+        expect(Config::get('services.mail.driver'))->toBe('smtp'); // From recursive
+    } finally {
+        deleteDir($dir);
+    }
+});
