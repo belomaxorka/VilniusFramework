@@ -323,14 +323,16 @@ it('handles leftJoin', function (): void {
 });
 
 it('handles rightJoin', function (): void {
-    // SQLite не поддерживает RIGHT JOIN, поэтому проверяем только генерацию SQL
-    $sql = $this->queryBuilder->table('users')
+    // В SQLite RIGHT JOIN эмулируется через LEFT JOIN
+    $results = $this->queryBuilder->table('users')
         ->rightJoin('posts', 'users.id', '=', 'posts.user_id')
         ->select('users.name', 'posts.title')
-        ->toSql();
+        ->get();
 
-    expect($sql)->toContain('RIGHT JOIN');
-})->skip(fn() => $this->config['connections']['test']['driver'] === 'sqlite', 'SQLite does not support RIGHT JOIN');
+    expect($results)->toBeArray();
+    // RIGHT JOIN должен вернуть все посты, даже если нет связанного пользователя
+    expect($results)->toHaveCount(4); // У нас 4 поста в данных
+});
 
 it('handles crossJoin', function (): void {
     $this->connection->exec('CREATE TABLE colors (name TEXT)');
