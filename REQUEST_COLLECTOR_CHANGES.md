@@ -42,7 +42,10 @@
 ### 5. `docs/RequestCollectorQuickStart.md`
 Краткое руководство по использованию.
 
-### 6. `REQUEST_COLLECTOR_CHANGES.md`
+### 6. `docs/RequestCollectorSecurity.md`
+Подробная документация по безопасности и защите данных в production режиме.
+
+### 7. `REQUEST_COLLECTOR_CHANGES.md`
 Этот файл с описанием изменений.
 
 ## 🔧 Измененные файлы
@@ -149,13 +152,36 @@ Request Collector использует цветовую кодировку дл�
 
 ## 🔒 Безопасность
 
-Request Collector автоматически скрывает чувствительные данные:
+Request Collector обеспечивает многоуровневую защиту данных:
+
+### Всегда скрыто (все режимы)
 
 ```
-PHP_AUTH_PW       → ***HIDDEN***
-PHP_AUTH_USER     → ***HIDDEN***
-HTTP_AUTHORIZATION → ***HIDDEN***
+PHP_AUTH_PW           → ***HIDDEN***
+PHP_AUTH_USER         → ***HIDDEN***
+HTTP_AUTHORIZATION    → ***HIDDEN***
+DATABASE_URL          → ***HIDDEN***
+DB_PASSWORD           → ***HIDDEN***
+API_KEY               → ***HIDDEN***
+SECRET_KEY            → ***HIDDEN***
+AWS_SECRET            → ***HIDDEN***
+STRIPE_SECRET         → ***HIDDEN***
 ```
+
+### Автоматическое определение
+
+Любые переменные, содержащие в имени: `PASSWORD`, `SECRET`, `TOKEN`, `KEY`, `AUTH`, `CREDENTIAL`
+
+### Production режим (APP_ENV=production)
+
+🔒 **Дополнительная защита Server Variables:**
+
+- ✅ Безопасные переменные: `REQUEST_METHOD`, `REQUEST_URI`, `REQUEST_TIME`, `SERVER_PROTOCOL`
+- 🔒 Все остальные: `***HIDDEN (PRODUCTION MODE)***`
+- 🔴 Красный badge "🔒 PRODUCTION MODE"
+- ⚠️ Предупреждающее сообщение
+
+См. подробную документацию: [Request Collector Security](docs/RequestCollectorSecurity.md)
 
 ## 📈 Приоритет отображения
 
@@ -249,6 +275,7 @@ Request Collector имеет **минимальное влияние** на пр
 
 - **Полная документация**: `docs/RequestCollector.md`
 - **Quick Start**: `docs/RequestCollectorQuickStart.md`
+- **Security Guide**: `docs/RequestCollectorSecurity.md` ⭐ **NEW**
 - **Debug Toolbar**: `docs/DebugToolbar.md`
 - **Custom Collectors**: `docs/DebugToolbarCollectors.md`
 

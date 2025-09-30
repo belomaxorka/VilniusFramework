@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\Environment;
 
 /**
  * Коллектор информации о HTTP-запросе
@@ -103,7 +104,14 @@ class RequestCollector extends AbstractCollector
 
         // Server Variables
         if (!empty($this->data['server'])) {
-            $html .= $this->renderDataTable('Server Variables', $this->data['server'], true);
+            $isProduction = Environment::isProduction();
+            $title = 'Server Variables';
+            
+            if ($isProduction) {
+                $title .= ' <span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">🔒 PRODUCTION MODE</span>';
+            }
+            
+            $html .= $this->renderDataTable($title, $this->data['server'], true, $isProduction);
         }
 
         $html .= '</div>';
@@ -196,28 +204,85 @@ class RequestCollector extends AbstractCollector
     private function filterServer(array $server): array
     {
         $filtered = [];
-        $exclude = [
+        
+        // В production режиме скрываем почти все значения
+        $isProduction = Environment::isProduction();
+        
+        // Всегда скрываем чувствительные данные
+        $alwaysHidden = [
             'PHP_AUTH_PW',
             'PHP_AUTH_USER',
             'HTTP_AUTHORIZATION',
+            'DATABASE_URL',
+            'DB_PASSWORD',
+            'DB_USERNAME',
+            'API_KEY',
+            'SECRET_KEY',
+            'AWS_SECRET',
+            'STRIPE_SECRET',
+        ];
+
+        // В production режиме разрешаем показывать только базовые безопасные переменные
+        $safeInProduction = [
+            'REQUEST_METHOD',
+            'REQUEST_URI',
+            'REQUEST_TIME',
+            'REQUEST_TIME_FLOAT',
+            'SERVER_PROTOCOL',
+            'GATEWAY_INTERFACE',
+            'SERVER_SOFTWARE',
+            'QUERY_STRING',
+            'CONTENT_TYPE',
+            'CONTENT_LENGTH',
         ];
 
         foreach ($server as $key => $value) {
-            // Пропускаем чувствительные данные
-            if (in_array($key, $exclude)) {
-                $filtered[$key] = '***HIDDEN***';
-                continue;
-            }
-
             // Пропускаем HTTP_ заголовки (они в отдельной секции)
             if (str_starts_with($key, 'HTTP_')) {
                 continue;
             }
 
-            $filtered[$key] = $value;
+            // Всегда скрываем чувствительные данные
+            if ($this->isSensitiveKey($key, $alwaysHidden)) {
+                $filtered[$key] = '***HIDDEN***';
+                continue;
+            }
+
+            // В production режиме скрываем всё, кроме безопасных переменных
+            if ($isProduction) {
+                if (in_array($key, $safeInProduction)) {
+                    $filtered[$key] = $value;
+                } else {
+                    $filtered[$key] = '***HIDDEN (PRODUCTION MODE)***';
+                }
+            } else {
+                // В development режиме показываем всё
+                $filtered[$key] = $value;
+            }
         }
 
         return $filtered;
+    }
+
+    /**
+     * Проверить, является ли ключ чувствительным
+     */
+    private function isSensitiveKey(string $key, array $sensitiveKeys): bool
+    {
+        // Точное совпадение
+        if (in_array($key, $sensitiveKeys)) {
+            return true;
+        }
+
+        // Проверяем по паттернам
+        $patterns = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'AUTH', 'CREDENTIAL'];
+        foreach ($patterns as $pattern) {
+            if (str_contains(strtoupper($key), $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -303,7 +368,7 @@ class RequestCollector extends AbstractCollector
     /**
      * Рендер таблицы с данными
      */
-    private function renderDataTable(string $title, array $data, bool $collapsible = false): string
+    private function renderDataTable(string $title, array $data, bool $collapsible = false, bool $isProduction = false): string
     {
         $tableId = 'table_' . md5($title . random_bytes(8));
         
@@ -314,13 +379,21 @@ class RequestCollector extends AbstractCollector
             $html .= 'onclick="document.getElementById(\'' . $tableId . '\').style.display = document.getElementById(\'' . $tableId . '\').style.display === \'none\' ? \'table\' : \'none\'"';
         }
         
-        $html .= '>📋 ' . htmlspecialchars($title) . ' <span style="color: #757575; font-size: 12px;">(' . count($data) . ')</span>';
+        $html .= '>📋 ' . $title . ' <span style="color: #757575; font-size: 12px;">(' . count($data) . ')</span>';
         
         if ($collapsible) {
             $html .= ' <span style="font-size: 12px; color: #757575;">[click to toggle]</span>';
         }
         
         $html .= '</h4>';
+        
+        // Предупреждение для production режима
+        if ($isProduction) {
+            $html .= '<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 10px; color: #856404;">';
+            $html .= '⚠️ <strong>Production Mode:</strong> Sensitive server variables are hidden for security reasons. ';
+            $html .= 'Only safe variables are shown.';
+            $html .= '</div>';
+        }
         
         $html .= '<table id="' . $tableId . '" style="width: 100%; border-collapse: collapse; background: white; ' . ($collapsible ? 'display: none;' : '') . '">';
         $html .= '<thead>';

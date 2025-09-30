@@ -61,12 +61,32 @@ Request Collector имеет приоритет `90`, что означает, �
 
 ## Безопасность
 
-Request Collector автоматически скрывает чувствительные данные:
-- `PHP_AUTH_PW`
-- `PHP_AUTH_USER`
-- `HTTP_AUTHORIZATION`
+Request Collector обеспечивает многоуровневую защиту чувствительных данных:
 
-Эти поля отображаются как `***HIDDEN***`.
+### В любом режиме (Development/Production)
+
+Автоматически скрываются переменные, содержащие:
+- `PHP_AUTH_PW` → `***HIDDEN***`
+- `PHP_AUTH_USER` → `***HIDDEN***`
+- `HTTP_AUTHORIZATION` → `***HIDDEN***`
+- `DATABASE_URL` → `***HIDDEN***`
+- `DB_PASSWORD` → `***HIDDEN***`
+- `API_KEY` → `***HIDDEN***`
+- `SECRET_KEY` → `***HIDDEN***`
+
+И любые переменные, содержащие в имени: `PASSWORD`, `SECRET`, `TOKEN`, `KEY`, `AUTH`, `CREDENTIAL`
+
+### В Production режиме
+
+В production режиме (`APP_ENV=production`) дополнительная защита:
+
+🔒 **Server Variables скрыты** (кроме безопасных):
+- Показываются только: `REQUEST_METHOD`, `REQUEST_URI`, `REQUEST_TIME`, `SERVER_PROTOCOL`
+- Все остальные переменные: `***HIDDEN (PRODUCTION MODE)***`
+- Визуальная индикация: красный badge "🔒 PRODUCTION MODE"
+- Предупреждающее сообщение перед таблицей
+
+Подробнее: [Request Collector Security](RequestCollectorSecurity.md)
 
 ## Определение IP-адреса
 
@@ -167,4 +187,5 @@ Request Collector совместим с:
 - [Debug Toolbar](DebugToolbar.md)
 - [Debug Quick Start](DebugQuickStart.md)
 - [Custom Collectors](DebugToolbarCollectors.md)
+- [Request Collector Security](RequestCollectorSecurity.md) - подробности о защите данных
 
