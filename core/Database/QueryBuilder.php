@@ -780,50 +780,18 @@ class QueryBuilder
     protected function compileJoins(): string
     {
         $sql = '';
-        $driver = $this->db->getDriverName();
         
         foreach ($this->joins as $join) {
             if ($join instanceof JoinClause) {
-                // Эмулируем RIGHT JOIN для SQLite
-                if ($driver === 'sqlite' && $join->getType() === 'RIGHT') {
-                    $sql .= ' ' . $this->emulateRightJoinForSqlite($join);
-                } else {
-                    $sql .= ' ' . $join->toSql();
-                }
+                $sql .= ' ' . $join->toSql();
             } elseif ($join['type'] === 'CROSS') {
                 $sql .= " CROSS JOIN {$join['table']}";
-            } elseif ($join['type'] === 'RIGHT' && $driver === 'sqlite') {
-                // Эмулируем простой RIGHT JOIN для SQLite
-                // RIGHT JOIN = LEFT JOIN с перевернутыми таблицами
-                // Это упрощенная эмуляция, работает только для простых случаев
-                $sql .= " LEFT JOIN {$join['table']} ON {$join['second']} {$join['operator']} {$join['first']}";
             } else {
                 $sql .= " {$join['type']} JOIN {$join['table']} ON {$join['first']} {$join['operator']} {$join['second']}";
             }
         }
         
         return $sql;
-    }
-
-    /**
-     * Эмулировать RIGHT JOIN для SQLite через LEFT JOIN
-     */
-    protected function emulateRightJoinForSqlite(JoinClause $join): string
-    {
-        // Преобразуем RIGHT JOIN в LEFT JOIN
-        $newJoin = new JoinClause($join->getTable(), 'LEFT');
-        
-        // Инвертируем условия ON
-        foreach ($join->getConditions() as $condition) {
-            $newJoin->on(
-                $condition['second'],
-                $condition['operator'],
-                $condition['first'],
-                $condition['boolean']
-            );
-        }
-        
-        return $newJoin->toSql();
     }
 
     /**
@@ -1023,21 +991,6 @@ class JoinClause
     public function orOn(string $first, string $operator, string $second): self
     {
         return $this->on($first, $operator, $second, 'OR');
-    }
-
-    public function getType(): string
-    {
-        return $this->type;
-    }
-
-    public function getTable(): string
-    {
-        return $this->table;
-    }
-
-    public function getConditions(): array
-    {
-        return $this->conditions;
     }
 
     public function toSql(): string
