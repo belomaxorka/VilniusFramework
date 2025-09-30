@@ -37,6 +37,16 @@ class Environment
     }
 
     /**
+     * Установить режим отладки (для тестов)
+     * Автоматически сбрасывает кеш
+     */
+    public static function setDebug(bool $debug): void
+    {
+        Env::set('APP_DEBUG', $debug);
+        self::$isDebugCache = null; // Сбрасываем кеш
+    }
+
+    /**
      * Проверить, является ли окружение разработкой
      */
     public static function isDevelopment(): bool
@@ -65,6 +75,11 @@ class Environment
      */
     public static function isDebug(): bool
     {
+        // Важно: НЕ кешируем в тестовом окружении, так как тесты часто меняют настройки
+        if (self::isTesting() && self::$isDebugCache !== null) {
+            self::$isDebugCache = null; // Сбрасываем кеш в тестах
+        }
+        
         // Кешируем результат для производительности (вызывается очень часто)
         if (self::$isDebugCache !== null) {
             return self::$isDebugCache;
