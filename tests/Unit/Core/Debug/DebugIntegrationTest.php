@@ -5,7 +5,7 @@ use Core\Environment;
 use Core\ErrorHandler;
 
 beforeEach(function () {
-    Environment::set(Environment::TESTING);
+    Environment::set(Environment::DEVELOPMENT);
     Debug::clear();
     Debug::clearOutput();
 });

@@ -7,7 +7,7 @@ use Core\QueryDebugger;
 use Core\DebugContext;
 
 beforeEach(function () {
-    Environment::set(Environment::TESTING);
+    Environment::set(Environment::DEVELOPMENT);
     Debug::clearOutput();
     QueryDebugger::clear();
     DebugContext::clear();

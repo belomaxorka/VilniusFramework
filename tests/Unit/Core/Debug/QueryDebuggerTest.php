@@ -5,7 +5,7 @@ use Core\Debug;
 use Core\Environment;
 
 beforeEach(function () {
-    Environment::set(Environment::TESTING);
+    Environment::set(Environment::DEVELOPMENT);
     QueryDebugger::clear();
     Debug::clearOutput();
     

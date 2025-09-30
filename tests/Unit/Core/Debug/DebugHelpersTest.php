@@ -4,7 +4,7 @@ use Core\Debug;
 use Core\Environment;
 
 beforeEach(function () {
-    Environment::set(Environment::TESTING);
+    Environment::set(Environment::DEVELOPMENT);
     Debug::clear();
     Debug::clearOutput();
 });
