@@ -62,10 +62,18 @@ class Lang
                             return $lang;
                         }
                     }
+                    
+                    // No supported language found in browser preferences
+                    return self::$fallbackLang;
                 }
 
+                // If no supported languages configured, use first from browser
                 if (!empty($languages)) {
-                    return array_key_first($languages);
+                    $firstLang = array_key_first($languages);
+                    // But validate it's a proper language code
+                    if (preg_match('/^[a-z]{2}$/', $firstLang)) {
+                        return $firstLang;
+                    }
                 }
             }
         }
@@ -115,6 +123,11 @@ class Lang
         }
 
         $message = $currentValue ?? $fallbackValue ?? $key;
+
+        // Ensure we return a string (not array)
+        if (!is_string($message)) {
+            return $key;
+        }
 
         // Replace placeholders
         if (!empty($params)) {

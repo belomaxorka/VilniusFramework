@@ -241,9 +241,9 @@ describe('Edge cases', function () {
             ],
         ]);
         
-        // Getting an array should return it as-is or handle appropriately
+        // Getting an array should return the key (since we can't return non-string)
         $result = Lang::get('data.items');
-        expect($result)->toBeArray();
+        expect($result)->toBe('data.items');
     });
 });
 
