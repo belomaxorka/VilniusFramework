@@ -312,7 +312,7 @@ class Debug
     /**
      * Преобразовать переменную в строку
      */
-    private static function varToString(mixed $var, int $depth = 0): string
+    private static function varToString(mixed $var, int $depth = 0, array &$objectHashes = []): string
     {
         if ($depth > self::$maxDepth) {
             return '... (max depth reached)';
@@ -343,13 +343,23 @@ class Debug
 
             $result = "array(\n";
             foreach ($var as $key => $value) {
-                $result .= $indent . '  ' . (is_string($key) ? '"' . addslashes($key) . '"' : $key) . ' => ' . self::varToString($value, $depth + 1) . ",\n";
+                $result .= $indent . '  ' . (is_string($key) ? '"' . addslashes($key) . '"' : $key) . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
             $result .= $indent . ')';
             return $result;
         }
 
         if (is_object($var)) {
+            $objectId = spl_object_id($var);
+            
+            // Проверяем циклическую ссылку
+            if (in_array($objectId, $objectHashes)) {
+                return '*CIRCULAR REFERENCE*';
+            }
+            
+            // Добавляем объект в список посещенных
+            $objectHashes[] = $objectId;
+            
             $class = get_class($var);
             $result = "object({$class}) {\n";
 
@@ -359,10 +369,14 @@ class Debug
             foreach ($properties as $property) {
                 $property->setAccessible(true);
                 $value = $property->getValue($var);
-                $result .= $indent . '  ' . $property->getName() . ' => ' . self::varToString($value, $depth + 1) . ",\n";
+                $result .= $indent . '  ' . $property->getName() . ' => ' . self::varToString($value, $depth + 1, $objectHashes) . ",\n";
             }
 
             $result .= $indent . '}';
+            
+            // Убираем объект из списка при возврате (для обработки разных веток)
+            array_pop($objectHashes);
+            
             return $result;
         }
 
@@ -376,7 +390,7 @@ class Debug
     /**
      * Преобразовать переменную в строку с красивым форматированием
      */
-    private static function varToStringPretty(mixed $var, int $depth = 0): string
+    private static function varToStringPretty(mixed $var, int $depth = 0, array &$objectHashes = []): string
     {
         if ($depth > self::$maxDepth) {
             return '<span style="color: #808080;">... (max depth reached)</span>';
@@ -408,15 +422,25 @@ class Debug
             $result = '<span style="color: #4ec9b0;">array</span> <span style="color: #808080;">(</span><br>';
             foreach ($var as $key => $value) {
                 $keyStr = is_string($key) ? '<span style="color: #ce9178;">"' . htmlspecialchars($key) . '"</span>' : '<span style="color: #b5cea8;">' . $key . '</span>';
-                $result .= $indent . '  ' . $keyStr . ' <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1) . '<span style="color: #808080;">,</span><br>';
+                $result .= $indent . '  ' . $keyStr . ' <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1, $objectHashes) . '<span style="color: #808080;">,</span><br>';
             }
             $result .= $indent . '<span style="color: #808080;">)</span>';
             return $result;
         }
 
         if (is_object($var)) {
+            $objectId = spl_object_id($var);
+            
+            // Проверяем циклическую ссылку
+            if (in_array($objectId, $objectHashes)) {
+                return '<span style="color: #f44336;">*CIRCULAR REFERENCE*</span>';
+            }
+            
+            // Добавляем объект в список посещенных
+            $objectHashes[] = $objectId;
+            
             $class = get_class($var);
-            $result = '<span style="color: #4ec9b0;">object</span> <span style="color: #4ec9b0;">(' . $class . ')</span> <span style="color: #808080;">{</span><br>';
+            $result = '<span style="color: #4ec9b0;">object</span> <span style="color: #4ec9b0;">(' . htmlspecialchars($class) . ')</span> <span style="color: #808080;">{</span><br>';
 
             $reflection = new \ReflectionObject($var);
             $properties = $reflection->getProperties();
@@ -424,10 +448,14 @@ class Debug
             foreach ($properties as $property) {
                 $property->setAccessible(true);
                 $value = $property->getValue($var);
-                $result .= $indent . '  <span style="color: #9cdcfe;">' . $property->getName() . '</span> <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1) . '<span style="color: #808080;">,</span><br>';
+                $result .= $indent . '  <span style="color: #9cdcfe;">' . $property->getName() . '</span> <span style="color: #808080;">=></span> ' . self::varToStringPretty($value, $depth + 1, $objectHashes) . '<span style="color: #808080;">,</span><br>';
             }
 
             $result .= $indent . '<span style="color: #808080;">}</span>';
+            
+            // Убираем объект из списка при возврате
+            array_pop($objectHashes);
+            
             return $result;
         }
 
