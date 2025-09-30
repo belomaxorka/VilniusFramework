@@ -265,9 +265,9 @@ it('generates correct SQL for orWhere', function (): void {
 it('handles nested where conditions', function (): void {
     $results = $this->queryBuilder->table('users')
         ->where('country', 'USA')
-        ->where(function($query) {
+        ->where(function ($query) {
             $query->where('age', '>', 25)
-                  ->orWhere('verified', 1);
+                ->orWhere('verified', 1);
         })
         ->get();
 
@@ -277,9 +277,9 @@ it('handles nested where conditions', function (): void {
 it('generates correct SQL for nested conditions', function (): void {
     $sql = $this->queryBuilder->table('users')
         ->where('active', 1)
-        ->where(function($query) {
+        ->where(function ($query) {
             $query->where('age', '>', 18)
-                  ->orWhere('verified', 1);
+                ->orWhere('verified', 1);
         })
         ->toSql();
 
@@ -333,13 +333,13 @@ it('handles rightJoin', function (): void {
     // Проверяем, что SQL генерируется корректно
     expect($sql)->toContain('JOIN');
     expect($sql)->toContain('posts');
-})->skip(fn() => $this->config['connections']['test']['driver'] === 'sqlite', 
+})->skip(fn() => $this->config['connections']['test']['driver'] === 'sqlite',
     'SQLite does not support RIGHT JOIN. Full emulation requires query restructuring.');
 
 it('handles crossJoin', function (): void {
     $this->connection->exec('CREATE TABLE colors (name TEXT)');
     $this->connection->exec("INSERT INTO colors VALUES ('red'), ('blue')");
-    
+
     $this->connection->exec('CREATE TABLE sizes (name TEXT)');
     $this->connection->exec("INSERT INTO sizes VALUES ('S'), ('M')");
 
@@ -388,7 +388,7 @@ it('handles having', function (): void {
         ->get();
 
     expect($results)->toHaveCount(3); // Все 3 пользователя имеют посты
-    
+
     // Проверяем что user_id=1 имеет 2 поста
     $user1Posts = array_filter($results, fn($r) => $r['user_id'] == 1);
     expect(count($user1Posts))->toBe(1);
@@ -404,7 +404,7 @@ it('handles having with manual filtering', function (): void {
 
     // Фильтруем результаты вручную
     $filtered = array_filter($results, fn($r) => $r['post_count'] >= 2);
-    
+
     // Только user_id=1 имеет >= 2 постов
     expect(count($filtered))->toBe(1);
     expect(array_values($filtered)[0]['user_id'])->toBe(1);
@@ -792,9 +792,9 @@ it('handles complex query with all features', function (): void {
         ->select('users.*', 'COUNT(posts.id) as post_count')
         ->leftJoin('posts', 'users.id', '=', 'posts.user_id')
         ->where('users.active', 1)
-        ->where(function($query) {
+        ->where(function ($query) {
             $query->where('users.age', '>', 25)
-                  ->orWhereNotNull('users.email_verified_at');
+                ->orWhereNotNull('users.email_verified_at');
         })
         ->whereIn('users.country', ['USA', 'Canada'])
         ->groupBy('users.id')
@@ -815,7 +815,7 @@ it('validates order direction', function (): void {
 
 it('handles limit with zero value', function (): void {
     $query = $this->queryBuilder->table('users')->limit(0);
-    
+
     $reflection = new ReflectionClass($query);
     $limitProperty = $reflection->getProperty('limit');
     $limitProperty->setAccessible(true);
@@ -826,7 +826,7 @@ it('handles limit with zero value', function (): void {
 
 it('handles offset with negative value', function (): void {
     $query = $this->queryBuilder->table('users')->offset(-5);
-    
+
     $reflection = new ReflectionClass($query);
     $offsetProperty = $reflection->getProperty('offset');
     $offsetProperty->setAccessible(true);

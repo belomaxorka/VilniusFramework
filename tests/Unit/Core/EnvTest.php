@@ -181,7 +181,7 @@ describe('Env::load()', function () {
         $firstResult = Env::load();
         // Может быть true (если .env найден) или false (если не найден)
         expect($firstResult)->toBeBool();
-        
+
         // Второй вызов без пути: должен вернуть true, т.к. уже отмечен как "загружен"
         // Это предотвращает повторные поиски файла при каждом Env::get()
         $secondResult = Env::load();
@@ -214,11 +214,11 @@ describe('Env::load()', function () {
     test('reload parameter works with default path', function () {
         // Первая загрузка
         Env::load();
-        
+
         // Повторная загрузка без reload возвращает true сразу
         $result = Env::load();
         expect($result)->toBeTrue();
-        
+
         // С reload=true пытается загрузить заново
         $result = Env::load(reload: true);
         expect($result)->toBeBool();
