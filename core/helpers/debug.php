@@ -526,3 +526,38 @@ if (!function_exists('query_measure')) {
         return \Core\QueryDebugger::measure($callback, $label);
     }
 }
+
+// ============================================================================
+// Dump Server Functions
+// ============================================================================
+
+if (!function_exists('server_dump')) {
+    /**
+     * Server dump - отправить dump на dump server
+     */
+    function server_dump(mixed $data, ?string $label = null): bool
+    {
+        return \Core\DumpClient::dump($data, $label);
+    }
+}
+
+if (!function_exists('dd_server')) {
+    /**
+     * DD Server - dump to server and die
+     */
+    function dd_server(mixed $data, ?string $label = null): never
+    {
+        \Core\DumpClient::dump($data, $label);
+        exit(1);
+    }
+}
+
+if (!function_exists('dump_server_available')) {
+    /**
+     * Check if dump server is available
+     */
+    function dump_server_available(): bool
+    {
+        return \Core\DumpClient::isServerAvailable();
+    }
+}
