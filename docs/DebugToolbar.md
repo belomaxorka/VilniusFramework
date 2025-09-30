@@ -45,7 +45,27 @@ Debug Toolbar - интерактивная панель отладки, объе
 
 ## Использование
 
+### Автоматическая интеграция
+
+Debug Toolbar автоматически интегрируется через `TemplateEngine::display()`:
+
+```php
+// В контроллере
+public function index() 
+{
+    dump($data, 'User Data'); // Будет в toolbar
+    dump_pretty($config, 'Config'); // Будет в toolbar
+    
+    return view('index', compact('data'));
+    // Toolbar автоматически добавится перед </body>
+}
+```
+
+**По умолчанию:** все вызовы `dump()`, `dd()`, и т.д. собираются только для toolbar и НЕ выводятся на странице.
+
 ### В шаблонах (Templates)
+
+Если используете свой шаблонизатор (не TemplateEngine):
 
 ```php
 <!-- layout.php -->
@@ -113,6 +133,25 @@ DebugToolbar::setCollapsed(true);
 
 // Развернут (по умолчанию)
 DebugToolbar::setCollapsed(false);
+```
+
+### Управление выводом на странице
+
+```php
+use Core\Debug;
+
+// По умолчанию: dumps только в toolbar
+dump($data); // Только в toolbar
+
+// Включить вывод на странице И в toolbar
+Debug::setRenderOnPage(true);
+// или
+debug_render_on_page(true);
+
+dump($data); // Теперь и на странице, и в toolbar
+
+// Отключить обратно
+Debug::setRenderOnPage(false);
 ```
 
 ## Интерактивность

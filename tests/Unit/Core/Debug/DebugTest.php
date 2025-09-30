@@ -389,3 +389,53 @@ describe('Edge Cases', function () {
         expect($output)->toContain('number');
     });
 });
+
+describe('Debug Render On Page', function () {
+    test('renderOnPage is false by default', function () {
+        expect(Debug::isRenderOnPage())->toBeFalse();
+    });
+
+    test('setRenderOnPage() changes render behavior', function () {
+        Debug::setRenderOnPage(true);
+        expect(Debug::isRenderOnPage())->toBeTrue();
+        
+        Debug::setRenderOnPage(false);
+        expect(Debug::isRenderOnPage())->toBeFalse();
+    });
+
+    test('debug_render_on_page() helper function works', function () {
+        debug_render_on_page(true);
+        expect(Debug::isRenderOnPage())->toBeTrue();
+        
+        debug_render_on_page(false);
+        expect(Debug::isRenderOnPage())->toBeFalse();
+    });
+
+    test('shutdown handler does not flush when renderOnPage is false', function () {
+        Debug::setRenderOnPage(false);
+        Debug::dump(['test' => 'data']);
+        
+        // Симулируем shutdown - данные должны остаться в буфере
+        expect(Debug::hasOutput())->toBeTrue();
+        
+        // Данные доступны для toolbar
+        $output = Debug::getOutput();
+        expect($output)->toContain('test');
+    });
+
+    test('data is available for toolbar regardless of renderOnPage setting', function () {
+        Debug::setRenderOnPage(false);
+        Debug::dump(['user' => 'John'], 'User Data');
+        Debug::dumpPretty(['config' => 'value'], 'Config');
+        
+        // Данные в буфере для toolbar
+        expect(Debug::hasOutput())->toBeTrue();
+        
+        $outputArray = Debug::getOutput(true);
+        expect(count($outputArray))->toBe(2);
+        
+        $output = Debug::getOutput();
+        expect($output)->toContain('User Data');
+        expect($output)->toContain('Config');
+    });
+});

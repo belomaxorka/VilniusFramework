@@ -9,6 +9,7 @@ class Debug
     private static int $maxDepth = 10;
     private static bool $showBacktrace = true;
     private static bool $autoDisplay = true; // Автоматический вывод в конце
+    private static bool $renderOnPage = false; // Рендерить на странице (false = только в toolbar)
 
     /**
      * Дебаг переменной (аналог var_dump)
@@ -235,6 +236,22 @@ class Debug
     }
 
     /**
+     * Установить рендеринг на странице (true = на странице + toolbar, false = только toolbar)
+     */
+    public static function setRenderOnPage(bool $renderOnPage): void
+    {
+        self::$renderOnPage = $renderOnPage;
+    }
+
+    /**
+     * Получить статус рендеринга на странице
+     */
+    public static function isRenderOnPage(): bool
+    {
+        return self::$renderOnPage;
+    }
+
+    /**
      * Установить максимальную глубину рекурсии
      */
     public static function setMaxDepth(int $depth): void
@@ -256,7 +273,12 @@ class Debug
     public static function registerShutdownHandler(): void
     {
         register_shutdown_function(function () {
-            if (self::$autoDisplay && Environment::isDevelopment() && self::hasOutput()) {
+            // Выводим на страницу только если:
+            // 1. Включен autoDisplay
+            // 2. Окружение development
+            // 3. Есть данные для вывода
+            // 4. Включен renderOnPage (иначе данные будут только в toolbar)
+            if (self::$autoDisplay && Environment::isDevelopment() && self::hasOutput() && self::$renderOnPage) {
                 self::flush();
             }
         });

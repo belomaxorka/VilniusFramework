@@ -221,6 +221,17 @@ if (!function_exists('has_debug_output')) {
     }
 }
 
+if (!function_exists('debug_render_on_page')) {
+    /**
+     * Debug render on page - включить/выключить рендеринг на странице
+     * По умолчанию false (данные только в toolbar)
+     */
+    function debug_render_on_page(bool $enabled = true): void
+    {
+        Debug::setRenderOnPage($enabled);
+    }
+}
+
 // ============================================================================
 // Debug Timer Functions
 // ============================================================================
