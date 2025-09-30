@@ -20,9 +20,6 @@ final class Core
 
     private static function initDebugSystem(): void
     {
-        // Загружаем дебаг хелпер
-        HelperLoader::loadHelper('debug');
-
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
 
