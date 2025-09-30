@@ -17,11 +17,18 @@ display('user.tpl', ['name' => 'Иван']);
 
 **Development (APP_ENV=development):**
 ```
-Warning: Undefined variable $email in template.php on line 15
+┌─────────────────────────────────────────┐
+│ Error - Fatal Error                    │
+├─────────────────────────────────────────┤
+│ Message: Undefined variable $email     │
+│ File: welcome.tpl:15                    │
+│ Stack Trace: ...                        │
+└─────────────────────────────────────────┘
 ```
-- Ошибка видна на странице
+- Ошибка отображается через красивый ErrorHandler
+- Детальная информация о файле и строке
+- Stack trace для отладки
 - Помогает быстро найти проблему
-- Может сломать верстку
 
 **Production (APP_ENV=production) БЕЗ логирования:**
 ```

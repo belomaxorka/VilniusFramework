@@ -345,9 +345,13 @@ class TemplateEngine
                     }
                     self::$undefinedVars[$varName]['count']++;
                     
-                    // В development показываем ошибку (если не подавлена)
+                    // В development показываем ошибку через ErrorHandler
                     if (Environment::isDevelopment() && error_reporting() & $severity) {
-                        // Продолжаем стандартную обработку
+                        // Вызываем наш ErrorHandler для красивого отображения
+                        if (class_exists('\Core\ErrorHandler')) {
+                            return \Core\ErrorHandler::handleError($severity, $message, $file, $line);
+                        }
+                        // Если ErrorHandler недоступен, используем стандартную обработку
                         return false;
                     }
                     
@@ -356,7 +360,10 @@ class TemplateEngine
                 }
             }
             
-            // Для других ошибок используем стандартную обработку
+            // Для других ошибок вызываем ErrorHandler или стандартную обработку
+            if (class_exists('\Core\ErrorHandler')) {
+                return \Core\ErrorHandler::handleError($severity, $message, $file, $line);
+            }
             return false;
         });
 
