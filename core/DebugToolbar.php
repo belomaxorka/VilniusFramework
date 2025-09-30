@@ -5,6 +5,7 @@ namespace Core;
 use Core\DebugToolbar\CollectorInterface;
 use Core\DebugToolbar\Collectors\CacheCollector;
 use Core\DebugToolbar\Collectors\OverviewCollector;
+use Core\DebugToolbar\Collectors\RequestCollector;
 use Core\DebugToolbar\Collectors\DumpsCollector;
 use Core\DebugToolbar\Collectors\QueriesCollector;
 use Core\DebugToolbar\Collectors\TimersCollector;
@@ -30,6 +31,7 @@ class DebugToolbar
 
         // Регистрируем стандартные коллекторы
         self::addCollector(new OverviewCollector());
+        self::addCollector(new RequestCollector());
         self::addCollector(new DumpsCollector());
         self::addCollector(new QueriesCollector());
         self::addCollector(new TimersCollector());

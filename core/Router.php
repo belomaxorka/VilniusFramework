@@ -16,6 +16,13 @@ class Router
         $this->addRoute('POST', $uri, $action);
     }
 
+    public function any(string $uri, callable|array $action): void
+    {
+        foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as $method) {
+            $this->addRoute($method, $uri, $action);
+        }
+    }
+
     protected function addRoute(string $method, string $uri, callable|array $action): void
     {
         // Преобразуем {param:regex} в (?P<param>regex)
