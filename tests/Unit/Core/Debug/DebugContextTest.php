@@ -431,6 +431,9 @@ describe('Real Usage Scenarios', function () {
         context_dump();
         
         $output = Debug::getOutput();
-        expect($output)->toContain('API');
+        // Проверяем наличие контекста (иконка или items)
+        expect($output)->toContain('Debug Contexts');
+        expect($output)->toContain('endpoint');
+        expect($output)->toContain('POST /api/users');
     });
 });

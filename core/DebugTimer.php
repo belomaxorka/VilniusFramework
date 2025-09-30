@@ -36,8 +36,11 @@ class DebugTimer
             return 0.0;
         }
 
-        self::$timers[$name]['end'] = microtime(true);
-        
+        // Останавливаем только если еще не остановлен
+        if (self::$timers[$name]['end'] === null) {
+            self::$timers[$name]['end'] = microtime(true);
+        }
+
         return self::getElapsed($name);
     }
 
@@ -154,22 +157,22 @@ class DebugTimer
             $output .= '<strong>Lap Times:</strong><br>';
             $output .= '<table style="width: 100%; border-collapse: collapse; margin-top: 5px;">';
             $output .= '<tr style="border-bottom: 1px solid #e0e0e0;"><th style="text-align: left; padding: 5px;">Lap</th><th style="text-align: left; padding: 5px;">Label</th><th style="text-align: right; padding: 5px;">Time</th><th style="text-align: right; padding: 5px;">Interval</th></tr>';
-            
+
             $prevTime = $timer['start'];
             foreach ($timer['laps'] as $index => $lap) {
                 $interval = ($lap['time'] - $prevTime) * 1000;
                 $label = $lap['label'] ?? '#' . ($index + 1);
-                
+
                 $output .= '<tr>';
                 $output .= '<td style="padding: 5px;">#' . ($index + 1) . '</td>';
                 $output .= '<td style="padding: 5px;">' . htmlspecialchars($label) . '</td>';
                 $output .= '<td style="padding: 5px; text-align: right; color: #2e7d32;">' . number_format($lap['elapsed'], 2) . 'ms</td>';
                 $output .= '<td style="padding: 5px; text-align: right; color: #757575;">+' . number_format($interval, 2) . 'ms</td>';
                 $output .= '</tr>';
-                
+
                 $prevTime = $lap['time'];
             }
-            
+
             $output .= '</table>';
             $output .= '</div>';
         }
@@ -213,7 +216,7 @@ class DebugTimer
         }
 
         self::start($name);
-        
+
         try {
             $result = $callback();
         } finally {
