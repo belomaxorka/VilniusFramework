@@ -44,9 +44,9 @@ beforeEach(function (): void {
 
 it('enables query logging', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
-    
+
     $log = $this->db->getQueryLog();
     expect($log)->toHaveCount(1);
 });
@@ -54,34 +54,34 @@ it('enables query logging', function (): void {
 it('disables query logging', function (): void {
     $this->db->enableQueryLog();
     $this->db->select('SELECT * FROM test_table');
-    
+
     $this->db->disableQueryLog();
     $this->db->select('SELECT * FROM test_table');
-    
+
     $log = $this->db->getQueryLog();
     expect($log)->toHaveCount(1); // Только первый запрос
 });
 
 it('logs query with bindings', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table WHERE id = ?', [1]);
-    
+
     $log = $this->db->getQueryLog();
     expect($log[0])->toHaveKey('query');
     expect($log[0])->toHaveKey('bindings');
     expect($log[0])->toHaveKey('time');
     expect($log[0])->toHaveKey('timestamp');
-    
+
     expect($log[0]['query'])->toBe('SELECT * FROM test_table WHERE id = ?');
     expect($log[0]['bindings'])->toBe([1]);
 });
 
 it('logs query execution time', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
-    
+
     $log = $this->db->getQueryLog();
     expect($log[0]['time'])->toBeFloat();
     expect($log[0]['time'])->toBeGreaterThanOrEqual(0);
@@ -89,13 +89,13 @@ it('logs query execution time', function (): void {
 
 it('logs failed queries', function (): void {
     $this->db->enableQueryLog();
-    
+
     try {
         $this->db->select('INVALID SQL QUERY');
     } catch (QueryException $e) {
         // Ожидаем исключение
     }
-    
+
     $log = $this->db->getQueryLog();
     expect($log[0])->toHaveKey('error');
     expect($log[0]['error'])->not->toBeNull();
@@ -103,10 +103,10 @@ it('logs failed queries', function (): void {
 
 it('gets last query', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table WHERE id = ?', [1]);
     $this->db->select('SELECT * FROM test_table WHERE id = ?', [2]);
-    
+
     $lastQuery = $this->db->getLastQuery();
     expect($lastQuery['query'])->toBe('SELECT * FROM test_table WHERE id = ?');
     expect($lastQuery['bindings'])->toBe([2]);
@@ -119,22 +119,22 @@ it('returns null for last query when no queries', function (): void {
 
 it('flushes query log', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
     expect($this->db->getQueryLog())->toHaveCount(1);
-    
+
     $this->db->flushQueryLog();
     expect($this->db->getQueryLog())->toHaveCount(0);
 });
 
 it('logs multiple queries', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
     $this->db->insert('INSERT INTO test_table (name, value) VALUES (?, ?)', ['item4', 40]);
     $this->db->update('UPDATE test_table SET value = ? WHERE id = ?', [50, 1]);
     $this->db->delete('DELETE FROM test_table WHERE id = ?', [3]);
-    
+
     $log = $this->db->getQueryLog();
     expect($log)->toHaveCount(4);
 });
@@ -145,20 +145,20 @@ it('logs multiple queries', function (): void {
 
 it('calculates query statistics', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
     $this->db->select('SELECT * FROM test_table WHERE id = ?', [1]);
     $this->db->select('SELECT * FROM test_table WHERE id = ?', [2]);
-    
+
     $stats = $this->db->getQueryStats();
-    
+
     expect($stats)->toHaveKey('total_queries');
     expect($stats)->toHaveKey('total_time');
     expect($stats)->toHaveKey('avg_time');
     expect($stats)->toHaveKey('max_time');
     expect($stats)->toHaveKey('min_time');
     expect($stats)->toHaveKey('failed_queries');
-    
+
     expect($stats['total_queries'])->toBe(3);
     expect($stats['avg_time'])->toBeFloat();
     expect($stats['failed_queries'])->toBe(0);
@@ -166,7 +166,7 @@ it('calculates query statistics', function (): void {
 
 it('returns empty stats when no queries', function (): void {
     $stats = $this->db->getQueryStats();
-    
+
     expect($stats['total_queries'])->toBe(0);
     expect($stats['total_time'])->toBe(0);
     expect($stats['avg_time'])->toBe(0);
@@ -174,13 +174,14 @@ it('returns empty stats when no queries', function (): void {
 
 it('counts failed queries in stats', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
-    
+
     try {
         $this->db->select('INVALID SQL');
-    } catch (QueryException $e) {}
-    
+    } catch (QueryException $e) {
+    }
+
     $stats = $this->db->getQueryStats();
     expect($stats['total_queries'])->toBe(2);
     expect($stats['failed_queries'])->toBe(1);
@@ -192,19 +193,19 @@ it('counts failed queries in stats', function (): void {
 
 it('identifies slow queries', function (): void {
     $this->db->enableQueryLog();
-    
+
     // Эти запросы должны быть быстрыми
     $this->db->select('SELECT * FROM test_table');
-    
+
     $slowQueries = $this->db->getSlowQueries(1000); // > 1 секунда
     expect($slowQueries)->toHaveCount(0);
 });
 
 it('filters slow queries by threshold', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
-    
+
     // Получаем все запросы медленнее 0ms (все запросы)
     $allQueries = $this->db->getSlowQueries(0);
     expect($allQueries)->toHaveCount(1);
@@ -216,35 +217,35 @@ it('filters slow queries by threshold', function (): void {
 
 it('reconnects to database', function (): void {
     $connection1 = $this->db->connection();
-    
+
     $this->db->reconnect();
-    
+
     $connection2 = $this->db->connection();
-    
+
     // После переподключения должен быть новый объект PDO
     expect($connection1)->not->toBe($connection2);
 });
 
 it('sets reconnect attempts', function (): void {
     $this->db->setReconnectAttempts(5);
-    
+
     // Проверяем через рефлексию
     $reflection = new ReflectionClass($this->db);
     $attemptsProperty = $reflection->getProperty('reconnectAttempts');
     $attemptsProperty->setAccessible(true);
     $attempts = $attemptsProperty->getValue($this->db);
-    
+
     expect($attempts)->toBe(5);
 });
 
 it('limits minimum reconnect attempts to 1', function (): void {
     $this->db->setReconnectAttempts(0);
-    
+
     $reflection = new ReflectionClass($this->db);
     $attemptsProperty = $reflection->getProperty('reconnectAttempts');
     $attemptsProperty->setAccessible(true);
     $attempts = $attemptsProperty->getValue($this->db);
-    
+
     expect($attempts)->toBe(1);
 });
 
@@ -275,10 +276,10 @@ it('hides password in connection info', function (): void {
             ],
         ],
     ];
-    
+
     $db = new DatabaseManager($config);
     $info = $db->getConnectionInfo();
-    
+
     expect($info['password'])->toBe('******');
 });
 
@@ -288,7 +289,7 @@ it('hides password in connection info', function (): void {
 
 it('gets list of tables', function (): void {
     $tables = $this->db->getTables();
-    
+
     expect($tables)->toBeArray();
     expect($tables)->toContain('test_table');
 });
@@ -300,7 +301,7 @@ it('checks if table exists', function (): void {
 
 it('gets table columns', function (): void {
     $columns = $this->db->getColumns('test_table');
-    
+
     expect($columns)->toBeArray();
     expect(count($columns))->toBeGreaterThan(0);
 });
@@ -311,10 +312,10 @@ it('gets table columns', function (): void {
 
 it('checks if in transaction', function (): void {
     expect($this->db->inTransaction())->toBeFalse();
-    
+
     $this->db->beginTransaction();
     expect($this->db->inTransaction())->toBeTrue();
-    
+
     $this->db->commit();
     expect($this->db->inTransaction())->toBeFalse();
 });
@@ -322,9 +323,9 @@ it('checks if in transaction', function (): void {
 it('does not begin transaction when already in transaction', function (): void {
     $this->db->beginTransaction();
     $result = $this->db->beginTransaction();
-    
+
     expect($result)->toBeFalse();
-    
+
     $this->db->rollback();
 });
 
@@ -340,11 +341,11 @@ it('does not rollback when not in transaction', function (): void {
 
 it('handles nested transaction attempt', function (): void {
     $this->db->beginTransaction();
-    
+
     // Попытка начать вложенную транзакцию
     $result = $this->db->beginTransaction();
     expect($result)->toBeFalse();
-    
+
     $this->db->commit();
 });
 
@@ -354,27 +355,27 @@ it('handles nested transaction attempt', function (): void {
 
 it('disconnects from database', function (): void {
     $this->db->connection(); // Создаем соединение
-    
+
     $this->db->disconnect();
-    
+
     $reflection = new ReflectionClass($this->db);
     $connectionsProperty = $reflection->getProperty('connections');
     $connectionsProperty->setAccessible(true);
     $connections = $connectionsProperty->getValue($this->db);
-    
+
     expect($connections)->toBeEmpty();
 });
 
 it('disconnects from specific connection', function (): void {
     $this->db->connection('test');
-    
+
     $this->db->disconnectFrom('test');
-    
+
     $reflection = new ReflectionClass($this->db);
     $connectionsProperty = $reflection->getProperty('connections');
     $connectionsProperty->setAccessible(true);
     $connections = $connectionsProperty->getValue($this->db);
-    
+
     expect($connections)->not->toHaveKey('test');
 });
 
@@ -385,7 +386,7 @@ it('disconnects from specific connection', function (): void {
 it('executes raw query', function (): void {
     $result = $this->db->raw('INSERT INTO test_table (name, value) VALUES (?, ?)', ['raw', 100]);
     expect($result)->toBeTrue();
-    
+
     $count = $this->connection->query('SELECT COUNT(*) FROM test_table WHERE name = "raw"')->fetchColumn();
     expect($count)->toBe(1);
 });
@@ -396,7 +397,7 @@ it('executes raw query', function (): void {
 
 it('creates query builder from table method', function (): void {
     $query = $this->db->table('test_table');
-    
+
     expect($query)->toBeInstanceOf(Core\Database\QueryBuilder::class);
 });
 
@@ -404,7 +405,7 @@ it('executes query from table method', function (): void {
     $results = $this->db->table('test_table')
         ->where('value', '>', 15)
         ->get();
-    
+
     expect($results)->toHaveCount(2);
 });
 
@@ -423,13 +424,13 @@ it('enables logging from config', function (): void {
             ],
         ],
     ];
-    
+
     $db = new DatabaseManager($config);
     $connection = $db->connection();
     $connection->exec('CREATE TABLE temp (id INTEGER)');
-    
+
     $db->select('SELECT * FROM temp');
-    
+
     $log = $db->getQueryLog();
     expect($log)->not->toBeEmpty();
 });
@@ -470,12 +471,12 @@ it('handles multiple connection configurations', function (): void {
             ],
         ],
     ];
-    
+
     $db = new DatabaseManager($config);
-    
+
     $conn1 = $db->connection('test1');
     $conn2 = $db->connection('test2');
-    
+
     expect($conn1)->not->toBe($conn2);
 });
 
@@ -485,11 +486,11 @@ it('handles multiple connection configurations', function (): void {
 
 it('handles large number of queries efficiently', function (): void {
     $this->db->enableQueryLog();
-    
+
     for ($i = 0; $i < 100; $i++) {
         $this->db->select('SELECT * FROM test_table LIMIT 1');
     }
-    
+
     $stats = $this->db->getQueryStats();
     expect($stats['total_queries'])->toBe(100);
     expect($stats['avg_time'])->toBeFloat();
@@ -497,9 +498,9 @@ it('handles large number of queries efficiently', function (): void {
 
 it('logs timestamps for queries', function (): void {
     $this->db->enableQueryLog();
-    
+
     $this->db->select('SELECT * FROM test_table');
-    
+
     $log = $this->db->getQueryLog();
     expect($log[0]['timestamp'])->toBeString();
     expect(strtotime($log[0]['timestamp']))->toBeInt();
@@ -529,12 +530,12 @@ it('handles getSlowQueries when no queries logged', function (): void {
 it('preserves query log after disabling', function (): void {
     $this->db->enableQueryLog();
     $this->db->select('SELECT * FROM test_table');
-    
+
     $logBefore = $this->db->getQueryLog();
-    
+
     $this->db->disableQueryLog();
-    
+
     $logAfter = $this->db->getQueryLog();
-    
+
     expect($logAfter)->toBe($logBefore);
 });
