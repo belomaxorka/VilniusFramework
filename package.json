@@ -1,7 +1,4 @@
 {
-  "name": "torrentpier-framework",
-  "version": "1.0.0",
-  "description": "Modern PHP Framework",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -15,4 +12,3 @@
     "vite": "^5.0.8"
   }
 }
-

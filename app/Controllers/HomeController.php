@@ -9,7 +9,7 @@ class HomeController extends Controller
     public function index(): Response
     {
         $data = [
-            'title' => 'Welcome to TorrentPier Framework',
+            'title' => 'Welcome to Vilnius Framework',
             'message' => 'A modern, lightweight PHP framework'
         ];
 

@@ -4,7 +4,7 @@ use Core\TemplateEngine;
 
 beforeEach(function () {
     // Создаем временную директорию для тестов
-    $this->testTemplateDir = sys_get_temp_dir() . '/torrentpier_templates_objects_test';
+    $this->testTemplateDir = sys_get_temp_dir() . '/vilnius_templates_objects_test';
     $this->testCacheDir = sys_get_temp_dir() . '/torrentpier_cache_objects_test';
 
     if (!is_dir($this->testTemplateDir)) {
