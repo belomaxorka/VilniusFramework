@@ -7,11 +7,24 @@ beforeEach(function () {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_destroy();
     }
+    
+    // Инициализируем $_SESSION для тестов
     $_SESSION = [];
+    
+    // Запускаем сессию для тестов
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
 });
 
 afterEach(function () {
+    // Очищаем сессию после каждого теста
     $_SESSION = [];
+    
+    // Закрываем сессию если она активна
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
 });
 
 describe('Session Basic Operations', function () {

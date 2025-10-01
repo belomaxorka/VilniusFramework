@@ -72,7 +72,7 @@ class Session
     {
         self::ensureStarted();
         
-        return isset($_SESSION[$key]);
+        return array_key_exists($key, $_SESSION);
     }
 
     /**
