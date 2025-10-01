@@ -1,4 +1,4 @@
-# TorrentPier Framework
+# Vilnius Framework
 
 A modern, lightweight PHP framework built for speed and developer experience.
 
@@ -22,7 +22,7 @@ A modern, lightweight PHP framework built for speed and developer experience.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/torrentpier.git
+git clone https://github.com/belomaxorka/VilniusFramework.git
 cd torrentpier
 ```
 
