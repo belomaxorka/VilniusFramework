@@ -33,7 +33,7 @@ class TemplateEngine
 
     /**
      * Получает единственный экземпляр шаблонизатора (Singleton)
-     * 
+     *
      * @param string|null $templateDir Директория шаблонов (используется только при первом вызове)
      * @param string|null $cacheDir Директория кэша (используется только при первом вызове)
      */
@@ -553,6 +553,9 @@ class TemplateEngine
     {
         $condition = trim($condition);
 
+        // Проверяем, использует ли пользователь уже isset() или empty()
+        $hasIssetOrEmpty = preg_match('/\b(isset|empty)\s*\(/', $condition);
+
         // Защищаем строки в кавычках
         $strings = [];
         $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
@@ -571,14 +574,21 @@ class TemplateEngine
         $condition = str_replace(' not ', ' ! ', $condition);
 
         // Обрабатываем простые переменные (которые еще не обработаны)
-        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not'];
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty) {
             $var = $matches[1];
             // Пропускаем ключевые слова и защищенные фрагменты
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
-            return '$' . $var;
+            
+            // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
+            if ($hasIssetOrEmpty) {
+                return '$' . $var;
+            }
+            
+            // Оборачиваем переменную в isset() && $var для безопасной проверки
+            return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
 
         // Восстанавливаем защищенные фрагменты
