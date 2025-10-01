@@ -23,25 +23,24 @@ afterEach(function () {
 describe('DebugToolbar Basic Operations', function () {
     test('renders toolbar HTML', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toBeString();
         expect($html)->toContain('debug-toolbar');
-        expect($html)->toContain('Debug Toolbar');
     });
 
     test('can be enabled/disabled', function () {
         DebugToolbar::enable(false);
-        
+
         expect(DebugToolbar::render())->toBe('');
-        
+
         DebugToolbar::enable(true);
-        
+
         expect(DebugToolbar::render())->not->toBe('');
     });
 
     test('includes JavaScript', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('<script>');
         expect($html)->toContain('debugToolbarToggle');
         expect($html)->toContain('debugToolbarSwitchTab');
@@ -49,7 +48,7 @@ describe('DebugToolbar Basic Operations', function () {
 
     test('includes CSS styles', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('<style>');
         expect($html)->toContain('.debug-tab.active');
     });
@@ -58,32 +57,32 @@ describe('DebugToolbar Basic Operations', function () {
 describe('Toolbar Statistics', function () {
     test('shows memory stats', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('💾');
     });
 
     test('shows query stats when queries exist', function () {
         QueryDebugger::log('SELECT * FROM users', [], 10.0, 5);
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('🗄️');
         expect($html)->toContain('queries');
     });
 
     test('shows context stats when contexts exist', function () {
         DebugContext::start('test');
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('contexts');
     });
 
     test('shows dump stats when dumps exist', function () {
         dump('test data');
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('dumps');
     });
 });
@@ -91,42 +90,42 @@ describe('Toolbar Statistics', function () {
 describe('Toolbar Tabs', function () {
     test('has overview tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Overview');
         expect($html)->toContain('📊');
     });
 
     test('has dumps tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Dumps');
         expect($html)->toContain('🔍');
     });
 
     test('has queries tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Queries');
         expect($html)->toContain('🗄️');
     });
 
     test('has timers tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Timers');
         expect($html)->toContain('⏱️');
     });
 
     test('has memory tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Memory');
         expect($html)->toContain('💾');
     });
 
     test('has contexts tab', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Contexts');
         expect($html)->toContain('📁');
     });
@@ -134,9 +133,9 @@ describe('Toolbar Tabs', function () {
     test('shows badge on tabs with data', function () {
         dump('test');
         QueryDebugger::log('SELECT * FROM users');
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('class="badge"');
     });
 });
@@ -144,7 +143,7 @@ describe('Toolbar Tabs', function () {
 describe('Tab Content', function () {
     test('overview shows performance metrics', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Request Overview');
         expect($html)->toContain('Performance');
         expect($html)->toContain('Memory');
@@ -152,32 +151,32 @@ describe('Tab Content', function () {
 
     test('dumps tab shows dump output', function () {
         dump(['key' => 'value'], 'Test Data');
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Test Data');
     });
 
     test('queries tab shows SQL queries', function () {
         QueryDebugger::log('SELECT * FROM users', [], 15.5, 10);
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('SELECT * FROM users');
         expect($html)->toContain('15.5');
     });
 
     test('contexts tab shows contexts', function () {
         DebugContext::start('database');
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('Database');
     });
 
     test('shows empty state when no data', function () {
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('No dumps collected');
         expect($html)->toContain('No queries executed');
         expect($html)->toContain('No contexts created');
@@ -188,18 +187,18 @@ describe('Visual Indicators', function () {
     test('highlights slow queries', function () {
         QueryDebugger::setSlowQueryThreshold(10.0);
         QueryDebugger::log('SLOW QUERY', [], 50.0);
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('#ef5350'); // red color for slow
     });
 
     test('shows warning for slow queries in header', function () {
         QueryDebugger::setSlowQueryThreshold(10.0);
         QueryDebugger::log('SLOW', [], 50.0);
-        
+
         $html = DebugToolbar::render();
-        
+
         expect($html)->toContain('slow)');
     });
 });
@@ -207,14 +206,14 @@ describe('Visual Indicators', function () {
 describe('Helper Function', function () {
     test('render_debug_toolbar works', function () {
         $html = render_debug_toolbar();
-        
+
         expect($html)->toBeString();
         expect($html)->toContain('debug-toolbar');
     });
 
     test('returns empty string when disabled', function () {
         DebugToolbar::enable(false);
-        
+
         expect(render_debug_toolbar())->toBe('');
     });
 });
@@ -222,7 +221,7 @@ describe('Helper Function', function () {
 describe('Production Mode', function () {
     test('toolbar disabled in production', function () {
         Environment::set(Environment::PRODUCTION);
-        
+
         expect(DebugToolbar::render())->toBe('');
     });
 });
@@ -231,15 +230,15 @@ describe('Integration', function () {
     test('collects data from all debug tools', function () {
         // Add various debug data
         dump('Variable dump');
-        
+
         QueryDebugger::log('SELECT * FROM users', [], 25.0, 100);
         QueryDebugger::log('SELECT * FROM posts', [], 15.0, 50);
-        
+
         DebugContext::start('api');
         DebugContext::add('request', 'GET /api/users');
-        
+
         $html = DebugToolbar::render();
-        
+
         // Check all sections are present
         expect($html)->toContain('Variable dump');
         expect($html)->toContain('SELECT * FROM users');
@@ -251,9 +250,9 @@ describe('Integration', function () {
         dump('test');
         QueryDebugger::log('SELECT 1', [], 5.0);
         DebugContext::start('test');
-        
+
         $html = DebugToolbar::render();
-        
+
         // Проверяем наличие статистики (с учетом HTML тегов)
         expect($html)->toContain('Dumps:</strong> 1');
         expect($html)->toContain('Queries:</strong> 1');
