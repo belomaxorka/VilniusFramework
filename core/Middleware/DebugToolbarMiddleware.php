@@ -3,6 +3,7 @@
 namespace Core\Middleware;
 
 use Core\Environment;
+use Core\Response;
 
 /**
  * Debug Toolbar Middleware
@@ -16,28 +17,21 @@ class DebugToolbarMiddleware implements MiddlewareInterface
      */
     public function handle(callable $next): mixed
     {
+        // Если не в debug режиме, просто пропускаем дальше
+        if (!Environment::isDebug()) {
+            return $next();
+        }
+
+        // Начинаем перехват вывода
+        ob_start();
+
         // Выполняем следующий обработчик
         $result = $next();
 
-        // Если не в debug режиме, ничего не делаем
-        if (!Environment::isDebug()) {
-            return $result;
-        }
-
-        // Перехватываем output buffering
-        if (ob_get_level() === 0) {
-            ob_start();
-        }
-
-        // Если есть результат, выводим его
-        if ($result !== null) {
-            echo $result;
-        }
-
-        // Получаем буфер
+        // Получаем весь вывод из буфера
         $output = ob_get_clean();
 
-        // Если нет контента, ничего не делаем
+        // Если нет контента, возвращаем результат как есть
         if (empty($output)) {
             return $result;
         }
@@ -45,7 +39,7 @@ class DebugToolbarMiddleware implements MiddlewareInterface
         // Внедряем Debug Toolbar, если это HTML
         $output = $this->injectDebugToolbar($output);
 
-        // Выводим результат
+        // Выводим модифицированный результат
         echo $output;
 
         return $result;
@@ -61,35 +55,13 @@ class DebugToolbarMiddleware implements MiddlewareInterface
             return $content;
         }
 
-        // Проверяем Content-Type если заголовки еще не отправлены
-        if (!headers_sent()) {
-            $headers = headers_list();
-            $isHtml = false;
-
-            foreach ($headers as $header) {
-                if (stripos($header, 'Content-Type:') === 0) {
-                    $isHtml = stripos($header, 'text/html') !== false;
-                    break;
-                }
-            }
-
-            // Если Content-Type не установлен, считаем что это HTML
-            // (по умолчанию PHP отправляет text/html)
-            if (!isset($isHtml)) {
-                $isHtml = true;
-            }
-
-            if (!$isHtml) {
-                return $content;
-            }
+        // Проверяем Content-Type
+        if (!$this->isHtmlResponse()) {
+            return $content;
         }
 
         // Получаем HTML Debug Toolbar
-        $toolbar = '';
-        
-        if (function_exists('render_debug_toolbar')) {
-            $toolbar = render_debug_toolbar();
-        }
+        $toolbar = $this->renderDebugToolbar();
 
         if (empty($toolbar)) {
             return $content;
@@ -97,6 +69,52 @@ class DebugToolbarMiddleware implements MiddlewareInterface
 
         // Внедряем перед закрывающим </body>
         return str_ireplace('</body>', $toolbar . '</body>', $content);
+    }
+
+    /**
+     * Проверить, является ли ответ HTML
+     */
+    protected function isHtmlResponse(): bool
+    {
+        // Если заголовки уже отправлены, не можем проверить
+        if (headers_sent()) {
+            return true;
+        }
+
+        // Получаем список отправленных заголовков
+        $headers = headers_list();
+        
+        foreach ($headers as $header) {
+            // Ищем заголовок Content-Type
+            if (stripos($header, 'Content-Type:') === 0) {
+                // Проверяем, что это text/html
+                return stripos($header, 'text/html') !== false;
+            }
+        }
+
+        // Если Content-Type не установлен, считаем что это HTML
+        // (по умолчанию PHP отправляет text/html)
+        return true;
+    }
+
+    /**
+     * Отрендерить Debug Toolbar
+     */
+    protected function renderDebugToolbar(): string
+    {
+        if (!function_exists('render_debug_toolbar')) {
+            return '';
+        }
+
+        try {
+            return render_debug_toolbar();
+        } catch (\Throwable $e) {
+            // Если произошла ошибка при рендеринге toolbar, не ломаем страницу
+            if (Environment::isDevelopment()) {
+                return '<!-- Debug Toolbar Error: ' . htmlspecialchars($e->getMessage()) . ' -->';
+            }
+            return '';
+        }
     }
 }
 

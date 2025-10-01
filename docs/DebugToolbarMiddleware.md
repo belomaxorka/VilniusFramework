@@ -126,19 +126,24 @@ Middleware использует output buffering для перехвата вы�
 ```php
 public function handle(callable $next): mixed
 {
-    // Включаем буферизацию
-    if (ob_get_level() === 0) {
-        ob_start();
+    // Если не debug режим, пропускаем
+    if (!Environment::isDebug()) {
+        return $next();
     }
+
+    // Начинаем перехват вывода
+    ob_start();
 
     // Выполняем запрос
     $result = $next();
 
-    // Получаем вывод
+    // Получаем весь вывод
     $output = ob_get_clean();
 
     // Модифицируем и выводим
-    echo $this->injectDebugToolbar($output);
+    if (!empty($output)) {
+        echo $this->injectDebugToolbar($output);
+    }
 
     return $result;
 }
