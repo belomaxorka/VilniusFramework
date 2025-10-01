@@ -650,7 +650,7 @@ class Http
     /**
      * Получить Query String как массив
      */
-    public static function parseQueryString(string $queryString = null): array
+    public static function parseQueryString(?string $queryString = null): array
     {
         $queryString = $queryString ?? self::getQueryString();
 
