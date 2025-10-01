@@ -16,7 +16,7 @@ class MemoryProfiler
             return;
         }
 
-        self::$startMemory = memory_get_usage(false);
+        self::$startMemory = memory_get_usage(true);
         self::$snapshots = [];
 
         self::snapshot('start', 'Memory profiling started');
@@ -31,8 +31,8 @@ class MemoryProfiler
             return [];
         }
 
-        $current = memory_get_usage(false);
-        $peak = memory_get_peak_usage(false);
+        $current = memory_get_usage(true);
+        $peak = memory_get_peak_usage(true);
 
         $snapshot = [
             'name' => $name,
@@ -63,35 +63,35 @@ class MemoryProfiler
     /**
      * Получить текущее использование памяти
      * 
-     * Возвращает реальное использование памяти на уровне системы (параметр false).
-     * Это включает память, выделенную системой для PHP процесса, включая
-     * внутренние буферы, кеши и накладные расходы.
+     * Возвращает эффективное использование памяти вашим скриптом (параметр true).
+     * Это память, реально используемая PHP объектами и данными вашего приложения,
+     * без учёта внутренних структур и накладных расходов PHP.
      * 
-     * Примечание: Значения будут выше, чем при использовании memory_get_usage(true),
-     * так как учитываются внутренние структуры PHP. Это полезно для мониторинга
-     * фактического потребления памяти на уровне операционной системы.
+     * Это рекомендуемый подход для профилирования, так как показывает реальное
+     * потребление памяти вашим кодом и позволяет корректно сравнивать с другими
+     * инструментами профилирования (Xdebug, Blackfire).
      * 
-     * @return int Использование памяти в байтах (системное потребление)
+     * @return int Использование памяти в байтах (эффективное потребление)
      * @see memory_get_usage()
      */
     public static function current(): int
     {
-        return memory_get_usage(false);
+        return memory_get_usage(true);
     }
 
     /**
      * Получить пиковое использование памяти
      * 
-     * Возвращает максимальное (пиковое) использование памяти на уровне системы.
-     * Это реальное количество памяти, которое было выделено системой для PHP
-     * процесса в течение выполнения скрипта.
+     * Возвращает максимальное (пиковое) эффективное использование памяти.
+     * Это пиковое значение памяти, реально используемой вашим скриптом,
+     * без учёта внутренних структур PHP.
      * 
-     * @return int Пиковое использование памяти в байтах (системное потребление)
+     * @return int Пиковое использование памяти в байтах (эффективное потребление)
      * @see memory_get_peak_usage()
      */
     public static function peak(): int
     {
-        return memory_get_peak_usage(false);
+        return memory_get_peak_usage(true);
     }
 
     /**
@@ -128,8 +128,8 @@ class MemoryProfiler
             return;
         }
 
-        $current = memory_get_usage(false);
-        $peak = memory_get_peak_usage(false);
+        $current = memory_get_usage(true);
+        $peak = memory_get_peak_usage(true);
         $limit = self::getMemoryLimit();
 
         $output = '<div style="background: #e3f2fd; border: 1px solid #2196f3; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
@@ -213,13 +213,13 @@ class MemoryProfiler
             return $callback();
         }
 
-        $before = memory_get_usage(false);
+        $before = memory_get_usage(true);
         self::snapshot($name . '_start', 'Before ' . $name);
 
         try {
             $result = $callback();
         } finally {
-            $after = memory_get_usage(false);
+            $after = memory_get_usage(true);
             self::snapshot($name . '_end', 'After ' . $name);
 
             $diff = $after - $before;
@@ -313,7 +313,7 @@ class MemoryProfiler
             return 0.0;
         }
 
-        $current = memory_get_usage(false);
+        $current = memory_get_usage(true);
         return ($current / $limit) * 100;
     }
 
