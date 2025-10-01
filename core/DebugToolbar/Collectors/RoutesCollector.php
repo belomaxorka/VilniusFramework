@@ -200,25 +200,18 @@ class RoutesCollector extends AbstractCollector
     {
         $routes = [];
 
-        // Используем Reflection для доступа к protected $routes
-        try {
-            $reflection = new \ReflectionClass($this->router);
-            $property = $reflection->getProperty('routes');
-            $property->setAccessible(true);
-            $routesData = $property->getValue($this->router);
+        // Используем публичный метод getRoutes()
+        $routesData = $this->router->getRoutes();
 
-            foreach ($routesData as $method => $methodRoutes) {
-                foreach ($methodRoutes as $route) {
-                    $routes[] = [
-                        'method' => $method,
-                        'uri' => $this->patternToUri($route['pattern']),
-                        'pattern' => $route['pattern'],
-                        'action' => $this->actionToString($route['action']),
-                    ];
-                }
+        foreach ($routesData as $method => $methodRoutes) {
+            foreach ($methodRoutes as $route) {
+                $routes[] = [
+                    'method' => $method,
+                    'uri' => $route['uri'] ?: $this->patternToUri($route['pattern']),
+                    'pattern' => $route['pattern'],
+                    'action' => $this->actionToString($route['action']),
+                ];
             }
-        } catch (\ReflectionException $e) {
-            // Если не получилось - возвращаем пустой массив
         }
 
         return $routes;

@@ -2,8 +2,22 @@
 
 namespace App\Controllers;
 
+use Core\TemplateEngine;
+use Core\Database;
+
 class HomeController
 {
+    /**
+     * Dependency Injection через конструктор
+     * 
+     * Container автоматически внедрит эти зависимости
+     */
+    public function __construct(
+        protected TemplateEngine $view,
+        protected ?Database $db = null
+    ) {
+    }
+
     public function index(): void
     {
         // Пример использования Debug системы
@@ -49,7 +63,8 @@ class HomeController
             timer_stop('total');
             memory_dump();
 
-            display('welcome.tpl', $data);
+            // Используем внедренный TemplateEngine
+            $this->view->display('welcome.tpl', $data);
         });
     }
 
@@ -63,6 +78,7 @@ class HomeController
             'users' => [] // Пустой массив пользователей
         ];
 
-        display('welcome.tpl', $data);
+        // Используем внедренный TemplateEngine
+        $this->view->display('welcome.tpl', $data);
     }
 }
