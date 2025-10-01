@@ -11,6 +11,9 @@ class Router
     protected array $groupStack = [];
     protected array $middlewareAliases = [];
     protected array $routeMiddleware = [];
+    protected $notFoundHandler = null;
+    protected bool $cacheEnabled = false;
+    protected string $cachePath = '';
 
     public function get(string $uri, callable|array $action): self
     {
@@ -186,8 +189,324 @@ class Router
             }
         }
 
+        $this->handleNotFound($method, $uri);
+    }
+
+    /**
+     * Обработать 404 ошибку
+     */
+    protected function handleNotFound(string $method, string $uri): void
+    {
         http_response_code(404);
-        echo "404 Not Found: [$uri]";
+
+        // Если установлен кастомный обработчик
+        if ($this->notFoundHandler !== null) {
+            $handler = $this->notFoundHandler;
+            
+            if (is_array($handler)) {
+                [$controller, $methodName] = $handler;
+                if (!class_exists($controller)) {
+                    $controller = "App\\Controllers\\{$controller}";
+                }
+                (new $controller())->$methodName($method, $uri);
+            } else {
+                $handler($method, $uri);
+            }
+            return;
+        }
+
+        // Стандартная обработка 404
+        $this->renderDefaultNotFound($method, $uri);
+    }
+
+    /**
+     * Отрендерить стандартную страницу 404
+     */
+    protected function renderDefaultNotFound(string $method, string $uri): void
+    {
+        // Для JSON запросов
+        if ($this->isJsonRequest()) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'error' => 'Not Found',
+                'message' => "The requested resource was not found.",
+                'path' => '/' . $uri,
+                'method' => $method,
+            ], JSON_PRETTY_PRINT);
+            return;
+        }
+
+        // Для обычных запросов
+        $isDebug = Environment::isDebug();
+        
+        echo $this->render404Page($method, $uri, $isDebug);
+    }
+
+    /**
+     * Отрендерить HTML страницу 404
+     */
+    protected function render404Page(string $method, string $uri, bool $isDebug): string
+    {
+        $registeredRoutes = '';
+        
+        if ($isDebug) {
+            $registeredRoutes = $this->renderRegisteredRoutes($method);
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .error-message {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .error-details {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-value {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 16px;
+            color: #333;
+        }
+        .routes-section {
+            margin-top: 30px;
+        }
+        .routes-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .routes-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .routes-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .routes-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .routes-table tr:last-child td {
+            border-bottom: none;
+        }
+        .routes-table tr:hover {
+            background: white;
+        }
+        .method-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+        .method-GET { background: #4caf50; }
+        .method-POST { background: #2196f3; }
+        .method-PUT { background: #ff9800; }
+        .method-PATCH { background: #9c27b0; }
+        .method-DELETE { background: #f44336; }
+        .actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 0 10px;
+        }
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="error-code">404</div>
+            <div class="error-message">Page Not Found</div>
+            <div class="error-details">The requested resource could not be found</div>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <div class="info-label">Request Method</div>
+                <div class="info-value">{$method}</div>
+            </div>
+            
+            <div class="info-box">
+                <div class="info-label">Request URI</div>
+                <div class="info-value">/{$uri}</div>
+            </div>
+
+            {$registeredRoutes}
+            
+            <div class="actions">
+                <a href="/" class="btn">Go to Homepage</a>
+                <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Отрендерить зарегистрированные роуты для debug режима
+     */
+    protected function renderRegisteredRoutes(string $currentMethod): string
+    {
+        $html = '<div class="routes-section">';
+        $html .= '<div class="routes-title">🛣️ Registered Routes for ' . $currentMethod . '</div>';
+        
+        if (empty($this->routes[$currentMethod])) {
+            $html .= '<p style="color: #999; font-style: italic;">No routes registered for this method.</p>';
+        } else {
+            $html .= '<table class="routes-table">';
+            $html .= '<thead><tr><th>Method</th><th>URI Pattern</th><th>Action</th></tr></thead>';
+            $html .= '<tbody>';
+            
+            foreach ($this->routes[$currentMethod] as $index => $route) {
+                $uri = htmlspecialchars($this->originalUris[$currentMethod][$index] ?? '');
+                $action = $this->formatAction($route['action']);
+                
+                $html .= '<tr>';
+                $html .= '<td><span class="method-badge method-' . $currentMethod . '">' . $currentMethod . '</span></td>';
+                $html .= '<td>/' . $uri . '</td>';
+                $html .= '<td>' . htmlspecialchars($action) . '</td>';
+                $html .= '</tr>';
+            }
+            
+            $html .= '</tbody>';
+            $html .= '</table>';
+        }
+        
+        // Показать другие методы
+        $otherMethods = array_keys($this->routes);
+        $otherMethods = array_filter($otherMethods, fn($m) => $m !== $currentMethod);
+        
+        if (!empty($otherMethods)) {
+            $html .= '<div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">';
+            $html .= '<strong>💡 Hint:</strong> There are routes registered for other HTTP methods: ';
+            $html .= implode(', ', array_map(fn($m) => '<strong>' . $m . '</strong>', $otherMethods));
+            $html .= '</div>';
+        }
+        
+        $html .= '</div>';
+        
+        return $html;
+    }
+
+    /**
+     * Форматировать action для отображения
+     */
+    protected function formatAction($action): string
+    {
+        if (is_array($action)) {
+            [$controller, $method] = $action;
+            $shortController = is_string($controller) 
+                ? (class_exists($controller) ? basename(str_replace('\\', '/', $controller)) : $controller)
+                : 'Closure';
+            return $shortController . '::' . $method;
+        }
+        
+        return 'Closure';
+    }
+
+    /**
+     * Проверить, является ли запрос JSON
+     */
+    protected function isJsonRequest(): bool
+    {
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        
+        return str_contains($contentType, 'application/json') 
+            || str_contains($accept, 'application/json');
     }
 
     /**
@@ -354,5 +673,16 @@ class Router
         foreach ($aliases as $alias => $class) {
             $this->aliasMiddleware($alias, $class);
         }
+    }
+
+    /**
+     * Установить кастомный обработчик 404 ошибки
+     *
+     * @param callable|array $handler Обработчик (closure или [Controller::class, 'method'])
+     * @return void
+     */
+    public function setNotFoundHandler(callable|array $handler): void
+    {
+        $this->notFoundHandler = $handler;
     }
 }
