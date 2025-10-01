@@ -40,11 +40,13 @@ Debug Toolbar был полностью переработан с монолит
 ### 3. Встроенные коллекторы
 `core/DebugToolbar/Collectors/`
 
-- **OverviewCollector** - общая статистика (приоритет: 100)
+- **RequestCollector** - данные входящего запроса (приоритет: 90)
+- **ResponseCollector** - данные исходящего ответа (приоритет: 88)
+- **RoutesCollector** - информация о маршрутизации (приоритет: 85)
 - **DumpsCollector** - debug dumps (приоритет: 90)
 - **QueriesCollector** - SQL запросы (приоритет: 80)
 - **CacheCollector** - операции с кэшем (приоритет: 75)
-- **TimersCollector** - таймеры (приоритет: 70)
+- **TimersCollector** - таймеры и время выполнения (приоритет: 70)
 - **MemoryCollector** - использование памяти (приоритет: 60)
 - **ContextsCollector** - контексты отладки (приоритет: 50)
 
@@ -293,7 +295,9 @@ echo render_debug_toolbar();
 ### Новые файлы
 - `core/DebugToolbar/CollectorInterface.php`
 - `core/DebugToolbar/AbstractCollector.php`
-- `core/DebugToolbar/Collectors/OverviewCollector.php`
+- `core/DebugToolbar/Collectors/RequestCollector.php`
+- `core/DebugToolbar/Collectors/ResponseCollector.php`
+- `core/DebugToolbar/Collectors/RoutesCollector.php`
 - `core/DebugToolbar/Collectors/DumpsCollector.php`
 - `core/DebugToolbar/Collectors/QueriesCollector.php`
 - `core/DebugToolbar/Collectors/CacheCollector.php`

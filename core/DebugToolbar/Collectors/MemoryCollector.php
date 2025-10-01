@@ -75,6 +75,33 @@ class MemoryCollector extends AbstractCollector
         return $html;
     }
 
+    public function getHeaderStats(): array
+    {
+        if (!$this->isEnabled() || empty($this->data)) {
+            return [];
+        }
+
+        $memoryPercent = $this->getMemoryPercent();
+        $memoryColor = $this->getColorByThreshold($memoryPercent, 50, 75);
+
+        return [
+            [
+                'icon' => '💾',
+                'value' => $this->formatBytes($this->data['peak']),
+                'color' => $memoryColor,
+            ]
+        ];
+    }
+
+    private function getMemoryPercent(): float
+    {
+        if ($this->data['limit'] === 0 || !$this->data['peak']) {
+            return 0;
+        }
+
+        return ($this->data['peak'] / $this->data['limit']) * 100;
+    }
+
     private function getMemoryLimit(): int
     {
         $limit = ini_get('memory_limit');

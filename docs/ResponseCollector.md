@@ -230,7 +230,7 @@ $data = $collector->getData();
 Response Collector отлично работает с:
 
 - **Request Collector** - показывает запрос и ответ
-- **Overview Collector** - общая статистика включает response time
+- **Timers Collector** - время выполнения включает response time
 - **Routes Collector** - видно какой маршрут дал какой ответ
 
 ## Performance

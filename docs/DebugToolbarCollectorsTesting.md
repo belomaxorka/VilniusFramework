@@ -17,17 +17,7 @@
 
 **Всего тестов: 40+**
 
-### 2. OverviewCollectorTest.php
-Тесты коллектора общей информации:
-- ✅ Конфигурация (имя, заголовок, иконка, приоритет)
-- ✅ Сбор данных (время выполнения, память, запросы, дампы, контексты)
-- ✅ Рендеринг HTML (секции Performance, Memory, Database, Debug)
-- ✅ Header stats (время и память)
-- ✅ Интеграция со всеми источниками данных
-
-**Всего тестов: 35+**
-
-### 3. DumpsCollectorTest.php
+### 2. DumpsCollectorTest.php
 Тесты коллектора дампов:
 - ✅ Конфигурация
 - ✅ Сбор дампов (пустое состояние, единичные, множественные)
@@ -38,7 +28,7 @@
 
 **Всего тестов: 30+**
 
-### 4. QueriesCollectorTest.php
+### 3. QueriesCollectorTest.php
 Тесты коллектора SQL запросов:
 - ✅ Конфигурация
 - ✅ Сбор запросов (SQL, время выполнения, количество строк)
@@ -50,7 +40,7 @@
 
 **Всего тестов: 40+**
 
-### 5. MemoryCollectorTest.php
+### 4. MemoryCollectorTest.php
 Тесты коллектора памяти:
 - ✅ Конфигурация
 - ✅ Сбор данных памяти (текущая, пиковая, лимит)
@@ -61,7 +51,7 @@
 
 **Всего тестов: 30+**
 
-### 6. ContextsCollectorTest.php
+### 5. ContextsCollectorTest.php
 Тесты коллектора контекстов:
 - ✅ Конфигурация
 - ✅ Сбор контекстов (дефолтные, кастомные, элементы)
@@ -73,7 +63,7 @@
 
 **Всего тестов: 35+**
 
-### 7. CacheCollectorTest.php
+### 6. CacheCollectorTest.php
 Тесты коллектора кэша:
 - ✅ Конфигурация
 - ✅ Логирование операций (hit, miss, write, delete)
@@ -86,7 +76,7 @@
 
 **Всего тестов: 45+**
 
-### 8. DebugToolbarCollectorManagementTest.php
+### 7. DebugToolbarCollectorManagementTest.php
 Тесты управления коллекторами в DebugToolbar:
 - ✅ Добавление/удаление коллекторов
 - ✅ Получение коллектора по имени
@@ -103,8 +93,8 @@
 
 ## Общая статистика
 
-- **Всего файлов тестов:** 8
-- **Общее количество тестов:** ~285+
+- **Всего файлов тестов:** 7
+- **Общее количество тестов:** ~250+
 - **Покрытие:** 
   - AbstractCollector: 100%
   - Все коллекторы: 100%
@@ -120,7 +110,6 @@ vendor/bin/pest tests/Unit/Core/DebugToolbar
 ### Конкретный файл
 ```bash
 vendor/bin/pest tests/Unit/Core/DebugToolbar/AbstractCollectorTest.php
-vendor/bin/pest tests/Unit/Core/DebugToolbar/OverviewCollectorTest.php
 vendor/bin/pest tests/Unit/Core/DebugToolbar/DumpsCollectorTest.php
 vendor/bin/pest tests/Unit/Core/DebugToolbar/QueriesCollectorTest.php
 vendor/bin/pest tests/Unit/Core/DebugToolbar/MemoryCollectorTest.php
