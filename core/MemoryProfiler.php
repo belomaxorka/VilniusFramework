@@ -16,6 +16,7 @@ class MemoryProfiler
             return;
         }
 
+        self::$startMemory = memory_get_usage(false);
         self::$snapshots = [];
 
         self::snapshot('start', 'Memory profiling started');
