@@ -128,19 +128,6 @@ class TemplateEngine
     public function display(string $template, array $variables = []): void
     {
         $output = $this->render($template, $variables);
-
-        // Автоматически добавляем Debug Toolbar в development режиме
-        if (class_exists('\Core\Environment') && \Core\Environment::isDebug()) {
-            // Если это HTML с закрывающим </body>, вставляем toolbar перед ним
-            if (stripos($output, '</body>') !== false) {
-                $toolbar = '';
-                if (function_exists('render_debug_toolbar')) {
-                    $toolbar = render_debug_toolbar();
-                }
-                $output = str_ireplace('</body>', $toolbar . '</body>', $output);
-            }
-        }
-
         echo $output;
     }
 

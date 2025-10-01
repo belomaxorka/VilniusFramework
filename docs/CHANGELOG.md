@@ -83,6 +83,7 @@
    - Request использует Http класс под капотом
    - Response интегрирован с Router
    - Полная обратная совместимость
+   - **Автоматическая интеграция с Debug Toolbar**
 
 2. **Type Safety**
    - Все методы контроллеров с type hints
@@ -93,6 +94,12 @@
    - Больше не нужен прямой `echo`, `header()`, `http_response_code()`
    - Fluent interface для цепочки вызовов
    - Консистентный API
+
+4. **Debug Toolbar интеграция**
+   - Response автоматически внедряет Debug Toolbar в HTML ответы
+   - Работает только в debug режиме
+   - Только для HTML контента с `</body>` тегом
+   - Не влияет на JSON, XML и другие типы ответов
 
 ---
 

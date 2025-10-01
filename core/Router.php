@@ -11,6 +11,7 @@ class Router
     protected array $groupStack = [];
     protected array $middlewareAliases = [];
     protected array $routeMiddleware = [];
+    protected array $globalMiddleware = [];
     protected $notFoundHandler = null;
     protected bool $cacheEnabled = false;
     protected string $cachePath = '';
@@ -227,7 +228,7 @@ class Router
         
         // Получаем домен из стека групп
         $domain = $this->getGroupDomain();
-        
+
         $this->routes[$method][] = [
             'pattern' => $pattern,
             'action' => $action,
@@ -382,15 +383,18 @@ class Router
                 // Добавляем middleware из группы
                 $middleware = array_merge($route['middleware'] ?? [], $middleware);
 
+                // Добавляем глобальные middleware (выполняются первыми)
+                $middleware = array_merge($this->globalMiddleware, $middleware);
+
                 // Создаем финальный обработчик
                 $action = $route['action'];
                 $finalHandler = function() use ($action, $params, $method) {
                     $result = null;
-                    
-                    if (is_array($action)) {
+
+                if (is_array($action)) {
                         [$controller, $methodName] = $action;
-                        if (!class_exists($controller)) {
-                            $controller = "App\\Controllers\\{$controller}";
+                    if (!class_exists($controller)) {
+                        $controller = "App\\Controllers\\{$controller}";
                         }
                         $result = $this->callControllerAction($controller, $methodName, $params);
                     } else {
@@ -1032,6 +1036,28 @@ HTML;
         foreach ($aliases as $alias => $class) {
             $this->aliasMiddleware($alias, $class);
         }
+    }
+
+    /**
+     * Зарегистрировать глобальные middleware
+     * 
+     * @param array $middleware Массив middleware (классы или алиасы)
+     * @return void
+     */
+    public function registerGlobalMiddleware(array $middleware): void
+    {
+        $this->globalMiddleware = $middleware;
+    }
+
+    /**
+     * Добавить глобальный middleware
+     * 
+     * @param string $middleware Класс или алиас middleware
+     * @return void
+     */
+    public function addGlobalMiddleware(string $middleware): void
+    {
+        $this->globalMiddleware[] = $middleware;
     }
 
     /**

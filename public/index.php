@@ -34,9 +34,10 @@ if (\Core\Environment::isProduction()) {
     $router->enableCache();
 }
 
-// Register middleware aliases
+// Register middleware
 $middlewareConfig = require __DIR__ . '/../config/middleware.php';
 $router->registerMiddlewareAliases($middlewareConfig['aliases'] ?? []);
+$router->registerGlobalMiddleware($middlewareConfig['global'] ?? []);
 
 // Load routes from cache (if available) or from routes file
 $routesLoaded = false;

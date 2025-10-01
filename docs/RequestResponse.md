@@ -723,6 +723,30 @@ $router->get('/download/{id:\d+}', [FileController::class, 'download']);
 
 Если контроллер возвращает `Response`, он автоматически отправляется клиенту.
 
+### Debug Toolbar интеграция
+
+Response автоматически интегрируется с Debug Toolbar:
+
+- **Автоматическое внедрение**: Debug Toolbar добавляется в HTML ответы автоматически
+- **Только в debug режиме**: Работает только когда `Environment::isDebug()` возвращает `true`
+- **Только для HTML**: Внедряется только в ответы с `Content-Type: text/html`
+- **Не влияет на API**: JSON, XML и другие типы ответов остаются без изменений
+- **Прозрачно**: Разработчику не нужно ничего делать
+
+```php
+// Debug Toolbar будет автоматически добавлен
+public function index(): Response
+{
+    return $this->view('home');
+}
+
+// Debug Toolbar НЕ будет добавлен (это JSON)
+public function api(): Response
+{
+    return $this->json(['data' => 'value']);
+}
+```
+
 ---
 
 ## Миграция со старого кода

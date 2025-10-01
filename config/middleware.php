@@ -34,6 +34,9 @@ return [
     |
     */
     'global' => [
+        // Debug Toolbar (только в debug режиме)
+        \Core\Middleware\DebugToolbarMiddleware::class,
+        
         // Примеры:
         // 'throttle',
     ],
