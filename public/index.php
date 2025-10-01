@@ -8,8 +8,26 @@ require_once __DIR__ . '/../core/bootstrap.php';
 // Initialize app
 \Core\Core::init();
 
+// Initialize container
+$container = \Core\Container::getInstance();
+
+// Register services from config
+$services = require __DIR__ . '/../config/services.php';
+
+foreach ($services['singletons'] ?? [] as $abstract => $concrete) {
+    $container->singleton($abstract, $concrete);
+}
+
+foreach ($services['bindings'] ?? [] as $abstract => $concrete) {
+    $container->bind($abstract, $concrete);
+}
+
+foreach ($services['aliases'] ?? [] as $alias => $abstract) {
+    $container->alias($alias, $abstract);
+}
+
 // Initialize router
-$router = new \Core\Router();
+$router = $container->make(\Core\Router::class);
 
 // Enable route caching in production
 if (\Core\Environment::isProduction()) {

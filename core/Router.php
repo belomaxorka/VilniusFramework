@@ -14,6 +14,7 @@ class Router
     protected $notFoundHandler = null;
     protected bool $cacheEnabled = false;
     protected string $cachePath = '';
+    protected ?Container $container = null;
 
     public function get(string $uri, callable|array $action): self
     {
@@ -177,7 +178,7 @@ class Router
                         if (!class_exists($controller)) {
                             $controller = "App\\Controllers\\{$controller}";
                         }
-                        return (new $controller())->$methodName(...array_values($params));
+                        return $this->callControllerAction($controller, $methodName, $params);
                     } else {
                         return $action(...array_values($params));
                     }
@@ -208,7 +209,7 @@ class Router
                 if (!class_exists($controller)) {
                     $controller = "App\\Controllers\\{$controller}";
                 }
-                (new $controller())->$methodName($method, $uri);
+                $this->callControllerAction($controller, $methodName, ['method' => $method, 'uri' => $uri]);
             } else {
                 $handler($method, $uri);
             }
@@ -684,6 +685,50 @@ HTML;
     public function setNotFoundHandler(callable|array $handler): void
     {
         $this->notFoundHandler = $handler;
+    }
+
+    /**
+     * Установить контейнер зависимостей
+     *
+     * @param Container $container
+     * @return void
+     */
+    public function setContainer(Container $container): void
+    {
+        $this->container = $container;
+    }
+
+    /**
+     * Получить контейнер зависимостей
+     *
+     * @return Container
+     */
+    public function getContainer(): Container
+    {
+        if ($this->container === null) {
+            $this->container = Container::getInstance();
+        }
+
+        return $this->container;
+    }
+
+    /**
+     * Вызвать action контроллера с внедрением зависимостей
+     *
+     * @param string $controller
+     * @param string $method
+     * @param array $params
+     * @return mixed
+     */
+    protected function callControllerAction(string $controller, string $method, array $params): mixed
+    {
+        $container = $this->getContainer();
+
+        // Создаем контроллер через контейнер (с DI в конструкторе)
+        $instance = $container->make($controller);
+
+        // Вызываем метод с параметрами роута
+        return $instance->$method(...array_values($params));
     }
 
     /**

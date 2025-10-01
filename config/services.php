@@ -1,0 +1,66 @@
+<?php declare(strict_types=1);
+
+/**
+ * Service Container Bindings
+ * 
+ * Здесь вы можете регистрировать привязки для контейнера зависимостей.
+ * Это позволяет внедрять зависимости в конструкторы контроллеров.
+ */
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Singleton Bindings
+    |--------------------------------------------------------------------------
+    |
+    | Сервисы, которые создаются один раз на весь lifecycle приложения.
+    | Один экземпляр на все приложение.
+    |
+    */
+    'singletons' => [
+        \Core\Router::class => \Core\Router::class,
+        \Core\Database::class => \Core\Database::class,
+        \Core\TemplateEngine::class => \Core\TemplateEngine::class,
+        \Core\Session::class => \Core\Session::class,
+        \Core\Logger::class => \Core\Logger::class,
+        
+        // Примеры пользовательских сервисов:
+        // \App\Services\UserService::class => \App\Services\UserService::class,
+        // \App\Repositories\UserRepository::class => \App\Repositories\UserRepository::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Regular Bindings
+    |--------------------------------------------------------------------------
+    |
+    | Обычные привязки. Новый экземпляр создается при каждом запросе.
+    |
+    */
+    'bindings' => [
+        // Примеры интерфейсов и их реализаций:
+        // \App\Contracts\PaymentInterface::class => \App\Services\StripePaymentService::class,
+        // \App\Contracts\CacheInterface::class => \App\Services\RedisCacheService::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Aliases
+    |--------------------------------------------------------------------------
+    |
+    | Короткие алиасы для длинных имен классов.
+    |
+    */
+    'aliases' => [
+        'router' => \Core\Router::class,
+        'db' => \Core\Database::class,
+        'view' => \Core\TemplateEngine::class,
+        'session' => \Core\Session::class,
+        'logger' => \Core\Logger::class,
+        
+        // Примеры:
+        // 'cache' => \App\Services\CacheService::class,
+        // 'mail' => \App\Services\MailService::class,
+    ],
+];
+
