@@ -9,6 +9,8 @@ class Router
     protected array $namedRoutes = [];
     protected ?string $lastAddedRouteKey = null;
     protected array $groupStack = [];
+    protected array $middlewareAliases = [];
+    protected array $routeMiddleware = [];
 
     public function get(string $uri, callable|array $action): self
     {
@@ -57,6 +59,29 @@ class Router
         foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as $method) {
             $this->addRoute($method, $uri, $action);
         }
+        return $this;
+    }
+
+    /**
+     * Добавить middleware к последнему добавленному роуту
+     */
+    public function middleware(string|array $middleware): self
+    {
+        if ($this->lastAddedRouteKey === null) {
+            throw new \LogicException('No route to assign middleware to. Call middleware() right after defining a route.');
+        }
+
+        $middleware = is_array($middleware) ? $middleware : [$middleware];
+
+        if (!isset($this->routeMiddleware[$this->lastAddedRouteKey])) {
+            $this->routeMiddleware[$this->lastAddedRouteKey] = [];
+        }
+
+        $this->routeMiddleware[$this->lastAddedRouteKey] = array_merge(
+            $this->routeMiddleware[$this->lastAddedRouteKey],
+            $middleware
+        );
+
         return $this;
     }
 
@@ -130,27 +155,77 @@ class Router
         $uri = trim(parse_url($uri, PHP_URL_PATH), '/');
         $uri = preg_replace('#^index\.php/?#', '', $uri);
 
-        foreach ($this->routes[$method] ?? [] as $route) {
+        foreach ($this->routes[$method] ?? [] as $index => $route) {
             if (preg_match($route['pattern'], $uri, $matches)) {
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
-                $action = $route['action'];
+                // Получаем middleware для этого роута
+                $routeKey = $method . ':' . $index;
+                $middleware = $this->routeMiddleware[$routeKey] ?? [];
+                
+                // Добавляем middleware из группы
+                $middleware = array_merge($route['middleware'] ?? [], $middleware);
 
-                if (is_array($action)) {
-                    [$controller, $method] = $action;
-                    if (!class_exists($controller)) {
-                        $controller = "App\\Controllers\\{$controller}";
+                // Создаем финальный обработчик
+                $action = $route['action'];
+                $finalHandler = function() use ($action, $params, $method) {
+                    if (is_array($action)) {
+                        [$controller, $methodName] = $action;
+                        if (!class_exists($controller)) {
+                            $controller = "App\\Controllers\\{$controller}";
+                        }
+                        return (new $controller())->$methodName(...array_values($params));
+                    } else {
+                        return $action(...array_values($params));
                     }
-                    (new $controller())->$method(...array_values($params));
-                } else {
-                    $action(...array_values($params));
-                }
+                };
+
+                // Выполняем middleware pipeline
+                $this->runMiddlewarePipeline($middleware, $finalHandler);
                 return;
             }
         }
 
         http_response_code(404);
         echo "404 Not Found: [$uri]";
+    }
+
+    /**
+     * Выполнить цепочку middleware
+     */
+    protected function runMiddlewarePipeline(array $middleware, callable $finalHandler): void
+    {
+        // Создаем pipeline из middleware
+        $pipeline = array_reduce(
+            array_reverse($middleware),
+            function ($next, $middlewareName) {
+                return function () use ($middlewareName, $next) {
+                    $middleware = $this->resolveMiddleware($middlewareName);
+                    return $middleware->handle($next);
+                };
+            },
+            $finalHandler
+        );
+
+        // Выполняем pipeline
+        $pipeline();
+    }
+
+    /**
+     * Создать экземпляр middleware
+     */
+    protected function resolveMiddleware(string $name): Middleware\MiddlewareInterface
+    {
+        // Проверяем алиасы
+        if (isset($this->middlewareAliases[$name])) {
+            $class = $this->middlewareAliases[$name];
+        } elseif (class_exists($name)) {
+            $class = $name;
+        } else {
+            throw new \InvalidArgumentException("Middleware '{$name}' not found.");
+        }
+
+        return new $class();
     }
 
     /**
@@ -261,5 +336,23 @@ class Router
 
         // Удаляем группу из стека
         array_pop($this->groupStack);
+    }
+
+    /**
+     * Зарегистрировать алиас для middleware
+     */
+    public function aliasMiddleware(string $alias, string $class): void
+    {
+        $this->middlewareAliases[$alias] = $class;
+    }
+
+    /**
+     * Зарегистрировать несколько алиасов для middleware
+     */
+    public function registerMiddlewareAliases(array $aliases): void
+    {
+        foreach ($aliases as $alias => $class) {
+            $this->aliasMiddleware($alias, $class);
+        }
     }
 }
