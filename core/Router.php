@@ -158,11 +158,57 @@ class Router
         return $this->whereParam($param, ['rules' => ['in:' . implode(',', $values)]]);
     }
 
+    /**
+     * Установить значение по умолчанию для опционального параметра
+     *
+     * @param string $param Имя параметра
+     * @param mixed $default Значение по умолчанию
+     * @return self
+     */
+    public function defaults(array $defaults): self
+    {
+        if ($this->lastAddedRouteKey === null) {
+            throw new \LogicException('No route to assign defaults to. Call defaults() right after defining a route.');
+        }
+
+        if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
+            $this->routeConstraints[$this->lastAddedRouteKey] = [];
+        }
+
+        foreach ($defaults as $param => $value) {
+            if (!isset($this->routeConstraints[$this->lastAddedRouteKey][$param])) {
+                $this->routeConstraints[$this->lastAddedRouteKey][$param] = [];
+            }
+            
+            $this->routeConstraints[$this->lastAddedRouteKey][$param]['default'] = $value;
+            $this->routeConstraints[$this->lastAddedRouteKey][$param]['optional'] = true;
+        }
+
+        return $this;
+    }
+
     protected function addRoute(string $method, string $uri, callable|array $action): void
     {
         // Применяем префикс группы, если есть
         $uri = $this->applyGroupPrefix($uri);
 
+        // Обрабатываем опциональные параметры {param?} или {param:regex?}
+        $hasOptionalParams = $this->hasOptionalParameters($uri);
+        
+        if ($hasOptionalParams) {
+            // Генерируем несколько вариантов роута для опциональных параметров
+            $this->addOptionalRoute($method, $uri, $action);
+        } else {
+            // Обычный роут без опциональных параметров
+            $this->addSingleRoute($method, $uri, $action);
+        }
+    }
+
+    /**
+     * Добавить один роут без опциональных параметров
+     */
+    protected function addSingleRoute(string $method, string $uri, callable|array $action): void
+    {
         // Преобразуем {param:regex} в (?P<param>regex)
         $pattern = preg_replace_callback(
             '#\{(\w+)(?::([^}]+))?\}#',
@@ -189,6 +235,58 @@ class Router
 
         // Сохраняем ключ последнего добавленного роута для name()
         $this->lastAddedRouteKey = $method . ':' . $routeIndex;
+    }
+
+    /**
+     * Добавить роут с опциональными параметрами
+     */
+    protected function addOptionalRoute(string $method, string $uri, callable|array $action): void
+    {
+        // Разбиваем URI на сегменты
+        $segments = explode('/', trim($uri, '/'));
+        $patterns = [''];
+        
+        // Находим первый опциональный параметр
+        $firstOptionalIndex = null;
+        foreach ($segments as $index => $segment) {
+            if (str_contains($segment, '?}')) {
+                $firstOptionalIndex = $index;
+                break;
+            }
+        }
+
+        if ($firstOptionalIndex === null) {
+            // Нет опциональных параметров, добавляем как обычный роут
+            $this->addSingleRoute($method, $uri, $action);
+            return;
+        }
+
+        // Создаем варианты роутов:
+        // 1. Без опциональных параметров
+        $requiredPart = implode('/', array_slice($segments, 0, $firstOptionalIndex));
+        
+        // 2. С каждым последующим опциональным параметром
+        $currentPath = $requiredPart;
+        $optionalSegments = array_slice($segments, $firstOptionalIndex);
+        
+        // Добавляем роут без опциональных параметров
+        $this->addSingleRoute($method, $currentPath, $action);
+        
+        // Добавляем роуты с опциональными параметрами по одному
+        foreach ($optionalSegments as $segment) {
+            // Убираем знак вопроса из параметра
+            $segment = str_replace('?}', '}', $segment);
+            $currentPath .= '/' . $segment;
+            $this->addSingleRoute($method, $currentPath, $action);
+        }
+    }
+
+    /**
+     * Проверить, есть ли в URI опциональные параметры
+     */
+    protected function hasOptionalParameters(string $uri): bool
+    {
+        return str_contains($uri, '?}');
     }
 
     /**
@@ -236,7 +334,7 @@ class Router
                 $routeKey = $method . ':' . $index;
 
                 // Валидируем параметры, если есть ограничения
-                if (isset($this->routeConstraints[$routeKey]) && !empty($params)) {
+                if (isset($this->routeConstraints[$routeKey])) {
                     try {
                         $params = $this->validateParams($params, $this->routeConstraints[$routeKey]);
                     } catch (Validation\ValidationException $e) {
