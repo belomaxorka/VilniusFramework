@@ -2,25 +2,20 @@
 /.vscode
 /.phpunit.cache
 *.log
+npm-debug.log
+yarn-error.log
 *.phar
 *.sqlite
 *.lock
+package-lock.json
 Thumbs.db
+.DS_Store
 .env
-vendor
+vendor/
+node_modules/
 storage/cache/templates
 storage/cache/*.php
-
-# Node / NPM
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Build files
 public/build/
 public/hot
 public/mix-manifest.json
 .vite/
-
-# OS
-.DS_Store
