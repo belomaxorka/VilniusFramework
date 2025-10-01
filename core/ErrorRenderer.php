@@ -82,6 +82,10 @@ class ErrorRenderer
         if (Environment::isDebug() && !empty($details)) {
             $detailsHtml = '<div class="details">';
             foreach ($details as $key => $value) {
+                if (is_array($value)) {
+                    // Пропускаем массивы в простом виде
+                    continue;
+                }
                 $detailsHtml .= '<div class="detail-item">';
                 $detailsHtml .= '<strong>' . htmlspecialchars(ucfirst($key)) . ':</strong> ';
                 $detailsHtml .= '<span>' . htmlspecialchars((string)$value) . '</span>';
@@ -90,7 +94,7 @@ class ErrorRenderer
             $detailsHtml .= '</div>';
         }
 
-        return <<<HTML
+        $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -160,6 +164,39 @@ class ErrorRenderer
 </body>
 </html>
 HTML;
+
+        // Добавляем Debug Toolbar если нужно
+        return self::injectDebugToolbar($html);
+    }
+
+    /**
+     * Внедрить Debug Toolbar в HTML
+     */
+    private static function injectDebugToolbar(string $html): string
+    {
+        // Только в debug режиме
+        if (!Environment::isDebug()) {
+            return $html;
+        }
+
+        // Проверяем наличие </body>
+        if (stripos($html, '</body>') === false) {
+            return $html;
+        }
+
+        // Рендерим Debug Toolbar
+        try {
+            if (class_exists('Core\DebugToolbar')) {
+                $toolbar = \Core\DebugToolbar::render();
+                if (!empty($toolbar)) {
+                    $html = str_ireplace('</body>', $toolbar . '</body>', $html);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Не ломаем страницу если toolbar не работает
+        }
+
+        return $html;
     }
 
     /**
