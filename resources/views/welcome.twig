@@ -1,6 +1,4 @@
-{% extends "layout.tpl" %}
-
-{% block title %}{{ title }}{% endblock %}
+{% extends "layout.twig" %}
 
 {% block content %}
 <div class="py-12">
@@ -8,10 +6,7 @@
         <!-- Hero Section -->
         <div class="text-center mb-16">
             <h1 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                Welcome to
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-400">
-                    TorrentPier
-                </span>
+                {{ title }}
             </h1>
             <p class="text-xl text-gray-600 max-w-2xl mx-auto">
                 {{ message }}

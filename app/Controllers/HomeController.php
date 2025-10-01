@@ -9,10 +9,11 @@ class HomeController extends Controller
     public function index(): Response
     {
         $data = [
-            'title' => 'Welcome to TorrentPier Framework',
-            'message' => 'A modern, lightweight PHP framework'
+            'title' => 'Welcome to Vilnius!',
+            'message' => 'A modern, lightweight PHP framework',
+            'description' => 'Vilnius Framework - A modern, lightweight PHP framework'
         ];
 
-        return $this->view('welcome.tpl', $data);
+        return $this->view('welcome.twig', $data);
     }
 }

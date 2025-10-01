@@ -273,7 +273,7 @@ $response = $response->xml('<?xml version="1.0"?><root></root>');
 
 ```php
 // Рендер шаблона
-$response = $response->view('welcome.tpl', ['name' => 'John']);
+$response = $response->view('welcome.twig', ['name' => 'John']);
 ```
 
 ### Редиректы
@@ -426,7 +426,7 @@ return $this->error('Something went wrong', 400, ['field' => 'error']);
 return $this->html('<h1>Hello</h1>');
 
 // View
-return $this->view('welcome.tpl', ['name' => 'John']);
+return $this->view('welcome.twig', ['name' => 'John']);
 ```
 
 #### Редиректы

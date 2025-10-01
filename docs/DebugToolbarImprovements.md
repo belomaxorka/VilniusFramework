@@ -91,13 +91,13 @@ User ID: 123
 ```
 🎨 Views (3)
 
-welcome.tpl (15.2 ms)
+welcome.twig (15.2 ms)
 ├─ Data: {title, message, users[3]}
 ├─ Undefined: none
 └─ Size: 2.4 KB
 
-header.tpl (2.1 ms)
-footer.tpl (1.5 ms)
+header.twig (2.1 ms)
+footer.twig (1.5 ms)
 
 Total rendering time: 18.8 ms
 ```

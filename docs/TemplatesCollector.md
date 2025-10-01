@@ -31,7 +31,7 @@ use Core\TemplateEngine;
 $engine = TemplateEngine::getInstance();
 
 // Рендеринг шаблона
-$engine->render('welcome.tpl', [
+$engine->render('welcome.twig', [
     'title' => 'Welcome',
     'user' => $userData,
     'posts' => $posts
@@ -42,7 +42,7 @@ $engine->render('welcome.tpl', [
 
 ```php
 // Рендеринг и вывод
-$engine->display('welcome.tpl', [
+$engine->display('welcome.twig', [
     'title' => 'Welcome',
     'message' => 'Hello World'
 ]);
@@ -68,7 +68,7 @@ $email (1 times)
 
 ### Детальная информация о шаблоне
 ```
-📄 welcome.tpl                           [5.2 ms] [🗃️ CACHED]
+📄 welcome.twig                           [5.2 ms] [🗃️ CACHED]
 
 Variables: 5    Memory: 2.1 KB    Size: 8.3 KB
 
@@ -87,7 +87,7 @@ View Variables (5) ▼
 Templates Collector автоматически отслеживает undefined переменные в шаблонах:
 
 ```tpl
-<!-- welcome.tpl -->
+<!-- welcome.twig -->
 <h1>{{ title }}</h1>
 <p>Hello, {{ username }}</p>  <!-- username не передан! -->
 ```
@@ -117,8 +117,8 @@ $username (1 times)
 $templates = TemplateEngine::getRenderedTemplates();
 // [
 //     [
-//         'template' => 'welcome.tpl',
-//         'path' => '/path/to/welcome.tpl',
+//         'template' => 'welcome.twig',
+//         'path' => '/path/to/welcome.twig',
 //         'variables' => ['title', 'message'],
 //         'variables_count' => 2,
 //         'time' => 15.2,  // ms
@@ -150,7 +150,7 @@ $undefined = TemplateEngine::getUndefinedVars();
 //     'username' => [
 //         'count' => 3,
 //         'message' => 'Undefined variable $username',
-//         'file' => 'welcome.tpl',
+//         'file' => 'welcome.twig',
 //         'line' => 15
 //     ]
 // ]
@@ -173,7 +173,7 @@ $undefined = TemplateEngine::getUndefinedVars();
 
 ```php
 // В контроллере
-$engine->display('user-profile.tpl', [
+$engine->display('user-profile.twig', [
     'user' => $user,
     'posts' => $posts,
     // 'stats' => $stats  // Забыли передать!

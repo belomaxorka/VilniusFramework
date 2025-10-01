@@ -527,7 +527,7 @@ function createUser($data)
     }
 }
 
-// В шаблоне (welcome.tpl или layout)
+// В шаблоне (welcome.twig или layout)
 use Core\Session;
 
 $flash = Session::getAllFlash();

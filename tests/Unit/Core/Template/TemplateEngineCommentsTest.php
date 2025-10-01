@@ -4,7 +4,7 @@ use Core\TemplateEngine;
 
 beforeEach(function () {
     // Создаем временную директорию для тестов
-    $this->testTemplateDir = sys_get_temp_dir() . '/torrentpier_templates_comments_test';
+    $this->testTemplateDir = sys_get_temp_dir() . '/vilnius_templates_comments_test';
     $this->testCacheDir = sys_get_temp_dir() . '/torrentpier_cache_comments_test';
 
     if (!is_dir($this->testTemplateDir)) {
@@ -37,11 +37,11 @@ afterEach(function () {
 
 test('can render template with single line comment', function () {
     $templateContent = 'Hello {{ name }}! {# This is a comment #}';
-    $templateFile = $this->testTemplateDir . '/comment.tpl';
+    $templateFile = $this->testTemplateDir . '/comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('comment.tpl', [
+    $result = $engine->render('comment.twig', [
         'name' => 'John'
     ]);
 
@@ -50,11 +50,11 @@ test('can render template with single line comment', function () {
 
 test('can render template with multi-line comment', function () {
     $templateContent = "Hello {{ name }}!\n{# This is a\nmulti-line comment\n#}";
-    $templateFile = $this->testTemplateDir . '/multiline_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/multiline_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('multiline_comment.tpl', [
+    $result = $engine->render('multiline_comment.twig', [
         'name' => 'John'
     ]);
 
@@ -63,11 +63,11 @@ test('can render template with multi-line comment', function () {
 
 test('can render template with multiple comments', function () {
     $templateContent = '{# Header comment #}Hello {{ name }}! {# Middle comment #}Welcome! {# Footer comment #}';
-    $templateFile = $this->testTemplateDir . '/multiple_comments.tpl';
+    $templateFile = $this->testTemplateDir . '/multiple_comments.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('multiple_comments.tpl', [
+    $result = $engine->render('multiple_comments.twig', [
         'name' => 'John'
     ]);
 
@@ -76,11 +76,11 @@ test('can render template with multiple comments', function () {
 
 test('can render template with comment containing special characters', function () {
     $templateContent = 'Hello {{ name }}! {# Comment with {{ variables }} and {% tags %} #}';
-    $templateFile = $this->testTemplateDir . '/special_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/special_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('special_comment.tpl', [
+    $result = $engine->render('special_comment.twig', [
         'name' => 'John'
     ]);
 
@@ -89,11 +89,11 @@ test('can render template with comment containing special characters', function 
 
 test('can render template with comment inside conditional', function () {
     $templateContent = '{% if show_message %}{# Show message comment #}Hello {{ name }}!{% endif %}';
-    $templateFile = $this->testTemplateDir . '/comment_conditional.tpl';
+    $templateFile = $this->testTemplateDir . '/comment_conditional.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('comment_conditional.tpl', [
+    $result = $engine->render('comment_conditional.twig', [
         'show_message' => true,
         'name' => 'John'
     ]);
@@ -103,11 +103,11 @@ test('can render template with comment inside conditional', function () {
 
 test('can render template with comment inside loop', function () {
     $templateContent = '{% for item in items %}{# Loop comment #}{{ item }}{% endfor %}';
-    $templateFile = $this->testTemplateDir . '/comment_loop.tpl';
+    $templateFile = $this->testTemplateDir . '/comment_loop.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('comment_loop.tpl', [
+    $result = $engine->render('comment_loop.twig', [
         'items' => ['a', 'b', 'c']
     ]);
 
@@ -116,11 +116,11 @@ test('can render template with comment inside loop', function () {
 
 test('can render template with empty comment', function () {
     $templateContent = 'Hello {{ name }}! {##}';
-    $templateFile = $this->testTemplateDir . '/empty_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/empty_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('empty_comment.tpl', [
+    $result = $engine->render('empty_comment.twig', [
         'name' => 'John'
     ]);
 
@@ -129,11 +129,11 @@ test('can render template with empty comment', function () {
 
 test('can render template with comment containing quotes', function () {
     $templateContent = 'Hello {{ name }}! {# Comment with "quotes" and \'apostrophes\' #}';
-    $templateFile = $this->testTemplateDir . '/quotes_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/quotes_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('quotes_comment.tpl', [
+    $result = $engine->render('quotes_comment.twig', [
         'name' => 'John'
     ]);
 
@@ -142,11 +142,11 @@ test('can render template with comment containing quotes', function () {
 
 test('can render template with comment at the beginning', function () {
     $templateContent = '{# This is a header comment #}Hello {{ name }}!';
-    $templateFile = $this->testTemplateDir . '/beginning_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/beginning_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('beginning_comment.tpl', [
+    $result = $engine->render('beginning_comment.twig', [
         'name' => 'John'
     ]);
 
@@ -155,11 +155,11 @@ test('can render template with comment at the beginning', function () {
 
 test('can render template with comment at the end', function () {
     $templateContent = 'Hello {{ name }}!{# This is a footer comment #}';
-    $templateFile = $this->testTemplateDir . '/end_comment.tpl';
+    $templateFile = $this->testTemplateDir . '/end_comment.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('end_comment.tpl', [
+    $result = $engine->render('end_comment.twig', [
         'name' => 'John'
     ]);
 

@@ -62,14 +62,14 @@
 
 ```twig
 <!-- Включение другого шаблона -->
-{% include 'header.tpl' %}
+{% include 'header.twig' %}
 ```
 
 ### Наследование
 
 ```twig
 <!-- Расширение базового шаблона -->
-{% extends 'base.tpl' %}
+{% extends 'base.twig' %}
 
 {% block content %}
     Содержимое блока
@@ -93,20 +93,20 @@ $template->assignMultiple([
 ]);
 
 // Рендеринг
-$html = $template->render('welcome.tpl', ['message' => 'Привет!']);
+$html = $template->render('welcome.twig', ['message' => 'Привет!']);
 
 // Или вывод напрямую
-$template->display('welcome.tpl', ['message' => 'Привет!']);
+$template->display('welcome.twig', ['message' => 'Привет!']);
 ```
 
 ### Через глобальные функции
 
 ```php
 // Рендеринг шаблона
-$html = view('welcome.tpl', ['title' => 'Мой сайт']);
+$html = view('welcome.twig', ['title' => 'Мой сайт']);
 
 // Вывод шаблона
-display('welcome.tpl', ['title' => 'Мой сайт']);
+display('welcome.twig', ['title' => 'Мой сайт']);
 
 // Получение экземпляра шаблонизатора
 $template = template();
@@ -127,7 +127,7 @@ class HomeController
             ]
         ];
         
-        display('home.tpl', $data);
+        display('home.twig', $data);
     }
 }
 ```
@@ -205,7 +205,7 @@ TemplateEngine::clearUndefinedVars();
 ```
 [2025-09-30 12:34:56] WARNING: Template undefined variable: $user_name
 Message: Undefined variable $user_name
-File: welcome.tpl:15
+File: welcome.twig:15
 Available variables: title, content, footer, config
 ```
 
@@ -262,7 +262,7 @@ Available variables: title, content, footer, config
 
 ### Базовый шаблон с наследованием
 
-**base.tpl:**
+**base.twig:**
 ```html
 <!DOCTYPE html>
 <html>
@@ -271,7 +271,7 @@ Available variables: title, content, footer, config
 </head>
 <body>
     <header>
-        {% include 'header.tpl' %}
+        {% include 'header.twig' %}
     </header>
     
     <main>
@@ -279,15 +279,15 @@ Available variables: title, content, footer, config
     </main>
     
     <footer>
-        {% include 'footer.tpl' %}
+        {% include 'footer.twig' %}
     </footer>
 </body>
 </html>
 ```
 
-**page.tpl:**
+**page.twig:**
 ```html
-{% extends 'base.tpl' %}
+{% extends 'base.twig' %}
 
 {% block title %}{{ page_title }} - Мой сайт{% endblock %}
 
