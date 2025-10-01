@@ -88,8 +88,8 @@ class DebugToolbar
         if ($routesCollector instanceof RoutesCollector) {
             $routesCollector->setRouter($router);
             $routesCollector->setCurrentRequest(
-                $_SERVER['REQUEST_METHOD'] ?? 'GET',
-                $_SERVER['REQUEST_URI'] ?? '/'
+                Http::getMethod(),
+                Http::getUri()
             );
         }
     }

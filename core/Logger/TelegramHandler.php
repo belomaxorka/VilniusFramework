@@ -75,7 +75,7 @@ class TelegramHandler implements LogHandlerInterface
         $emoji = $this->getEmojiForLevel($level);
         $levelText = strtoupper($level);
         $timestamp = date('Y-m-d H:i:s');
-        $host = $_SERVER['HTTP_HOST'] ?? 'CLI';
+        $host = \Core\Http::getHost();
 
         if ($this->parseMode === 'HTML') {
             return sprintf(

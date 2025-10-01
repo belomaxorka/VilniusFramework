@@ -51,7 +51,7 @@ class RequestCollector extends AbstractCollector
             'cookies' => Http::getCookies(),
             'files' => Http::getFiles(),
             'headers' => Http::getHeaders(),
-            'server' => $this->filterServer($_SERVER),
+            'server' => $this->filterServer(),
         ];
     }
 
@@ -139,11 +139,11 @@ class RequestCollector extends AbstractCollector
     /**
      * Фильтровать SERVER переменные (убрать чувствительные данные и дубликаты)
      */
-    private function filterServer(array $server): array
+    private function filterServer(): array
     {
         $filtered = [];
 
-        foreach ($server as $key => $value) {
+        foreach ($_SERVER as $key => $value) {
             // Пропускаем HTTP_ заголовки (они в отдельной секции)
             if (str_starts_with($key, 'HTTP_')) {
                 continue;

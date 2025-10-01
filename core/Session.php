@@ -115,7 +115,7 @@ class Session
         $_SESSION = [];
         
         // Удаляем cookie сессии
-        if (isset($_COOKIE[session_name()])) {
+        if (Http::getCookie(session_name()) !== null) {
             $params = session_get_cookie_params();
             setcookie(
                 session_name(),

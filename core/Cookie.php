@@ -49,7 +49,7 @@ class Cookie
      */
     public static function get(string $name, mixed $default = null): mixed
     {
-        return $_COOKIE[$name] ?? $default;
+        return Http::getCookie($name) ?? $default;
     }
 
     /**
@@ -57,7 +57,7 @@ class Cookie
      */
     public static function has(string $name): bool
     {
-        return isset($_COOKIE[$name]);
+        return Http::getCookie($name) !== null;
     }
 
     /**
@@ -83,7 +83,7 @@ class Cookie
      */
     public static function all(): array
     {
-        return $_COOKIE;
+        return Http::getCookies();
     }
 
     /**
@@ -91,7 +91,7 @@ class Cookie
      */
     public static function clear(string $path = '/', string $domain = ''): void
     {
-        foreach (array_keys($_COOKIE) as $name) {
+        foreach (array_keys(Http::getCookies()) as $name) {
             self::delete($name, $path, $domain);
         }
     }

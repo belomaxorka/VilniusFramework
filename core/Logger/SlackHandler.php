@@ -87,7 +87,7 @@ class SlackHandler implements LogHandlerInterface
                     'color' => $color,
                     'title' => $emoji . ' ' . strtoupper($level),
                     'text' => $message,
-                    'footer' => $_SERVER['HTTP_HOST'] ?? 'CLI',
+                    'footer' => \Core\Http::getHost(),
                     'ts' => time(),
                 ]
             ]

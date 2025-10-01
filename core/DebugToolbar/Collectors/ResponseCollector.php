@@ -95,7 +95,7 @@ class ResponseCollector extends AbstractCollector
             'content_type' => $contentType,
             'content_length' => $contentLength,
             'response_time' => $responseTime,
-            'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
+            'protocol' => \Core\Http::getProtocol(),
         ];
     }
 

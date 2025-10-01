@@ -20,4 +20,4 @@ $router->any('demo', [\App\Controllers\RequestDemoController::class, 'demo']);
 \Core\DebugToolbar::setRouter($router);
 
 // Let the Magic begin!
-$router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
+$router->dispatch(\Core\Http::getMethod(), \Core\Http::getUri());
