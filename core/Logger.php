@@ -13,6 +13,7 @@ class Logger
     protected static string $minLevel = 'debug';
     protected static array $levels = ['debug', 'info', 'warning', 'error', 'critical'];
     protected static bool $initialized = false;
+    protected static array $logs = []; // Логи текущего запроса для Debug Toolbar
 
     /**
      * Инициализация логгера из конфигурации
@@ -134,6 +135,15 @@ class Logger
             return;
         }
 
+        // Сохраняем в памяти для Debug Toolbar (до интерполяции, чтобы сохранить контекст)
+        self::$logs[] = [
+            'level' => $level,
+            'message' => $message,
+            'context' => $context,
+            'time' => microtime(true),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ];
+
         // Добавляем контекст к сообщению
         $message = self::interpolate($message, $context);
 
@@ -235,5 +245,42 @@ class Logger
     public static function getHandlers(): array
     {
         return self::$handlers;
+    }
+
+    /**
+     * Получает все логи текущего запроса
+     */
+    public static function getLogs(): array
+    {
+        return self::$logs;
+    }
+
+    /**
+     * Получает статистику по логам
+     */
+    public static function getStats(): array
+    {
+        $stats = [
+            'total' => count(self::$logs),
+            'by_level' => [],
+        ];
+
+        foreach (self::$levels as $level) {
+            $stats['by_level'][$level] = 0;
+        }
+
+        foreach (self::$logs as $log) {
+            $stats['by_level'][$log['level']]++;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Очищает логи (для тестирования)
+     */
+    public static function clearLogs(): void
+    {
+        self::$logs = [];
     }
 }

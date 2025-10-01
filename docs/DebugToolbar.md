@@ -36,12 +36,17 @@ Debug Toolbar - интерактивная панель отладки, объе
 
 ### Вкладки
 
-1. **📊 Overview** - общая статистика и метрики
-2. **🔍 Dumps** - все dump() и dump_pretty() выводы
-3. **🗄️ Queries** - SQL запросы с временем выполнения
-4. **⏱️ Timers** - измерения времени
-5. **💾 Memory** - профиль памяти
-6. **📁 Contexts** - debug контексты
+1. **📥 Request** - данные входящего запроса
+2. **📤 Response** - данные исходящего ответа
+3. **🛣️ Routes** - информация о маршрутизации
+4. **🔍 Dumps** - все dump() и dump_pretty() выводы
+5. **🗄️ Queries** - SQL запросы с временем выполнения
+6. **🗃️ Cache** - операции с кэшем
+7. **🎨 Templates** - отрендеренные шаблоны
+8. **⏱️ Timers** - время выполнения запроса
+9. **📝 Logs** - логи приложения
+10. **💾 Memory** - профиль памяти
+11. **📁 Contexts** - debug контексты
 
 ## Использование
 
@@ -391,6 +396,164 @@ Toolbar показывает предупреждения в заголовке:
 🗄️ 15 queries (3 slow)  ← ⚠️ Медленные запросы
 ```
 
+## Расширяемая система коллекторов
+
+Debug Toolbar теперь поддерживает **расширяемую архитектуру коллекторов**, которая позволяет легко добавлять новые вкладки и функциональность.
+
+### Встроенные коллекторы
+
+- **RequestCollector** - данные входящего запроса
+- **ResponseCollector** - данные исходящего ответа
+- **RoutesCollector** - информация о маршрутизации
+- **DumpsCollector** - дебаг дампы
+- **QueriesCollector** - SQL запросы
+- **CacheCollector** - операции с кэшем
+- **TemplatesCollector** - отрендеренные шаблоны и undefined переменные
+- **TimersCollector** - таймеры и время выполнения
+- **LogsCollector** - логи приложения (debug, info, warning, error, critical)
+- **MemoryCollector** - использование памяти
+- **ContextsCollector** - контексты отладки
+
+### Создание своего коллектора
+
+Вы можете легко создать свой коллектор для отображения специфичных данных вашего приложения:
+
+```php
+<?php
+
+namespace Core\DebugToolbar\Collectors;
+
+use Core\DebugToolbar\AbstractCollector;
+
+class MyCollector extends AbstractCollector
+{
+    private static array $data = [];
+    
+    public function __construct()
+    {
+        $this->priority = 45; // Порядок отображения
+    }
+
+    public function getName(): string
+    {
+        return 'my_feature';
+    }
+
+    public function getTitle(): string
+    {
+        return 'My Feature';
+    }
+
+    public function getIcon(): string
+    {
+        return '🎯';
+    }
+
+    public function collect(): void
+    {
+        $this->data = ['items' => self::$data];
+    }
+
+    public function render(): string
+    {
+        // HTML для вкладки
+        $html = '<div style="padding: 10px;">';
+        foreach ($this->data['items'] as $item) {
+            $html .= '<div>' . htmlspecialchars($item) . '</div>';
+        }
+        $html .= '</div>';
+        return $html;
+    }
+
+    public function getBadge(): ?string
+    {
+        return count(self::$data) > 0 ? (string)count(self::$data) : null;
+    }
+
+    // Метод для сбора данных
+    public static function log(string $data): void
+    {
+        self::$data[] = $data;
+    }
+}
+```
+
+### Регистрация коллектора
+
+```php
+use Core\DebugToolbar;
+use Core\DebugToolbar\Collectors\MyCollector;
+
+// В bootstrap или config
+DebugToolbar::addCollector(new MyCollector());
+
+// Использование
+MyCollector::log('Some data');
+MyCollector::log('Another data');
+
+// Данные автоматически появятся в новой вкладке!
+```
+
+### Пример: Cache Collector
+
+```php
+use Core\DebugToolbar\Collectors\CacheCollector;
+
+// В вашем классе кэша
+class Cache
+{
+    public function get(string $key)
+    {
+        $start = microtime(true);
+        $value = // ... получаем из кэша
+        $time = (microtime(true) - $start) * 1000;
+        
+        if ($value !== null) {
+            CacheCollector::logHit($key, $value, $time);
+        } else {
+            CacheCollector::logMiss($key, $time);
+        }
+        
+        return $value;
+    }
+
+    public function set(string $key, $value, int $ttl = 3600)
+    {
+        $start = microtime(true);
+        // ... сохраняем в кэш
+        $time = (microtime(true) - $start) * 1000;
+        
+        CacheCollector::logWrite($key, $value, $time);
+    }
+}
+
+// Toolbar автоматически покажет:
+// - 🗃️ Cache вкладку с операциями
+// - Статистику hits/misses
+// - Hit rate
+```
+
+### Управление коллекторами
+
+```php
+// Добавить коллектор
+DebugToolbar::addCollector(new MyCollector());
+
+// Получить коллектор
+$collector = DebugToolbar::getCollector('cache');
+
+// Удалить коллектор
+DebugToolbar::removeCollector('cache');
+
+// Включить/выключить
+$collector->setEnabled(false);
+
+// Изменить приоритет (порядок вкладок)
+$collector->setPriority(15);
+```
+
+📖 **Полная документация:** См. [DebugToolbarCollectors.md](./DebugToolbarCollectors.md) для детального руководства по созданию коллекторов.
+
 ## Интеграция с другими инструментами
 
 ### С Query Debugger
@@ -601,11 +764,23 @@ A: Минимально, только в dev режиме. В production пол�
 
 **Q: Как скрыть конкретную вкладку?**
 
-A: Сейчас нельзя, но можно не использовать соответствующий инструмент (напр. не вызывать query_log).
+A: Используйте систему коллекторов:
+```php
+// Отключить коллектор
+$collector = DebugToolbar::getCollector('queries');
+$collector->setEnabled(false);
+
+// Или удалить полностью
+DebugToolbar::removeCollector('queries');
+```
 
 **Q: Toolbar конфликтует с другими панелями?**
 
 A: Используйте setPosition() чтобы разместить в удобном месте.
+
+**Q: Могу ли я добавить свою вкладку в toolbar?**
+
+A: Да! Используйте систему коллекторов. См. [DebugToolbarCollectors.md](./DebugToolbarCollectors.md) для подробностей.
 
 ## Заключение
 

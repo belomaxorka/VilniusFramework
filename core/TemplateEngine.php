@@ -15,12 +15,12 @@ class TemplateEngine
     private array $filters = [];
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
+    private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
-        $root = defined('ROOT') ? ROOT : dirname(__DIR__, 2);
-        $this->templateDir = $templateDir ?? $root . '/resources/views';
-        $this->cacheDir = $cacheDir ?? $root . '/storage/cache/templates';
+        $this->templateDir = $templateDir ?? RESOURCES_DIR . '/views';
+        $this->cacheDir = $cacheDir ?? STORAGE_DIR . '/cache/templates';
 
         // Создаем директорию кэша если её нет
         if (!is_dir($this->cacheDir)) {
@@ -33,11 +33,14 @@ class TemplateEngine
 
     /**
      * Получает единственный экземпляр шаблонизатора (Singleton)
+     *
+     * @param string|null $templateDir Директория шаблонов (используется только при первом вызове)
+     * @param string|null $cacheDir Директория кэша (используется только при первом вызове)
      */
-    public static function getInstance(): TemplateEngine
+    public static function getInstance(?string $templateDir = null, ?string $cacheDir = null): TemplateEngine
     {
         if (self::$instance === null) {
-            self::$instance = new self();
+            self::$instance = new self($templateDir, $cacheDir);
         }
         return self::$instance;
     }
@@ -65,6 +68,9 @@ class TemplateEngine
      */
     public function render(string $template, array $variables = []): string
     {
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
         $templatePath = $this->templateDir . '/' . $template;
 
         if (!file_exists($templatePath)) {
@@ -75,23 +81,45 @@ class TemplateEngine
         $allVariables = array_merge($this->variables, $variables);
 
         // Проверяем кэш
+        $fromCache = false;
         if ($this->cacheEnabled) {
             $cachedContent = $this->getCachedContent($templatePath);
             if ($cachedContent !== null) {
-                return $this->executeTemplate($cachedContent, $allVariables);
+                $fromCache = true;
+                $output = $this->executeTemplate($cachedContent, $allVariables);
             }
         }
 
-        // Читаем и компилируем шаблон
-        $templateContent = file_get_contents($templatePath);
-        $compiledContent = $this->compileTemplate($templateContent);
+        if (!$fromCache) {
+            // Читаем и компилируем шаблон
+            $templateContent = file_get_contents($templatePath);
+            $compiledContent = $this->compileTemplate($templateContent);
 
-        // Сохраняем в кэш
-        if ($this->cacheEnabled) {
-            $this->saveCachedContent($templatePath, $compiledContent);
+            // Сохраняем в кэш
+            if ($this->cacheEnabled) {
+                $this->saveCachedContent($templatePath, $compiledContent);
+            }
+
+            $output = $this->executeTemplate($compiledContent, $allVariables);
         }
 
-        return $this->executeTemplate($compiledContent, $allVariables);
+        // Сохраняем информацию о рендеринге для Debug Toolbar
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+
+        self::$renderedTemplates[] = [
+            'template' => $template,
+            'path' => $templatePath,
+            'variables' => array_keys($allVariables),
+            'variables_count' => count($allVariables),
+            'time' => ($endTime - $startTime) * 1000, // в миллисекундах
+            'memory' => $endMemory - $startMemory,
+            'size' => strlen($output),
+            'from_cache' => $fromCache,
+            'timestamp' => microtime(true),
+        ];
+
+        return $output;
     }
 
     /**
@@ -148,6 +176,51 @@ class TemplateEngine
     public static function clearUndefinedVars(): void
     {
         self::$undefinedVars = [];
+    }
+
+    /**
+     * Получить список отрендеренных шаблонов
+     */
+    public static function getRenderedTemplates(): array
+    {
+        return self::$renderedTemplates;
+    }
+
+    /**
+     * Очистить список отрендеренных шаблонов
+     */
+    public static function clearRenderedTemplates(): void
+    {
+        self::$renderedTemplates = [];
+    }
+
+    /**
+     * Получить статистику по рендерингу
+     */
+    public static function getRenderStats(): array
+    {
+        $totalTime = 0;
+        $totalMemory = 0;
+        $totalSize = 0;
+        $fromCache = 0;
+
+        foreach (self::$renderedTemplates as $tpl) {
+            $totalTime += $tpl['time'];
+            $totalMemory += $tpl['memory'];
+            $totalSize += $tpl['size'];
+            if ($tpl['from_cache']) {
+                $fromCache++;
+            }
+        }
+
+        return [
+            'total' => count(self::$renderedTemplates),
+            'total_time' => $totalTime,
+            'total_memory' => $totalMemory,
+            'total_size' => $totalSize,
+            'from_cache' => $fromCache,
+            'compiled' => count(self::$renderedTemplates) - $fromCache,
+        ];
     }
 
     /**
@@ -480,6 +553,9 @@ class TemplateEngine
     {
         $condition = trim($condition);
 
+        // Проверяем, использует ли пользователь уже isset() или empty()
+        $hasIssetOrEmpty = preg_match('/\b(isset|empty)\s*\(/', $condition);
+
         // Защищаем строки в кавычках
         $strings = [];
         $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
@@ -498,14 +574,21 @@ class TemplateEngine
         $condition = str_replace(' not ', ' ! ', $condition);
 
         // Обрабатываем простые переменные (которые еще не обработаны)
-        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not'];
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty) {
             $var = $matches[1];
             // Пропускаем ключевые слова и защищенные фрагменты
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
-            return '$' . $var;
+            
+            // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
+            if ($hasIssetOrEmpty) {
+                return '$' . $var;
+            }
+            
+            // Оборачиваем переменную в isset() && $var для безопасной проверки
+            return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
 
         // Восстанавливаем защищенные фрагменты

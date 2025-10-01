@@ -14,6 +14,11 @@ return [
     'name' => 'Vilnius Framework',
 
     /**
+     * Framework short name
+     */
+    'short_name' => 'Vilnius',
+
+    /**
      * Framework version
      */
     'version' => 'v1.0.0-alpha.3',

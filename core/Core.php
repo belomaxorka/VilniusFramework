@@ -6,13 +6,11 @@ final class Core
 {
     public static function init(): void
     {
-        HelperLoader::loadHelper('basic');
         self::initEnvironment();
         self::initConfigLoader();
         self::initDebugSystem();
-        self::initializeLangManager();
+        self::initializeLang();
         self::initializeDatabase();
-        self::initializeTemplateEngine();
     }
 
     private static function initEnvironment(): void
@@ -22,9 +20,6 @@ final class Core
 
     private static function initDebugSystem(): void
     {
-        // Загружаем дебаг хелпер
-        HelperLoader::loadHelper('debug');
-
         // Регистрируем обработчик ошибок
         ErrorHandler::register();
 
@@ -65,7 +60,7 @@ final class Core
         }
     }
 
-    private static function initializeLangManager(): void
+    private static function initializeLang(): void
     {
         Lang::init();
     }
@@ -73,11 +68,5 @@ final class Core
     private static function initializeDatabase(): void
     {
         Database::init();
-    }
-
-    private static function initializeTemplateEngine(): void
-    {
-        // Инициализация шаблонизатора будет происходить по требованию
-        // через статический метод TemplateEngine::getInstance()
     }
 }

@@ -9,10 +9,11 @@
 |
 */
 
-use Core\HelperLoader;
+// Load bootstrap file
+require_once __DIR__ . '/../core/bootstrap.php';
 
-// Load debug helpers
-HelperLoader::loadHelpers(['basic', 'debug']);
+// Load all helpers
+\Core\HelperLoader::loadAllHelpers();
 
 /*
 |--------------------------------------------------------------------------

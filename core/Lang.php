@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use Core\Http;
+
 /**
  * Multilingual System
  *
@@ -72,12 +74,12 @@ class Lang
     protected static function detectUserLang(): string
     {
         $autoDetectEnabled = Config::get('language.auto_detect', false);
+        $acceptLanguages = Http::getHeader('Accept-Language');
 
-        if (!$autoDetectEnabled || empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+        if (!$autoDetectEnabled || empty($acceptLanguages)) {
             return self::$fallbackLang;
         }
 
-        $acceptLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
         $languages = [];
 
         // Parse Accept-Language header
