@@ -5,6 +5,9 @@ namespace Core;
 class Router
 {
     protected array $routes = [];
+    protected array $originalUris = [];
+    protected array $namedRoutes = [];
+    protected ?string $lastAddedRouteKey = null;
 
     public function get(string $uri, callable|array $action): void
     {
@@ -14,6 +17,31 @@ class Router
     public function post(string $uri, callable|array $action): void
     {
         $this->addRoute('POST', $uri, $action);
+    }
+
+    public function put(string $uri, callable|array $action): void
+    {
+        $this->addRoute('PUT', $uri, $action);
+    }
+
+    public function patch(string $uri, callable|array $action): void
+    {
+        $this->addRoute('PATCH', $uri, $action);
+    }
+
+    public function delete(string $uri, callable|array $action): void
+    {
+        $this->addRoute('DELETE', $uri, $action);
+    }
+
+    public function options(string $uri, callable|array $action): void
+    {
+        $this->addRoute('OPTIONS', $uri, $action);
+    }
+
+    public function head(string $uri, callable|array $action): void
+    {
+        $this->addRoute('HEAD', $uri, $action);
     }
 
     public function any(string $uri, callable|array $action): void
@@ -38,10 +66,15 @@ class Router
 
         $pattern = '#^' . trim($pattern, '/') . '$#';
 
+        $routeIndex = count($this->routes[$method] ?? []);
+        
         $this->routes[$method][] = [
             'pattern' => $pattern,
             'action' => $action,
         ];
+
+        // Сохраняем оригинальный URI для отладки
+        $this->originalUris[$method][$routeIndex] = $uri;
     }
 
     public function dispatch(string $method, string $uri): void
@@ -70,5 +103,27 @@ class Router
 
         http_response_code(404);
         echo "404 Not Found: [$uri]";
+    }
+
+    /**
+     * Получить все зарегистрированные роуты
+     *
+     * @return array<string, array<int, array{uri: string, pattern: string, action: callable|array}>>
+     */
+    public function getRoutes(): array
+    {
+        $routes = [];
+
+        foreach ($this->routes as $method => $methodRoutes) {
+            foreach ($methodRoutes as $index => $route) {
+                $routes[$method][] = [
+                    'uri' => $this->originalUris[$method][$index] ?? '',
+                    'pattern' => $route['pattern'],
+                    'action' => $route['action'],
+                ];
+            }
+        }
+
+        return $routes;
     }
 }
