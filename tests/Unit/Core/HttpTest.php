@@ -5,11 +5,25 @@ use Core\Http;
 beforeEach(function () {
     // Сохраняем оригинальные значения
     $this->originalServer = $_SERVER;
+    $this->originalGet = $_GET ?? [];
+    $this->originalPost = $_POST ?? [];
+    $this->originalCookie = $_COOKIE ?? [];
+    $this->originalFiles = $_FILES ?? [];
+    
+    // Очищаем для чистого состояния в каждом тесте
+    $_GET = [];
+    $_POST = [];
+    $_COOKIE = [];
+    $_FILES = [];
 });
 
 afterEach(function () {
     // Восстанавливаем оригинальные значения
     $_SERVER = $this->originalServer;
+    $_GET = $this->originalGet;
+    $_POST = $this->originalPost;
+    $_COOKIE = $this->originalCookie;
+    $_FILES = $this->originalFiles;
 });
 
 describe('HTTP Basic Methods', function () {
