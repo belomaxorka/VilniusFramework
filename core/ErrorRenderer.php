@@ -36,13 +36,13 @@ class ErrorRenderer
      */
     private static function getCustomTemplate(int $code): ?string
     {
-        $templatePath = RESOURCES_DIR . '/views/errors/' . $code . '.tpl';
+        $templatePath = RESOURCES_DIR . '/views/errors/' . $code . '.twig';
 
         if (is_file($templatePath)) {
             try {
                 $engine = TemplateEngine::getInstance();
                 $engine->setCacheEnabled(false);
-                return $engine->render('errors/' . $code . '.tpl');
+                return $engine->render('errors/' . $code . '.twig');
             } catch (\Throwable $e) {
                 // Если ошибка при рендере шаблона, используем дефолтный
                 return null;

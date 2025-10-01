@@ -6,9 +6,9 @@
 
 ```php
 // Контроллер
-display('user.tpl', ['name' => 'Иван']);
+display('user.twig', ['name' => 'Иван']);
 
-// Шаблон user.tpl
+// Шаблон user.twig
 <h1>{{ name }}</h1>
 <p>Email: {{ email }}</p>  <!-- ❌ $email не передан! -->
 ```
@@ -21,7 +21,7 @@ display('user.tpl', ['name' => 'Иван']);
 │ Error - Fatal Error                    │
 ├─────────────────────────────────────────┤
 │ Message: Undefined variable $email     │
-│ File: welcome.tpl:15                    │
+│ File: welcome.twig:15                    │
 │ Stack Trace: ...                        │
 └─────────────────────────────────────────┘
 ```
@@ -41,7 +41,7 @@ display('user.tpl', ['name' => 'Иван']);
 **Production С логированием (наше решение):**
 ```
 (Пустое место на странице)
-+ Запись в логе: "Undefined variable $email in user.tpl:15"
++ Запись в логе: "Undefined variable $email in user.twig:15"
 ```
 - Пользователь не видит ошибку ✓
 - Разработчик видит в логах ✓
@@ -63,7 +63,7 @@ display('user.tpl', ['name' => 'Иван']);
 
 ```php
 // В production режиме
-display('user.tpl', ['name' => 'Иван']);
+display('user.twig', ['name' => 'Иван']);
 // Если в шаблоне используется $email - будет залогировано
 ```
 
@@ -133,7 +133,7 @@ if (!empty($undefinedVars)) {
 // Контроллер
 public function profile()
 {
-    display('profile.tpl', [
+    display('profile.twig', [
         'username' => 'john_doe',
         'email' => 'john@example.com'
     ]);
@@ -141,7 +141,7 @@ public function profile()
 ```
 
 ```html
-<!-- profile.tpl -->
+<!-- profile.twig -->
 <div>
     <h1>{{ username }}</h1>
     <p>{{ email }}</p>
@@ -153,7 +153,7 @@ public function profile()
 ```
 [2025-09-30 14:30:12] WARNING: Template undefined variable: $phone
 Message: Undefined variable $phone
-File: profile.tpl:15
+File: profile.twig:15
 Available variables: username, email
 ```
 
@@ -203,7 +203,7 @@ test('template should not have undefined variables', function () {
     TemplateEngine::clearUndefinedVars();
     
     ob_start();
-    display('user.tpl', ['name' => 'Test']);
+    display('user.twig', ['name' => 'Test']);
     ob_end_clean();
     
     $undefined = TemplateEngine::getUndefinedVars();
@@ -219,7 +219,7 @@ test('template should not have undefined variables', function () {
 ```
 [2025-09-30 14:30:12] WARNING: Template undefined variable: $user_avatar
 Message: Undefined variable $user_avatar
-File: user/profile.tpl:42
+File: user/profile.twig:42
 Available variables: user_id, user_name, user_email, user_role
 ```
 
@@ -228,7 +228,7 @@ Available variables: user_id, user_name, user_email, user_role
 ```
 [2025-09-30 14:30:12] WARNING: Template undefined variable: $product_price
 Message: Undefined variable $product_price
-File: shop/product.tpl:23
+File: shop/product.twig:23
 Available variables: product_id, product_name, product_description, product_image
 Context: /shop/product/123
 User: guest
@@ -263,7 +263,7 @@ $template->setLogUndefinedVars(
 
 1. **Всегда передавайте все переменные**
    ```php
-   display('template.tpl', [
+   display('template.twig', [
        'title' => $title,
        'user' => $user,
        'settings' => $settings,

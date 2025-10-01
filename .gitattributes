@@ -1,7 +1,8 @@
 * text=auto eol=lf
 
 *.css diff=css
-*.tpl diff=html
+*.twig diff=html
+*.html diff=html
 *.md diff=markdown
 *.php diff=php
 

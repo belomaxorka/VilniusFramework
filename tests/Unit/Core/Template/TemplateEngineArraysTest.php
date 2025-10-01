@@ -37,11 +37,11 @@ afterEach(function () {
 
 test('can render template with array element access', function () {
     $templateContent = 'First item: {{ items[0] }}';
-    $templateFile = $this->testTemplateDir . '/array.tpl';
+    $templateFile = $this->testTemplateDir . '/array.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('array.tpl', [
+    $result = $engine->render('array.twig', [
         'items' => ['apple', 'banana', 'cherry']
     ]);
 
@@ -50,11 +50,11 @@ test('can render template with array element access', function () {
 
 test('can render template with array access using string key', function () {
     $templateContent = 'Status: {{ config.status }}';
-    $templateFile = $this->testTemplateDir . '/string_key.tpl';
+    $templateFile = $this->testTemplateDir . '/string_key.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('string_key.tpl', [
+    $result = $engine->render('string_key.twig', [
         'config' => [
             'status' => 'active',
             'version' => '1.0'
@@ -66,11 +66,11 @@ test('can render template with array access using string key', function () {
 
 test('can render template with nested array access', function () {
     $templateContent = 'City: {{ user.address.city }}';
-    $templateFile = $this->testTemplateDir . '/nested.tpl';
+    $templateFile = $this->testTemplateDir . '/nested.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('nested.tpl', [
+    $result = $engine->render('nested.twig', [
         'user' => [
             'name' => 'John',
             'address' => [
@@ -85,11 +85,11 @@ test('can render template with nested array access', function () {
 
 test('can render template with mixed array access', function () {
     $templateContent = 'Name: {{ users[0].name }}, Email: {{ users[1].email }}';
-    $templateFile = $this->testTemplateDir . '/mixed.tpl';
+    $templateFile = $this->testTemplateDir . '/mixed.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('mixed.tpl', [
+    $result = $engine->render('mixed.twig', [
         'users' => [
             ['name' => 'John', 'email' => 'john@example.com'],
             ['name' => 'Jane', 'email' => 'jane@example.com']
@@ -101,11 +101,11 @@ test('can render template with mixed array access', function () {
 
 test('can render template with complex nested array access', function () {
     $templateContent = 'User: {{ data.users[0].profile.name }}, Age: {{ data.users[0].profile.age }}';
-    $templateFile = $this->testTemplateDir . '/complex.tpl';
+    $templateFile = $this->testTemplateDir . '/complex.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('complex.tpl', [
+    $result = $engine->render('complex.twig', [
         'data' => [
             'users' => [
                 [
@@ -123,11 +123,11 @@ test('can render template with complex nested array access', function () {
 
 test('can handle undefined array elements gracefully', function () {
     $templateContent = 'First: {{ items[0] }}, Missing: {{ items[5] }}';
-    $templateFile = $this->testTemplateDir . '/undefined_array.tpl';
+    $templateFile = $this->testTemplateDir . '/undefined_array.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('undefined_array.tpl', [
+    $result = $engine->render('undefined_array.twig', [
         'items' => ['apple', 'banana']
     ]);
 
@@ -136,11 +136,11 @@ test('can handle undefined array elements gracefully', function () {
 
 test('can handle undefined array keys gracefully', function () {
     $templateContent = 'Name: {{ user.name }}, Missing: {{ user.missing }}';
-    $templateFile = $this->testTemplateDir . '/undefined_key.tpl';
+    $templateFile = $this->testTemplateDir . '/undefined_key.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('undefined_key.tpl', [
+    $result = $engine->render('undefined_key.twig', [
         'user' => ['name' => 'John']
     ]);
 
@@ -149,11 +149,11 @@ test('can handle undefined array keys gracefully', function () {
 
 test('can render template with numeric array access', function () {
     $templateContent = 'Numbers: {{ numbers[0] }}, {{ numbers[1] }}, {{ numbers[2] }}';
-    $templateFile = $this->testTemplateDir . '/numeric.tpl';
+    $templateFile = $this->testTemplateDir . '/numeric.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('numeric.tpl', [
+    $result = $engine->render('numeric.twig', [
         'numbers' => [10, 20, 30]
     ]);
 
@@ -162,11 +162,11 @@ test('can render template with numeric array access', function () {
 
 test('can render template with associative array access', function () {
     $templateContent = 'Name: {{ person.name }}, Age: {{ person.age }}, City: {{ person.city }}';
-    $templateFile = $this->testTemplateDir . '/associative.tpl';
+    $templateFile = $this->testTemplateDir . '/associative.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('associative.tpl', [
+    $result = $engine->render('associative.twig', [
         'person' => [
             'name' => 'Alice',
             'age' => 25,

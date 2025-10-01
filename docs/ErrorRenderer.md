@@ -46,10 +46,10 @@ echo ErrorRenderer::render(500, 'Internal Server Error');
 
 ### Создание шаблона
 
-Создайте файл `resources/views/errors/{code}.tpl`:
+Создайте файл `resources/views/errors/{code}.twig`:
 
 ```php
-// resources/views/errors/404.tpl
+// resources/views/errors/404.twig
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,12 +82,12 @@ echo ErrorRenderer::render(500, 'Internal Server Error');
 ### Доступные коды
 
 Создайте шаблоны для любых HTTP кодов:
-- `400.tpl` - Bad Request
-- `401.tpl` - Unauthorized
-- `403.tpl` - Forbidden
-- `404.tpl` - Not Found
-- `422.tpl` - Unprocessable Entity
-- `500.tpl` - Internal Server Error
+- `400.twig` - Bad Request
+- `401.twig` - Unauthorized
+- `403.twig` - Forbidden
+- `404.twig` - Not Found
+- `422.twig` - Unprocessable Entity
+- `500.twig` - Internal Server Error
 - и т.д.
 
 ## Debug Toolbar
@@ -284,7 +284,7 @@ APP_ENV=production
 
 **Q: Можно ли изменить цвет фона?**
 
-A: Да, создайте пользовательский шаблон в `resources/views/errors/{code}.tpl`
+A: Да, создайте пользовательский шаблон в `resources/views/errors/{code}.twig`
 
 **Q: Как добавить кнопку "На главную"?**
 

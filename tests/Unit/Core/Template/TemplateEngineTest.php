@@ -61,47 +61,47 @@ test('can assign multiple variables', function () {
 
 test('can render simple template', function () {
     $templateContent = 'Hello {{ name }}!';
-    $templateFile = $this->testTemplateDir . '/test.tpl';
+    $templateFile = $this->testTemplateDir . '/test.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('test.tpl', ['name' => 'World']);
+    $result = $engine->render('test.twig', ['name' => 'World']);
 
     expect($result)->toBe('Hello World!');
 });
 
 test('can render template with conditions', function () {
     $templateContent = '{% if show_message %}Hello {{ name }}!{% endif %}';
-    $templateFile = $this->testTemplateDir . '/conditional.tpl';
+    $templateFile = $this->testTemplateDir . '/conditional.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
 
-    $result1 = $engine->render('conditional.tpl', ['show_message' => true, 'name' => 'John']);
+    $result1 = $engine->render('conditional.twig', ['show_message' => true, 'name' => 'John']);
     expect($result1)->toBe('Hello John!');
 
-    $result2 = $engine->render('conditional.tpl', ['show_message' => false, 'name' => 'John']);
+    $result2 = $engine->render('conditional.twig', ['show_message' => false, 'name' => 'John']);
     expect($result2)->toBe('');
 });
 
 test('can render template with loops', function () {
     $templateContent = '{% for item in items %}{{ item }}{% endfor %}';
-    $templateFile = $this->testTemplateDir . '/loop.tpl';
+    $templateFile = $this->testTemplateDir . '/loop.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('loop.tpl', ['items' => ['a', 'b', 'c']]);
+    $result = $engine->render('loop.twig', ['items' => ['a', 'b', 'c']]);
 
     expect($result)->toBe('abc');
 });
 
 test('can handle unescaped variables', function () {
     $templateContent = '{! html_content !}';
-    $templateFile = $this->testTemplateDir . '/unescaped.tpl';
+    $templateFile = $this->testTemplateDir . '/unescaped.twig';
     file_put_contents($templateFile, $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
-    $result = $engine->render('unescaped.tpl', ['html_content' => '<b>Bold</b>']);
+    $result = $engine->render('unescaped.twig', ['html_content' => '<b>Bold</b>']);
 
     expect($result)->toBe('<b>Bold</b>');
 });
@@ -133,8 +133,8 @@ test('can clear cache', function () {
 test('throws exception for non-existent template', function () {
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
 
-    expect(fn() => $engine->render('nonexistent.tpl'))
-        ->toThrow(InvalidArgumentException::class, 'Template not found: nonexistent.tpl');
+    expect(fn() => $engine->render('nonexistent.twig'))
+        ->toThrow(InvalidArgumentException::class, 'Template not found: nonexistent.twig');
 });
 
 test('can get singleton instance', function () {

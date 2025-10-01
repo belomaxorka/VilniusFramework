@@ -1,4 +1,4 @@
-{% extends "layout.tpl" %}
+{% extends "layout.twig" %}
 
 {% block title %}{{ title }}{% endblock %}
 

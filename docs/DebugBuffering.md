@@ -123,7 +123,7 @@ class HomeController
             return $this->heavyCalculation();
         }, 'Heavy Calculation');
         
-        display('home.tpl', ['result' => $result]);
+        display('home.twig', ['result' => $result]);
     }
 }
 ```
@@ -148,12 +148,12 @@ class ProductController
             return $product->calculatePrice();
         }, 'Price Calculation');
         
-        display('product.tpl', ['product' => $product]);
+        display('product.twig', ['product' => $product]);
     }
 }
 ```
 
-В шаблоне `product.tpl`:
+В шаблоне `product.twig`:
 
 ```html
 <!DOCTYPE html>

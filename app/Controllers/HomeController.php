@@ -13,6 +13,6 @@ class HomeController extends Controller
             'message' => 'A modern, lightweight PHP framework'
         ];
 
-        return $this->view('welcome.tpl', $data);
+        return $this->view('welcome.twig', $data);
     }
 }

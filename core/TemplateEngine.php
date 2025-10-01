@@ -296,10 +296,10 @@ class TemplateEngine
             $parentTemplate = $extendsMatch[1];
             // Удаляем директиву extends из контента
             $content = preg_replace('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', '', $content);
-            
+
             // Парсим блоки в текущем шаблоне
             $childBlocks = $this->parseBlocks($content);
-            
+
             // Читаем родительский шаблон
             $parentPath = $this->templateDir . '/' . $parentTemplate;
             if (file_exists($parentPath)) {
@@ -381,7 +381,7 @@ class TemplateEngine
             return '<?= ' . $compiled . ' ?? \'\' ?>';
         }, $content);
 
-        // Обрабатываем включения {% include 'template.tpl' %}
+        // Обрабатываем включения {% include 'template.twig' %}
         $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
             return $this->processInclude($matches[1]);
         }, $content);
@@ -542,7 +542,7 @@ class TemplateEngine
     private function parseBlocks(string $content): array
     {
         $blocks = [];
-        
+
         // Находим все блоки в шаблоне
         if (preg_match_all('/\{\%\s*block\s+(\w+)\s*\%\}(.*?)\{\%\s*endblock\s*\%\}/s', $content, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
@@ -551,7 +551,7 @@ class TemplateEngine
                 $blocks[$blockName] = $blockContent;
             }
         }
-        
+
         return $blocks;
     }
 
@@ -562,29 +562,29 @@ class TemplateEngine
     {
         // Парсим блоки в родительском шаблоне
         $parentBlocks = $this->parseBlocks($parentContent);
-        
+
         // Заменяем блоки родительского шаблона на блоки из дочернего
         foreach ($childBlocks as $blockName => $blockContent) {
             // Ищем блок в родительском шаблоне и заменяем его
             $pattern = '/\{\%\s*block\s+' . preg_quote($blockName, '/') . '\s*\%\}.*?\{\%\s*endblock\s*\%\}/s';
             $parentContent = preg_replace($pattern, $blockContent, $parentContent);
         }
-        
+
         // Удаляем оставшиеся теги block (которые не были переопределены)
         $parentContent = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $parentContent);
         $parentContent = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $parentContent);
-        
+
         // Проверяем, есть ли в родительском еще extends
         if (preg_match('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', $parentContent, $extendsMatch)) {
             $grandparentTemplate = $extendsMatch[1];
             $parentContent = preg_replace('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', '', $parentContent);
-            
+
             // Объединяем блоки
             $mergedBlocks = $this->parseBlocks($parentContent);
             foreach ($childBlocks as $blockName => $blockContent) {
                 $mergedBlocks[$blockName] = $blockContent;
             }
-            
+
             // Читаем прародительский шаблон
             $grandparentPath = $this->templateDir . '/' . $grandparentTemplate;
             if (file_exists($grandparentPath)) {
@@ -592,7 +592,7 @@ class TemplateEngine
                 return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
             }
         }
-        
+
         // Компилируем финальный результат
         return $this->compileTemplateContent($parentContent);
     }
@@ -674,7 +674,7 @@ class TemplateEngine
             return '<?= ' . $compiled . ' ?? \'\' ?>';
         }, $content);
 
-        // Обрабатываем включения {% include 'template.tpl' %}
+        // Обрабатываем включения {% include 'template.twig' %}
         $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
             return $this->processInclude($matches[1]);
         }, $content);
@@ -717,12 +717,12 @@ class TemplateEngine
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
-            
+
             // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
             if ($hasIssetOrEmpty) {
                 return '$' . $var;
             }
-            
+
             // Оборачиваем переменную в isset() && $var для безопасной проверки
             return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
