@@ -163,14 +163,12 @@ class ErrorHandler
             return;
         }
 
-        // Устанавливаем HTTP статус код
-        http_response_code(500);
-
         // Очищаем буфер вывода
         if (ob_get_level()) {
             ob_clean();
         }
 
+        // Для режима разработки показываем детальную страницу ошибки
         echo self::renderErrorPage($error);
         exit;
     }
@@ -185,15 +183,12 @@ class ErrorHandler
             return;
         }
 
-        // Устанавливаем HTTP статус код
-        http_response_code(500);
-
         // Очищаем буфер вывода
         if (ob_get_level()) {
             ob_clean();
         }
 
-        echo self::renderProductionErrorPage();
+        echo ErrorRenderer::render(500, 'Internal Server Error');
         exit;
     }
 
@@ -397,43 +392,6 @@ HTML;
 HTML;
     }
 
-    /**
-     * Отрендерить страницу ошибки для продакшена
-     */
-    private static function renderProductionErrorPage(): string
-    {
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Internal Server Error</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f8f9fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .error-container { text-align: center; max-width: 500px; padding: 40px; }
-        .error-icon { font-size: 64px; color: #dc3545; margin-bottom: 20px; }
-        .error-title { font-size: 32px; color: #495057; margin-bottom: 15px; }
-        .error-message { color: #6c757d; font-size: 18px; margin-bottom: 30px; }
-        .error-actions { }
-        .btn { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 0 10px; }
-        .btn:hover { background: #0056b3; }
-    </style>
-</head>
-<body>
-    <div class="error-container">
-        <div class="error-icon">⚠️</div>
-        <h1 class="error-title">Internal Server Error</h1>
-        <p class="error-message">Something went wrong on our end. We're working to fix it.</p>
-        <div class="error-actions">
-            <a href="/" class="btn">Go Home</a>
-            <a href="javascript:history.back()" class="btn">Go Back</a>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
-    }
 
     /**
      * Получить название уровня серьезности ошибки

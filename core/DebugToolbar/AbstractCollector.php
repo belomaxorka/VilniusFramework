@@ -71,40 +71,39 @@ abstract class AbstractCollector implements CollectorInterface
 
     /**
      * Форматировать байты в человекочитаемый формат
+     * 
+     * @param int $bytes Количество байтов
+     * @return string Отформатированная строка
      */
     protected function formatBytes(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $i = 0;
-        while ($bytes >= 1024 && $i < count($units) - 1) {
-            $bytes /= 1024;
-            $i++;
-        }
-        return round($bytes, 2) . ' ' . $units[$i];
+        return \Core\Utils\FormatHelper::formatBytes($bytes, 2);
     }
 
     /**
-     * Форматировать время в миллисекундах
+     * Форматировать время в человекочитаемый формат
+     * 
+     * Принимает время в миллисекундах и возвращает отформатированную строку
+     * с автоматическим выбором единиц измерения (μs, ms, s).
+     * 
+     * @param float $timeMs Время в миллисекундах
+     * @return string Отформатированная строка
      */
-    protected function formatTime(float $time): string
+    protected function formatTime(float $timeMs): string
     {
-        if ($time < 1) {
-            return number_format($time * 1000, 2) . 'μs';
-        }
-        return number_format($time, 2) . 'ms';
+        return \Core\Utils\FormatHelper::formatTime($timeMs, 2);
     }
 
     /**
      * Получить цвет по порогу
+     * 
+     * @param float $value Текущее значение
+     * @param float $warning Порог предупреждения
+     * @param float $critical Критический порог
+     * @return string Hex-код цвета
      */
     protected function getColorByThreshold(float $value, float $warning, float $critical): string
     {
-        if ($value >= $critical) {
-            return '#ef5350'; // red
-        }
-        if ($value >= $warning) {
-            return '#ffa726'; // orange
-        }
-        return '#66bb6a'; // green
+        return \Core\Utils\FormatHelper::getColorByThreshold($value, $warning, $critical);
     }
 }

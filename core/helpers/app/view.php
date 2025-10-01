@@ -18,16 +18,6 @@ if (!function_exists('view')) {
     }
 }
 
-if (!function_exists('display')) {
-    /**
-     * Display template (outputs directly)
-     *
-     * @param string $template Template name
-     * @param array $variables Template variables
-     * @return void
-     */
-    function display(string $template, array $variables = []): void
-    {
-        \Core\TemplateEngine::getInstance()->display($template, $variables);
-    }
-}
+// DEPRECATED: display() удален. 
+// Используйте TemplateEngine::getInstance()->display() напрямую
+// или верните view() из контроллера (рекомендуется)

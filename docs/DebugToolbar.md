@@ -14,16 +14,11 @@ Debug Toolbar - интерактивная панель отладки, объе
 
 ## Быстрый старт
 
-### Базовое использование
+### Автоматическая работа
 
-Добавьте в конец вашего layout/template:
+Debug Toolbar автоматически добавляется на все HTML страницы через `DebugToolbarMiddleware`.
 
-```php
-<!-- В конце body, перед </body> -->
-<?= render_debug_toolbar() ?>
-```
-
-**Готово!** Toolbar автоматически появится внизу страницы.
+**Ничего делать не нужно!** Toolbar автоматически появится внизу страницы в development режиме.
 
 ### Что вы увидите
 
@@ -68,43 +63,34 @@ public function index()
 
 **По умолчанию:** все вызовы `dump()`, `dd()`, и т.д. собираются только для toolbar и НЕ выводятся на странице.
 
-### В шаблонах (Templates)
+### Как это работает
 
-Если используете свой шаблонизатор (не TemplateEngine):
+Debug Toolbar автоматически инъектируется через `DebugToolbarMiddleware`:
+
+1. **Middleware перехватывает вывод** через output buffering
+2. **Проверяет условия**: debug режим, HTML Content-Type, наличие `</body>`
+3. **Инъектирует toolbar** перед закрывающим тегом `</body>`
 
 ```php
-<!-- layout.php -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title><?= $title ?></title>
-</head>
-<body>
-    <?= $content ?>
-    
-    <!-- Debug Toolbar в самом конце -->
-    <?= render_debug_toolbar() ?>
-</body>
-</html>
+// В контроллере - просто возвращайте response
+public function index(): Response
+{
+    return $this->view('home');
+    // Toolbar добавится автоматически!
+}
 ```
 
-### Программная установка
+### Ручная инъекция (не рекомендуется)
+
+Если по каким-то причинам вам нужно вручную добавить toolbar:
 
 ```php
 use Core\DebugToolbar;
 
-// В конце вашего скрипта
 echo DebugToolbar::render();
 ```
 
-### С автоматическим выводом
-
-```php
-// В bootstrap или Core::init()
-\Core\Debug::registerShutdownHandler();
-
-// Toolbar автоматически отобразится в конце
-```
+**Примечание:** В 99% случаев автоматическая инъекция через middleware - правильное решение.
 
 ## Настройка
 

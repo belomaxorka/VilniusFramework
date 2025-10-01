@@ -10,34 +10,46 @@ class Debug
     private static bool $showBacktrace = true;
     private static bool $autoDisplay = true; // Автоматический вывод в конце
     private static bool $renderOnPage = false; // Рендерить на странице (false = только в toolbar)
+    private static bool $isDumping = false; // Защита от рекурсивного вызова
 
     /**
      * Дебаг переменной (аналог var_dump)
      */
     public static function dump(mixed $var, ?string $label = null, bool $die = false): void
     {
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
-        $caller = $backtrace[0] ?? [];
-        $file = $caller['file'] ?? 'unknown';
-        $line = $caller['line'] ?? 0;
+        // Защита от рекурсивного вызова dump() внутри dump()
+        if (self::$isDumping) {
+            return;
+        }
 
-        $output = self::formatVariable($var, $label, $file, $line);
+        self::$isDumping = true;
 
-        // Когда debug включен - отправляем в toolbar, иначе в логи
-        if (Environment::isDebug()) {
-            // Сохраняем в буфер вместо прямого echo
-            self::$debugOutput[] = [
-                'type' => 'dump',
-                'output' => $output,
-                'die' => $die
-            ];
+        try {
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+            $caller = $backtrace[0] ?? [];
+            $file = $caller['file'] ?? 'unknown';
+            $line = $caller['line'] ?? 0;
 
-            // Добавляем в контекст если активен
-            if (class_exists('\Core\DebugContext')) {
-                \Core\DebugContext::add('dump', $label ?? 'Variable dump');
+            $output = self::formatVariable($var, $label, $file, $line);
+
+            // Когда debug включен - отправляем в toolbar, иначе в логи
+            if (Environment::isDebug()) {
+                // Сохраняем в буфер вместо прямого echo
+                self::$debugOutput[] = [
+                    'type' => 'dump',
+                    'output' => $output,
+                    'die' => $die
+                ];
+
+                // Добавляем в контекст если активен
+                if (class_exists('\Core\DebugContext')) {
+                    \Core\DebugContext::add('dump', $label ?? 'Variable dump');
+                }
+            } else {
+                Logger::debug($output);
             }
-        } else {
-            Logger::debug($output);
+        } finally {
+            self::$isDumping = false;
         }
 
         if ($die) {
@@ -51,23 +63,34 @@ class Debug
      */
     public static function dumpPretty(mixed $var, ?string $label = null, bool $die = false): void
     {
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
-        $caller = $backtrace[0] ?? [];
-        $file = $caller['file'] ?? 'unknown';
-        $line = $caller['line'] ?? 0;
+        // Защита от рекурсивного вызова dump() внутри dump()
+        if (self::$isDumping) {
+            return;
+        }
 
-        $output = self::formatVariablePretty($var, $label, $file, $line);
+        self::$isDumping = true;
 
-        // Когда debug включен - отправляем в toolbar, иначе в логи
-        if (Environment::isDebug()) {
-            // Сохраняем в буфер вместо прямого echo
-            self::$debugOutput[] = [
-                'type' => 'dump_pretty',
-                'output' => $output,
-                'die' => $die
-            ];
-        } else {
-            Logger::debug($output);
+        try {
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+            $caller = $backtrace[0] ?? [];
+            $file = $caller['file'] ?? 'unknown';
+            $line = $caller['line'] ?? 0;
+
+            $output = self::formatVariablePretty($var, $label, $file, $line);
+
+            // Когда debug включен - отправляем в toolbar, иначе в логи
+            if (Environment::isDebug()) {
+                // Сохраняем в буфер вместо прямого echo
+                self::$debugOutput[] = [
+                    'type' => 'dump_pretty',
+                    'output' => $output,
+                    'die' => $die
+                ];
+            } else {
+                Logger::debug($output);
+            }
+        } finally {
+            self::$isDumping = false;
         }
 
         if ($die) {

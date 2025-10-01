@@ -2,6 +2,9 @@
 
 namespace Core;
 
+use InvalidArgumentException;
+use LogicException;
+
 class Router
 {
     protected array $routes = [];
@@ -11,6 +14,7 @@ class Router
     protected array $groupStack = [];
     protected array $middlewareAliases = [];
     protected array $routeMiddleware = [];
+    protected array $globalMiddleware = [];
     protected $notFoundHandler = null;
     protected bool $cacheEnabled = false;
     protected string $cachePath = '';
@@ -75,7 +79,7 @@ class Router
     public function middleware(string|array $middleware): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign middleware to. Call middleware() right after defining a route.');
+            throw new LogicException('No route to assign middleware to. Call middleware() right after defining a route.');
         }
 
         $middleware = is_array($middleware) ? $middleware : [$middleware];
@@ -101,7 +105,7 @@ class Router
     public function where(array $constraints): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign constraints to. Call where() right after defining a route.');
+            throw new LogicException('No route to assign constraints to. Call where() right after defining a route.');
         }
 
         $this->routeConstraints[$this->lastAddedRouteKey] = $constraints;
@@ -119,7 +123,7 @@ class Router
     public function whereParam(string $param, array $constraint): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign constraint to. Call whereParam() right after defining a route.');
+            throw new LogicException('No route to assign constraint to. Call whereParam() right after defining a route.');
         }
 
         if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
@@ -169,7 +173,7 @@ class Router
     public function defaults(array $defaults): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign defaults to. Call defaults() right after defining a route.');
+            throw new LogicException('No route to assign defaults to. Call defaults() right after defining a route.');
         }
 
         if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
@@ -180,7 +184,7 @@ class Router
             if (!isset($this->routeConstraints[$this->lastAddedRouteKey][$param])) {
                 $this->routeConstraints[$this->lastAddedRouteKey][$param] = [];
             }
-            
+
             $this->routeConstraints[$this->lastAddedRouteKey][$param]['default'] = $value;
             $this->routeConstraints[$this->lastAddedRouteKey][$param]['optional'] = true;
         }
@@ -195,7 +199,7 @@ class Router
 
         // Обрабатываем опциональные параметры {param?} или {param:regex?}
         $hasOptionalParams = $this->hasOptionalParameters($uri);
-        
+
         if ($hasOptionalParams) {
             // Генерируем несколько вариантов роута для опциональных параметров
             $this->addOptionalRoute($method, $uri, $action);
@@ -224,10 +228,10 @@ class Router
         $pattern = '#^' . trim($pattern, '/') . '$#';
 
         $routeIndex = count($this->routes[$method] ?? []);
-        
+
         // Получаем домен из стека групп
         $domain = $this->getGroupDomain();
-        
+
         $this->routes[$method][] = [
             'pattern' => $pattern,
             'action' => $action,
@@ -255,7 +259,7 @@ class Router
         // Разбиваем URI на сегменты
         $segments = explode('/', trim($uri, '/'));
         $patterns = [''];
-        
+
         // Находим первый опциональный параметр
         $firstOptionalIndex = null;
         foreach ($segments as $index => $segment) {
@@ -274,14 +278,14 @@ class Router
         // Создаем варианты роутов:
         // 1. Без опциональных параметров
         $requiredPart = implode('/', array_slice($segments, 0, $firstOptionalIndex));
-        
+
         // 2. С каждым последующим опциональным параметром
         $currentPath = $requiredPart;
         $optionalSegments = array_slice($segments, $firstOptionalIndex);
-        
+
         // Добавляем роут без опциональных параметров
         $this->addSingleRoute($method, $currentPath, $action);
-        
+
         // Добавляем роуты с опциональными параметрами по одному
         foreach ($optionalSegments as $segment) {
             // Убираем знак вопроса из параметра
@@ -305,7 +309,7 @@ class Router
     protected function applyGroupPrefix(string $uri): string
     {
         $prefix = '';
-        
+
         foreach ($this->groupStack as $group) {
             if (isset($group['prefix'])) {
                 $prefix .= '/' . trim($group['prefix'], '/');
@@ -321,7 +325,7 @@ class Router
     protected function getGroupMiddleware(): array
     {
         $middleware = [];
-        
+
         foreach ($this->groupStack as $group) {
             if (isset($group['middleware'])) {
                 $middleware = array_merge($middleware, (array)$group['middleware']);
@@ -378,22 +382,34 @@ class Router
 
                 // Получаем middleware для этого роута
                 $middleware = $this->routeMiddleware[$routeKey] ?? [];
-                
+
                 // Добавляем middleware из группы
                 $middleware = array_merge($route['middleware'] ?? [], $middleware);
 
+                // Добавляем глобальные middleware (выполняются первыми)
+                $middleware = array_merge($this->globalMiddleware, $middleware);
+
                 // Создаем финальный обработчик
                 $action = $route['action'];
-                $finalHandler = function() use ($action, $params, $method) {
-                if (is_array($action)) {
+                $finalHandler = function () use ($action, $params, $method) {
+                    $result = null;
+
+                    if (is_array($action)) {
                         [$controller, $methodName] = $action;
-                    if (!class_exists($controller)) {
-                        $controller = "App\\Controllers\\{$controller}";
+                        if (!class_exists($controller)) {
+                            $controller = "App\\Controllers\\{$controller}";
+                        }
+                        $result = $this->callControllerAction($controller, $methodName, $params);
+                    } else {
+                        $result = $action(...array_values($params));
                     }
-                        return $this->callControllerAction($controller, $methodName, $params);
-                } else {
-                        return $action(...array_values($params));
-                }
+
+                    // Если возвращен Response объект, отправляем его
+                    if ($result instanceof Response) {
+                        $result->send();
+                    }
+
+                    return $result;
                 };
 
                 // Выполняем middleware pipeline
@@ -415,7 +431,7 @@ class Router
         // Если установлен кастомный обработчик
         if ($this->notFoundHandler !== null) {
             $handler = $this->notFoundHandler;
-            
+
             if (is_array($handler)) {
                 [$controller, $methodName] = $handler;
                 if (!class_exists($controller)) {
@@ -437,285 +453,7 @@ class Router
      */
     protected function renderDefaultNotFound(string $method, string $uri): void
     {
-        // Для JSON запросов
-        if ($this->isJsonRequest()) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => 'Not Found',
-                'message' => "The requested resource was not found.",
-                'path' => '/' . $uri,
-                'method' => $method,
-            ], JSON_PRETTY_PRINT);
-            return;
-        }
-
-        // Для обычных запросов
-        $isDebug = Environment::isDebug();
-        
-        echo $this->render404Page($method, $uri, $isDebug);
-    }
-
-    /**
-     * Отрендерить HTML страницу 404
-     */
-    protected function render404Page(string $method, string $uri, bool $isDebug): string
-    {
-        $registeredRoutes = '';
-        
-        if ($isDebug) {
-            $registeredRoutes = $this->renderRegisteredRoutes($method);
-        }
-
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Page Not Found</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 900px;
-            width: 100%;
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
-        .error-code {
-            font-size: 120px;
-            font-weight: bold;
-            line-height: 1;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        .error-message {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        .error-details {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 40px;
-        }
-        .info-box {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 8px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .info-value {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 16px;
-            color: #333;
-        }
-        .routes-section {
-            margin-top: 30px;
-        }
-        .routes-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        .routes-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #f8f9fa;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .routes-table th {
-            background: #667eea;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .routes-table td {
-            padding: 12px;
-            border-bottom: 1px solid #e0e0e0;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-        .routes-table tr:last-child td {
-            border-bottom: none;
-        }
-        .routes-table tr:hover {
-            background: white;
-        }
-        .method-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: white;
-        }
-        .method-GET { background: #4caf50; }
-        .method-POST { background: #2196f3; }
-        .method-PUT { background: #ff9800; }
-        .method-PATCH { background: #9c27b0; }
-        .method-DELETE { background: #f44336; }
-        .actions {
-            margin-top: 30px;
-            text-align: center;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 30px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: all 0.3s;
-            margin: 0 10px;
-        }
-        .btn:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        .btn-secondary {
-            background: #6c757d;
-        }
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="error-code">404</div>
-            <div class="error-message">Page Not Found</div>
-            <div class="error-details">The requested resource could not be found</div>
-        </div>
-        
-        <div class="content">
-            <div class="info-box">
-                <div class="info-label">Request Method</div>
-                <div class="info-value">{$method}</div>
-            </div>
-            
-            <div class="info-box">
-                <div class="info-label">Request URI</div>
-                <div class="info-value">/{$uri}</div>
-            </div>
-
-            {$registeredRoutes}
-            
-            <div class="actions">
-                <a href="/" class="btn">Go to Homepage</a>
-                <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
-    }
-
-    /**
-     * Отрендерить зарегистрированные роуты для debug режима
-     */
-    protected function renderRegisteredRoutes(string $currentMethod): string
-    {
-        $html = '<div class="routes-section">';
-        $html .= '<div class="routes-title">🛣️ Registered Routes for ' . $currentMethod . '</div>';
-        
-        if (empty($this->routes[$currentMethod])) {
-            $html .= '<p style="color: #999; font-style: italic;">No routes registered for this method.</p>';
-        } else {
-            $html .= '<table class="routes-table">';
-            $html .= '<thead><tr><th>Method</th><th>URI Pattern</th><th>Action</th></tr></thead>';
-            $html .= '<tbody>';
-            
-            foreach ($this->routes[$currentMethod] as $index => $route) {
-                $uri = htmlspecialchars($this->originalUris[$currentMethod][$index] ?? '');
-                $action = $this->formatAction($route['action']);
-                
-                $html .= '<tr>';
-                $html .= '<td><span class="method-badge method-' . $currentMethod . '">' . $currentMethod . '</span></td>';
-                $html .= '<td>/' . $uri . '</td>';
-                $html .= '<td>' . htmlspecialchars($action) . '</td>';
-                $html .= '</tr>';
-            }
-            
-            $html .= '</tbody>';
-            $html .= '</table>';
-        }
-        
-        // Показать другие методы
-        $otherMethods = array_keys($this->routes);
-        $otherMethods = array_filter($otherMethods, fn($m) => $m !== $currentMethod);
-        
-        if (!empty($otherMethods)) {
-            $html .= '<div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">';
-            $html .= '<strong>💡 Hint:</strong> There are routes registered for other HTTP methods: ';
-            $html .= implode(', ', array_map(fn($m) => '<strong>' . $m . '</strong>', $otherMethods));
-            $html .= '</div>';
-        }
-        
-        $html .= '</div>';
-        
-        return $html;
-    }
-
-    /**
-     * Форматировать action для отображения
-     */
-    protected function formatAction($action): string
-    {
-        if (is_array($action)) {
-            [$controller, $method] = $action;
-            $shortController = is_string($controller) 
-                ? (class_exists($controller) ? basename(str_replace('\\', '/', $controller)) : $controller)
-                : 'Closure';
-            return $shortController . '::' . $method;
-        }
-        
-        return 'Closure';
-    }
-
-    /**
-     * Проверить, является ли запрос JSON
-     */
-    protected function isJsonRequest(): bool
-    {
-        return Http::isJson() || Http::acceptsJson();
+        echo ErrorRenderer::render(404, 'Not Found');
     }
 
     /**
@@ -750,7 +488,7 @@ HTML;
         } elseif (class_exists($name)) {
             $class = $name;
         } else {
-            throw new \InvalidArgumentException("Middleware '{$name}' not found.");
+            throw new InvalidArgumentException("Middleware '{$name}' not found.");
         }
 
         return new $class();
@@ -762,11 +500,11 @@ HTML;
     public function name(string $name): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign name to. Call name() right after defining a route.');
+            throw new LogicException('No route to assign name to. Call name() right after defining a route.');
         }
 
         if (isset($this->namedRoutes[$name])) {
-            throw new \LogicException("Route name '{$name}' is already in use.");
+            throw new LogicException("Route name '{$name}' is already in use.");
         }
 
         $this->namedRoutes[$name] = $this->lastAddedRouteKey;
@@ -780,19 +518,19 @@ HTML;
      * @param string $name Имя роута
      * @param array<string, mixed> $params Параметры для подстановки
      * @return string
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function route(string $name, array $params = []): string
     {
         if (!isset($this->namedRoutes[$name])) {
-            throw new \InvalidArgumentException("Route '{$name}' not found.");
+            throw new InvalidArgumentException("Route '{$name}' not found.");
         }
 
         [$method, $index] = explode(':', $this->namedRoutes[$name]);
         $uri = $this->originalUris[$method][(int)$index] ?? '';
 
         if (empty($uri)) {
-            throw new \InvalidArgumentException("URI for route '{$name}' not found.");
+            throw new InvalidArgumentException("URI for route '{$name}' not found.");
         }
 
         // Заменяем параметры в URI
@@ -800,9 +538,9 @@ HTML;
             '#\{(\w+)(?::([^}]+))?\}#',
             function ($matches) use ($params, $name) {
                 $paramName = $matches[1];
-                
+
                 if (!array_key_exists($paramName, $params)) {
-                    throw new \InvalidArgumentException(
+                    throw new InvalidArgumentException(
                         "Missing required parameter '{$paramName}' for route '{$name}'."
                     );
                 }
@@ -995,7 +733,7 @@ HTML;
      */
     protected function addRouteByMethod(string $method, string $uri, callable|array $action): self
     {
-        return match(strtoupper($method)) {
+        return match (strtoupper($method)) {
             'GET' => $this->get($uri, $action),
             'POST' => $this->post($uri, $action),
             'PUT' => $this->put($uri, $action),
@@ -1003,7 +741,7 @@ HTML;
             'DELETE' => $this->delete($uri, $action),
             'OPTIONS' => $this->options($uri, $action),
             'HEAD' => $this->head($uri, $action),
-            default => throw new \InvalidArgumentException("Invalid HTTP method: {$method}"),
+            default => throw new InvalidArgumentException("Invalid HTTP method: {$method}"),
         };
     }
 
@@ -1023,6 +761,28 @@ HTML;
         foreach ($aliases as $alias => $class) {
             $this->aliasMiddleware($alias, $class);
         }
+    }
+
+    /**
+     * Зарегистрировать глобальные middleware
+     *
+     * @param array $middleware Массив middleware (классы или алиасы)
+     * @return void
+     */
+    public function registerGlobalMiddleware(array $middleware): void
+    {
+        $this->globalMiddleware = $middleware;
+    }
+
+    /**
+     * Добавить глобальный middleware
+     *
+     * @param string $middleware Класс или алиас middleware
+     * @return void
+     */
+    public function addGlobalMiddleware(string $middleware): void
+    {
+        $this->globalMiddleware[] = $middleware;
     }
 
     /**
@@ -1097,136 +857,19 @@ HTML;
      */
     protected function handleValidationError(Validation\ValidationException $e): void
     {
-        http_response_code(422); // Unprocessable Entity
-
-        if ($this->isJsonRequest()) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => 'Validation Failed',
-                'message' => $e->getMessage(),
-                'errors' => $e->getErrors(),
-            ], JSON_PRETTY_PRINT);
-        } else {
-            echo $this->renderValidationErrorPage($e);
-        }
-    }
-
-    /**
-     * Отрендерить HTML страницу ошибки валидации
-     */
-    protected function renderValidationErrorPage(Validation\ValidationException $e): string
-    {
-        $errors = $e->getErrors();
-        $errorList = '';
-        
-        foreach ($errors as $error) {
-            $errorList .= '<li>' . htmlspecialchars($error) . '</li>';
-        }
-
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>422 - Validation Failed</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 600px;
-            width: 100%;
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
-        .error-code {
-            font-size: 80px;
-            font-weight: bold;
-            line-height: 1;
-            margin-bottom: 10px;
-        }
-        .error-message {
-            font-size: 24px;
-        }
-        .content {
-            padding: 40px;
-        }
-        h2 {
-            color: #f5576c;
-            margin-bottom: 15px;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            background: #fff0f0;
-            border-left: 4px solid #f5576c;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            color: #c92a2a;
-        }
-        .actions {
-            margin-top: 30px;
-            text-align: center;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 30px;
-            background: #f5576c;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="error-code">422</div>
-            <div class="error-message">Validation Failed</div>
-        </div>
-        <div class="content">
-            <h2>The following validation errors occurred:</h2>
-            <ul>{$errorList}</ul>
-            <div class="actions">
-                <a href="javascript:history.back()" class="btn">Go Back</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
+        echo ErrorRenderer::render(422, $e->getMessage());
     }
 
     /**
      * Включить кеширование роутов
      *
-     * @param string $cachePath Путь к файлу кеша
+     * @param ?string $cachePath Путь к файлу кеша
      * @return void
      */
-    public function enableCache(string $cachePath = ''): void
+    public function enableCache(?string $cachePath = null): void
     {
         $this->cacheEnabled = true;
-        $this->cachePath = $cachePath ?: __DIR__ . '/../storage/cache/routes.php';
+        $this->cachePath = $cachePath ?: STORAGE_DIR . '/cache/routes.php';
     }
 
     /**
@@ -1327,28 +970,28 @@ HTML;
             $indexed = array_keys($var) === range(0, count($var) - 1);
             $r = [];
             $spaces = str_repeat('    ', $indent);
-            
+
             foreach ($var as $key => $value) {
                 $r[] = $spaces . '    '
                     . ($indexed ? '' : var_export($key, true) . ' => ')
                     . $this->varExportFormatted($value, $indent + 1);
             }
-            
+
             return "[\n" . implode(",\n", $r) . "\n" . $spaces . ']';
         }
-        
+
         if (is_string($var)) {
             return var_export($var, true);
         }
-        
+
         if (is_bool($var)) {
             return $var ? 'true' : 'false';
         }
-        
+
         if (is_null($var)) {
             return 'null';
         }
-        
+
         return var_export($var, true);
     }
 }

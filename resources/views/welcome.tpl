@@ -1,52 +1,131 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-        .message { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        .user-list { margin: 20px 0; }
-        .user-item { background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #007bff; }
-        .greeting { font-size: 1.2em; color: #28a745; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>{{ title }}</h1>
-        
-        {% if message %}
-        <div class="message">
-            <strong>Message:</strong> {{ message }}
+{% extends "layout.tpl" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+                Welcome to
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-400">
+                    TorrentPier
+                </span>
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                {{ message }}
+            </p>
         </div>
-        {% endif %}
-        
-        {% if greeting %}
-        <div class="greeting">
-            {{ greeting }}
-        </div>
-        {% endif %}
-        
-        {% if name %}
-        <p>Hello, <strong>{{ name }}</strong>! Welcome to our application.</p>
-        {% endif %}
-        
-        {% if users %}
-        <div class="user-list">
-            <h3>User List:</h3>
-            {% for user in users %}
-            <div class="user-item">
-                <strong>{{ user.name }}</strong> - {{ user.email }}
+
+        <!-- Features Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            <!-- Feature 1 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Lightning Fast</h3>
+                <p class="text-gray-600">Optimized for speed with modern PHP practices and efficient routing.</p>
             </div>
-            {% endfor %}
+
+            <!-- Feature 2 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Developer Friendly</h3>
+                <p class="text-gray-600">Clean, intuitive API with comprehensive debugging tools built-in.</p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Modern Design</h3>
+                <p class="text-gray-600">Built with Tailwind CSS for beautiful, responsive interfaces.</p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Database Ready</h3>
+                <p class="text-gray-600">Powerful query builder and support for multiple database drivers.</p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Well Documented</h3>
+                <p class="text-gray-600">Extensive documentation and examples to get you started quickly.</p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Secure</h3>
+                <p class="text-gray-600">Built-in security features including CSRF protection and validation.</p>
+            </div>
         </div>
-        {% endif %}
-        
-        <hr>
-        <p><small>Generated by TorrentPier Template Engine</small></p>
+
+        <!-- CTA Section -->
+        <div class="bg-gradient-to-r from-primary-600 to-primary-500 rounded-2xl shadow-2xl p-12 text-center text-white">
+            <h2 class="text-3xl font-bold mb-4">Ready to get started?</h2>
+            <p class="text-xl mb-8 text-primary-100">Build something amazing with TorrentPier Framework</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="#" class="inline-flex items-center justify-center px-6 py-3 bg-white text-primary-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Read Documentation
+                </a>
+                <a href="https://github.com" target="_blank" class="inline-flex items-center justify-center px-6 py-3 bg-primary-700 text-white font-semibold rounded-lg hover:bg-primary-800 transition-colors duration-200 border-2 border-white">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div class="text-center">
+                <div class="text-4xl font-bold text-primary-600 mb-2">100%</div>
+                <div class="text-gray-600">Modern PHP</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-primary-600 mb-2">Fast</div>
+                <div class="text-gray-600">Performance</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-primary-600 mb-2">Clean</div>
+                <div class="text-gray-600">Architecture</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-primary-600 mb-2">Free</div>
+                <div class="text-gray-600">Open Source</div>
+            </div>
+        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

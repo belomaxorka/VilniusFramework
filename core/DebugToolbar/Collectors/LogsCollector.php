@@ -149,14 +149,7 @@ class LogsCollector extends AbstractCollector
             return null;
         }
 
-        // Показываем количество critical/error если есть
-        $critical = $this->data['by_level']['critical'] ?? 0;
-        $errors = $this->data['by_level']['error'] ?? 0;
-        
-        if ($critical > 0 || $errors > 0) {
-            return (string)($critical + $errors);
-        }
-
+        // Всегда показываем общее количество логов
         return (string)$total;
     }
 

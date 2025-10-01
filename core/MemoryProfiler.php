@@ -62,6 +62,17 @@ class MemoryProfiler
 
     /**
      * Получить текущее использование памяти
+     * 
+     * Возвращает эффективное использование памяти вашим скриптом (параметр true).
+     * Это память, реально используемая PHP объектами и данными вашего приложения,
+     * без учёта внутренних структур и накладных расходов PHP.
+     * 
+     * Это рекомендуемый подход для профилирования, так как показывает реальное
+     * потребление памяти вашим кодом и позволяет корректно сравнивать с другими
+     * инструментами профилирования (Xdebug, Blackfire).
+     * 
+     * @return int Использование памяти в байтах (эффективное потребление)
+     * @see memory_get_usage()
      */
     public static function current(): int
     {
@@ -70,6 +81,13 @@ class MemoryProfiler
 
     /**
      * Получить пиковое использование памяти
+     * 
+     * Возвращает максимальное (пиковое) эффективное использование памяти.
+     * Это пиковое значение памяти, реально используемой вашим скриптом,
+     * без учёта внутренних структур PHP.
+     * 
+     * @return int Пиковое использование памяти в байтах (эффективное потребление)
+     * @see memory_get_peak_usage()
      */
     public static function peak(): int
     {
@@ -224,45 +242,61 @@ class MemoryProfiler
 
     /**
      * Форматировать байты в читаемый вид
+     * 
+     * @deprecated Используйте \Core\Utils\FormatHelper::formatBytes()
+     * @param int $bytes Количество байтов
+     * @param int $precision Точность форматирования
+     * @return string Отформатированная строка
      */
     public static function formatBytes(int $bytes, int $precision = 2): string
     {
-        if ($bytes === 0) {
-            return '0 B';
-        }
-
-        $bytes = abs($bytes);
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $pow = floor(log($bytes) / log(1024));
-        $pow = min($pow, count($units) - 1);
-
-        $value = $bytes / pow(1024, $pow);
-
-        return number_format($value, $precision) . ' ' . $units[$pow];
+        return \Core\Utils\FormatHelper::formatBytes($bytes, $precision);
     }
 
     /**
      * Получить лимит памяти из php.ini
+     * 
+     * Парсит значение memory_limit из конфигурации PHP и возвращает в байтах.
+     * Поддерживает суффиксы K, M, G (регистронезависимые).
+     * 
+     * @return int Лимит памяти в байтах, 0 если неограниченно или некорректный формат
      */
     public static function getMemoryLimit(): int
     {
         $limit = ini_get('memory_limit');
 
-        if ($limit === '-1') {
-            return 0; // неограниченно
+        // Неограниченная память или не определено
+        if ($limit === '-1' || $limit === false) {
+            return 0;
         }
 
         $limit = trim($limit);
-        $last = strtolower($limit[strlen($limit) - 1]);
-        $value = (int)$limit;
+        
+        // Защита от пустой строки
+        if (empty($limit)) {
+            return 0;
+        }
 
-        switch ($last) {
+        // Проверяем корректность формата: число + опциональный суффикс K/M/G
+        if (!preg_match('/^(\d+)([KMG])?$/i', $limit, $matches)) {
+            // Некорректный формат - возвращаем 0
+            return 0;
+        }
+
+        $value = (int)$matches[1];
+        $suffix = isset($matches[2]) ? strtolower($matches[2]) : '';
+
+        // Конвертируем в байты
+        switch ($suffix) {
             case 'g':
                 $value *= 1024;
+                // fallthrough intentional
             case 'm':
                 $value *= 1024;
+                // fallthrough intentional
             case 'k':
                 $value *= 1024;
+                break;
         }
 
         return $value;

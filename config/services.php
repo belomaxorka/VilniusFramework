@@ -2,7 +2,7 @@
 
 /**
  * Service Container Bindings
- * 
+ *
  * Здесь вы можете регистрировать привязки для контейнера зависимостей.
  * Это позволяет внедрять зависимости в конструкторы контроллеров.
  */
@@ -23,10 +23,6 @@ return [
         \Core\TemplateEngine::class => \Core\TemplateEngine::class,
         \Core\Session::class => \Core\Session::class,
         \Core\Logger::class => \Core\Logger::class,
-        
-        // Примеры пользовательских сервисов:
-        // \App\Services\UserService::class => \App\Services\UserService::class,
-        // \App\Repositories\UserRepository::class => \App\Repositories\UserRepository::class,
     ],
 
     /*
@@ -57,10 +53,5 @@ return [
         'view' => \Core\TemplateEngine::class,
         'session' => \Core\Session::class,
         'logger' => \Core\Logger::class,
-        
-        // Примеры:
-        // 'cache' => \App\Services\CacheService::class,
-        // 'mail' => \App\Services\MailService::class,
     ],
 ];
-
