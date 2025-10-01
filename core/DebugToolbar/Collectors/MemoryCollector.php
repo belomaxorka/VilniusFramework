@@ -106,30 +106,16 @@ class MemoryCollector extends AbstractCollector
         return ($this->data['peak'] / $this->data['limit']) * 100;
     }
 
+    /**
+     * Получить лимит памяти из php.ini
+     * 
+     * Использует MemoryProfiler для получения лимита памяти,
+     * что обеспечивает единообразную обработку во всей системе.
+     * 
+     * @return int Лимит памяти в байтах
+     */
     private function getMemoryLimit(): int
     {
-        $limit = ini_get('memory_limit');
-        if ($limit === '-1') {
-            return 0;
-        }
-
-        return $this->parseMemoryLimit($limit);
-    }
-
-    private function parseMemoryLimit(string $limit): int
-    {
-        $limit = trim($limit);
-        $last = strtolower($limit[strlen($limit) - 1]);
-        $value = (int)$limit;
-
-        switch ($last) {
-            case 'g':
-                $value *= 1024;
-            case 'm':
-                $value *= 1024;
-            case 'k':
-                $value *= 1024;
-        }
-        return $value;
+        return MemoryProfiler::getMemoryLimit();
     }
 }

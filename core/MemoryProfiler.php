@@ -16,7 +16,6 @@ class MemoryProfiler
             return;
         }
 
-        self::$startMemory = memory_get_usage(true);
         self::$snapshots = [];
 
         self::snapshot('start', 'Memory profiling started');
@@ -31,8 +30,8 @@ class MemoryProfiler
             return [];
         }
 
-        $current = memory_get_usage(true);
-        $peak = memory_get_peak_usage(true);
+        $current = memory_get_usage(false);
+        $peak = memory_get_peak_usage(false);
 
         $snapshot = [
             'name' => $name,
@@ -62,18 +61,36 @@ class MemoryProfiler
 
     /**
      * Получить текущее использование памяти
+     * 
+     * Возвращает реальное использование памяти на уровне системы (параметр false).
+     * Это включает память, выделенную системой для PHP процесса, включая
+     * внутренние буферы, кеши и накладные расходы.
+     * 
+     * Примечание: Значения будут выше, чем при использовании memory_get_usage(true),
+     * так как учитываются внутренние структуры PHP. Это полезно для мониторинга
+     * фактического потребления памяти на уровне операционной системы.
+     * 
+     * @return int Использование памяти в байтах (системное потребление)
+     * @see memory_get_usage()
      */
     public static function current(): int
     {
-        return memory_get_usage(true);
+        return memory_get_usage(false);
     }
 
     /**
      * Получить пиковое использование памяти
+     * 
+     * Возвращает максимальное (пиковое) использование памяти на уровне системы.
+     * Это реальное количество памяти, которое было выделено системой для PHP
+     * процесса в течение выполнения скрипта.
+     * 
+     * @return int Пиковое использование памяти в байтах (системное потребление)
+     * @see memory_get_peak_usage()
      */
     public static function peak(): int
     {
-        return memory_get_peak_usage(true);
+        return memory_get_peak_usage(false);
     }
 
     /**
@@ -110,8 +127,8 @@ class MemoryProfiler
             return;
         }
 
-        $current = memory_get_usage(true);
-        $peak = memory_get_peak_usage(true);
+        $current = memory_get_usage(false);
+        $peak = memory_get_peak_usage(false);
         $limit = self::getMemoryLimit();
 
         $output = '<div style="background: #e3f2fd; border: 1px solid #2196f3; margin: 10px; padding: 15px; border-radius: 5px; font-family: monospace;">';
@@ -195,13 +212,13 @@ class MemoryProfiler
             return $callback();
         }
 
-        $before = memory_get_usage(true);
+        $before = memory_get_usage(false);
         self::snapshot($name . '_start', 'Before ' . $name);
 
         try {
             $result = $callback();
         } finally {
-            $after = memory_get_usage(true);
+            $after = memory_get_usage(false);
             self::snapshot($name . '_end', 'After ' . $name);
 
             $diff = $after - $before;
@@ -224,45 +241,61 @@ class MemoryProfiler
 
     /**
      * Форматировать байты в читаемый вид
+     * 
+     * @deprecated Используйте \Core\Utils\FormatHelper::formatBytes()
+     * @param int $bytes Количество байтов
+     * @param int $precision Точность форматирования
+     * @return string Отформатированная строка
      */
     public static function formatBytes(int $bytes, int $precision = 2): string
     {
-        if ($bytes === 0) {
-            return '0 B';
-        }
-
-        $bytes = abs($bytes);
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $pow = floor(log($bytes) / log(1024));
-        $pow = min($pow, count($units) - 1);
-
-        $value = $bytes / pow(1024, $pow);
-
-        return number_format($value, $precision) . ' ' . $units[$pow];
+        return \Core\Utils\FormatHelper::formatBytes($bytes, $precision);
     }
 
     /**
      * Получить лимит памяти из php.ini
+     * 
+     * Парсит значение memory_limit из конфигурации PHP и возвращает в байтах.
+     * Поддерживает суффиксы K, M, G (регистронезависимые).
+     * 
+     * @return int Лимит памяти в байтах, 0 если неограниченно или некорректный формат
      */
     public static function getMemoryLimit(): int
     {
         $limit = ini_get('memory_limit');
 
-        if ($limit === '-1') {
-            return 0; // неограниченно
+        // Неограниченная память или не определено
+        if ($limit === '-1' || $limit === false) {
+            return 0;
         }
 
         $limit = trim($limit);
-        $last = strtolower($limit[strlen($limit) - 1]);
-        $value = (int)$limit;
+        
+        // Защита от пустой строки
+        if (empty($limit)) {
+            return 0;
+        }
 
-        switch ($last) {
+        // Проверяем корректность формата: число + опциональный суффикс K/M/G
+        if (!preg_match('/^(\d+)([KMG])?$/i', $limit, $matches)) {
+            // Некорректный формат - возвращаем 0
+            return 0;
+        }
+
+        $value = (int)$matches[1];
+        $suffix = isset($matches[2]) ? strtolower($matches[2]) : '';
+
+        // Конвертируем в байты
+        switch ($suffix) {
             case 'g':
                 $value *= 1024;
+                // fallthrough intentional
             case 'm':
                 $value *= 1024;
+                // fallthrough intentional
             case 'k':
                 $value *= 1024;
+                break;
         }
 
         return $value;
@@ -279,7 +312,7 @@ class MemoryProfiler
             return 0.0;
         }
 
-        $current = memory_get_usage(true);
+        $current = memory_get_usage(false);
         return ($current / $limit) * 100;
     }
 
