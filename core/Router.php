@@ -385,15 +385,24 @@ class Router
                 // Создаем финальный обработчик
                 $action = $route['action'];
                 $finalHandler = function() use ($action, $params, $method) {
-                if (is_array($action)) {
+                    $result = null;
+                    
+                    if (is_array($action)) {
                         [$controller, $methodName] = $action;
-                    if (!class_exists($controller)) {
-                        $controller = "App\\Controllers\\{$controller}";
+                        if (!class_exists($controller)) {
+                            $controller = "App\\Controllers\\{$controller}";
+                        }
+                        $result = $this->callControllerAction($controller, $methodName, $params);
+                    } else {
+                        $result = $action(...array_values($params));
                     }
-                        return $this->callControllerAction($controller, $methodName, $params);
-                } else {
-                        return $action(...array_values($params));
-                }
+                    
+                    // Если возвращен Response объект, отправляем его
+                    if ($result instanceof Response) {
+                        $result->send();
+                    }
+                    
+                    return $result;
                 };
 
                 // Выполняем middleware pipeline

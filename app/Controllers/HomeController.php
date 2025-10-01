@@ -2,21 +2,10 @@
 
 namespace App\Controllers;
 
-use Core\TemplateEngine;
-use Core\Database;
+use Core\Response;
 
-class HomeController
+class HomeController extends Controller
 {
-    /**
-     * Dependency Injection через конструктор
-     * 
-     * Container автоматически внедрит эти зависимости
-     */
-    public function __construct(
-        protected TemplateEngine $view,
-        protected ?Database $db = null
-    ) {
-    }
 
     public function index(): void
     {
@@ -63,12 +52,13 @@ class HomeController
             timer_stop('total');
             memory_dump();
 
-            // Используем внедренный TemplateEngine
-            $this->view->display('welcome.tpl', $data);
+            // Используем метод из базового контроллера
+            $response = $this->view('welcome.tpl', $data);
+            $response->send();
         });
     }
 
-    public function name(string $name): void
+    public function name(string $name): Response
     {
         $data = [
             'title' => 'Personal Greeting',
@@ -78,7 +68,6 @@ class HomeController
             'users' => [] // Пустой массив пользователей
         ];
 
-        // Используем внедренный TemplateEngine
-        $this->view->display('welcome.tpl', $data);
+        return $this->view('welcome.tpl', $data);
     }
 }
