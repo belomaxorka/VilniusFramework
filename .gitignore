@@ -10,3 +10,17 @@ Thumbs.db
 vendor
 storage/cache/templates
 storage/cache/*.php
+
+# Node / NPM
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build files
+public/build/
+public/hot
+public/mix-manifest.json
+.vite/
+
+# OS
+.DS_Store

@@ -2,19 +2,15 @@
 
 namespace App\Controllers;
 
-use Core\Logger;
 use Core\Response;
 
 class HomeController extends Controller
 {
     public function index(): Response
     {
-        Logger::debug('123');
-        Logger::error('123');
-        Logger::info('123');
         $data = [
-            'title' => 'Welcome to Vilnius Framework',
-            'message' => 'Hello from HomeController!'
+            'title' => 'Welcome to TorrentPier Framework',
+            'message' => 'A modern, lightweight PHP framework'
         ];
 
         return $this->view('welcome.tpl', $data);
