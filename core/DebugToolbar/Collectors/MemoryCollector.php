@@ -84,10 +84,14 @@ class MemoryCollector extends AbstractCollector
         $memoryPercent = $this->getMemoryPercent();
         $memoryColor = $this->getColorByThreshold($memoryPercent, 50, 75);
 
+        // Форматируем память с двумя знаками после запятой
+        $peakMb = $this->data['peak'] / (1024 * 1024);
+        $formattedMemory = number_format($peakMb, 2, '.', '') . ' MB';
+
         return [
             [
                 'icon' => '💾',
-                'value' => $this->formatBytes($this->data['peak']),
+                'value' => $formattedMemory,
                 'color' => $memoryColor,
             ]
         ];
