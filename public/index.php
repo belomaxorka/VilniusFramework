@@ -14,7 +14,6 @@ $router = new \Core\Router();
 // Routes
 $router->get('', [\App\Controllers\HomeController::class, 'index']);
 $router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name']);
-$router->any('demo', [\App\Controllers\RequestDemoController::class, 'demo']);
 
 // Передаем Router в Debug Toolbar
 \Core\DebugToolbar::setRouter($router);
