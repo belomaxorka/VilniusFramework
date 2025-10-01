@@ -9,7 +9,7 @@ class ErrorRenderer
 {
     /**
      * Рендерить страницу ошибки
-     * 
+     *
      * @param int $code HTTP статус код
      * @param string $message Сообщение об ошибке
      * @param array $details Дополнительные детали
@@ -37,12 +37,13 @@ class ErrorRenderer
      */
     private static function getCustomTemplate(int $code): ?string
     {
-        $templatePath = __DIR__ . '/../resources/views/errors/' . $code . '.tpl';
-        
-        if (file_exists($templatePath)) {
+        $templatePath = RESOURCES_DIR . '/views/errors/' . $code . '.tpl';
+
+        if (is_file($templatePath)) {
             try {
-                $engine = new TemplateEngine();
-                return $engine->render('errors/' . $code);
+                $engine = TemplateEngine::getInstance();
+                $engine->setCacheEnabled(false);
+                return $engine->render('errors/' . $code . '.tpl');
             } catch (\Throwable $e) {
                 // Если ошибка при рендере шаблона, используем дефолтный
                 return null;
@@ -66,9 +67,7 @@ class ErrorRenderer
         $title = self::getErrorTitle($code);
 
         // Формируем HTML с debug toolbar
-        $html = self::renderSimpleHtml($code, $title, $message, $details);
-
-        return $html;
+        return self::renderSimpleHtml($code, $title, $message, $details);
     }
 
     /**
@@ -77,7 +76,7 @@ class ErrorRenderer
     private static function renderSimpleHtml(int $code, string $title, string $message, array $details = []): string
     {
         $detailsHtml = '';
-        
+
         // Добавляем дополнительные детали только в debug режиме
         if (Environment::isDebug() && !empty($details)) {
             $detailsHtml = '<div class="details">';
@@ -252,18 +251,18 @@ HTML;
         if (Http::isJson()) {
             return true;
         }
-        
+
         // Если явно запрошен application/json (не */*)
         $types = Http::getAcceptedContentTypes();
         if (in_array('application/json', $types)) {
             return true;
         }
-        
+
         // Если AJAX запрос и есть JSON в Accept (даже с */*)
         if (Http::isAjax() && Http::acceptsJson()) {
             return true;
         }
-        
+
         return false;
     }
 }
