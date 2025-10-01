@@ -21,11 +21,8 @@ use Core\ErrorRenderer;
 // Простая ошибка
 echo ErrorRenderer::render(404, 'Not Found');
 
-// С дополнительными деталями
-echo ErrorRenderer::render(404, 'Not Found', [
-    'path' => '/some/path',
-    'method' => 'GET',
-]);
+// Ошибка 500
+echo ErrorRenderer::render(500, 'Internal Server Error');
 ```
 
 ### В Router
@@ -34,12 +31,7 @@ echo ErrorRenderer::render(404, 'Not Found', [
 // 404 ошибка
 protected function renderDefaultNotFound(string $method, string $uri): void
 {
-    $details = [
-        'method' => $method,
-        'path' => '/' . $uri,
-    ];
-
-    echo ErrorRenderer::render(404, 'Not Found', $details);
+    echo ErrorRenderer::render(404, 'Not Found');
 }
 ```
 
@@ -132,7 +124,7 @@ Debug Toolbar **автоматически** добавляется на все 
 
 ```php
 // Запрос: Accept: application/json
-ErrorRenderer::render(404, 'Not Found', ['path' => '/api/users']);
+ErrorRenderer::render(404, 'Not Found');
 
 // Ответ:
 {
@@ -170,16 +162,12 @@ ErrorRenderer определяет JSON запрос по:
 └─────────────────────────────┘
 ```
 
-## Детали для разработчиков
+## Простой дизайн
 
-В debug режиме на странице отображаются дополнительные детали:
+Страницы ошибок имеют минималистичный дизайн:
 
 ```php
-ErrorRenderer::render(404, 'Not Found', [
-    'method' => 'GET',
-    'path' => '/api/users/999',
-    'timestamp' => time(),
-]);
+ErrorRenderer::render(404, 'Not Found');
 ```
 
 Результат:
@@ -187,27 +175,18 @@ ErrorRenderer::render(404, 'Not Found', [
 ┌─────────────────────────────┐
 │          404                │
 │     404 | Not Found          │
-│                             │
-│  ┌───────────────────────┐  │
-│  │ Method: GET           │  │
-│  │ Path: /api/users/999  │  │
-│  │ Timestamp: 1633024800 │  │
-│  └───────────────────────┘  │
 └─────────────────────────────┘
 ```
 
-**Примечание**: Массивы в деталях пропускаются в простом виде.
-
 ## API
 
-### `render(int $code, string $message, array $details = []): string`
+### `render(int $code, string $message): string`
 
 Рендерит страницу ошибки.
 
 **Параметры:**
 - `$code` - HTTP статус код (404, 500, и т.д.)
 - `$message` - Сообщение об ошибке
-- `$details` - Дополнительные детали (опционально)
 
 **Возвращает:** HTML или JSON строку
 
@@ -217,11 +196,8 @@ ErrorRenderer::render(404, 'Not Found', [
 // Простая ошибка
 ErrorRenderer::render(404, 'Not Found');
 
-// С деталями
-ErrorRenderer::render(500, 'Database Error', [
-    'query' => 'SELECT * FROM users',
-    'error' => 'Connection refused'
-]);
+// Ошибка 500
+ErrorRenderer::render(500, 'Database Error');
 
 // Пользовательская ошибка
 ErrorRenderer::render(418, "I'm a teapot");
@@ -247,9 +223,7 @@ public function show(int $id)
     $user = User::find($id);
     
     if (!$user) {
-        echo ErrorRenderer::render(404, 'User Not Found', [
-            'user_id' => $id
-        ]);
+        echo ErrorRenderer::render(404, 'User Not Found');
         return;
     }
     

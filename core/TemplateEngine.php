@@ -16,7 +16,7 @@ class TemplateEngine
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
-    
+
     // Поддержка блоков (extends/block)
     private array $blocks = []; // Определённые блоки
     private ?string $currentBlock = null; // Текущий блок

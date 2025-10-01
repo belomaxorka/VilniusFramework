@@ -12,10 +12,9 @@ class ErrorRenderer
      *
      * @param int $code HTTP статус код
      * @param string $message Сообщение об ошибке
-     * @param array $details Дополнительные детали
      * @return string HTML контент
      */
-    public static function render(int $code, string $message, array $details = []): string
+    public static function render(int $code, string $message): string
     {
         // Устанавливаем HTTP статус код
         if (!headers_sent()) {
@@ -29,7 +28,7 @@ class ErrorRenderer
         }
 
         // Используем стандартный шаблон
-        return self::renderDefaultTemplate($code, $message, $details);
+        return self::renderDefaultTemplate($code, $message);
     }
 
     /**
@@ -56,43 +55,25 @@ class ErrorRenderer
     /**
      * Рендерить стандартный шаблон ошибки
      */
-    private static function renderDefaultTemplate(int $code, string $message, array $details = []): string
+    private static function renderDefaultTemplate(int $code, string $message): string
     {
         // Для JSON запросов
         if (self::isJsonRequest()) {
-            return self::renderJsonError($code, $message, $details);
+            return self::renderJsonError($code, $message);
         }
 
         // Определяем заголовок по коду
         $title = self::getErrorTitle($code);
 
         // Формируем HTML с debug toolbar
-        return self::renderSimpleHtml($code, $title, $message, $details);
+        return self::renderSimpleHtml($code, $title, $message);
     }
 
     /**
      * Рендерить простой HTML с серым фоном
      */
-    private static function renderSimpleHtml(int $code, string $title, string $message, array $details = []): string
+    private static function renderSimpleHtml(int $code, string $title, string $message): string
     {
-        $detailsHtml = '';
-
-        // Добавляем дополнительные детали только в debug режиме
-        if (Environment::isDebug() && !empty($details)) {
-            $detailsHtml = '<div class="details">';
-            foreach ($details as $key => $value) {
-                if (is_array($value)) {
-                    // Пропускаем массивы в простом виде
-                    continue;
-                }
-                $detailsHtml .= '<div class="detail-item">';
-                $detailsHtml .= '<strong>' . htmlspecialchars(ucfirst($key)) . ':</strong> ';
-                $detailsHtml .= '<span>' . htmlspecialchars((string)$value) . '</span>';
-                $detailsHtml .= '</div>';
-            }
-            $detailsHtml .= '</div>';
-        }
-
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -134,31 +115,12 @@ class ErrorRenderer
             color: #424242;
             margin-bottom: 30px;
         }
-        .details {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: left;
-        }
-        .detail-item {
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            color: #212121;
-        }
-        .detail-item:last-child {
-            border-bottom: none;
-        }
-        .detail-item strong {
-            color: #000;
-        }
     </style>
 </head>
 <body>
     <div class="error-container">
         <div class="error-code">{$code}</div>
         <div class="error-title">{$code} | {$message}</div>
-        {$detailsHtml}
     </div>
 </body>
 </html>
@@ -201,7 +163,7 @@ HTML;
     /**
      * Рендерить JSON ошибку
      */
-    private static function renderJsonError(int $code, string $message, array $details = []): string
+    private static function renderJsonError(int $code, string $message): string
     {
         if (!headers_sent()) {
             header('Content-Type: application/json');
@@ -212,10 +174,6 @@ HTML;
             'message' => $message,
             'code' => $code,
         ];
-
-        if (!empty($details)) {
-            $data = array_merge($data, $details);
-        }
 
         return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }

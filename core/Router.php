@@ -2,6 +2,9 @@
 
 namespace Core;
 
+use InvalidArgumentException;
+use LogicException;
+
 class Router
 {
     protected array $routes = [];
@@ -76,7 +79,7 @@ class Router
     public function middleware(string|array $middleware): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign middleware to. Call middleware() right after defining a route.');
+            throw new LogicException('No route to assign middleware to. Call middleware() right after defining a route.');
         }
 
         $middleware = is_array($middleware) ? $middleware : [$middleware];
@@ -102,7 +105,7 @@ class Router
     public function where(array $constraints): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign constraints to. Call where() right after defining a route.');
+            throw new LogicException('No route to assign constraints to. Call where() right after defining a route.');
         }
 
         $this->routeConstraints[$this->lastAddedRouteKey] = $constraints;
@@ -120,7 +123,7 @@ class Router
     public function whereParam(string $param, array $constraint): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign constraint to. Call whereParam() right after defining a route.');
+            throw new LogicException('No route to assign constraint to. Call whereParam() right after defining a route.');
         }
 
         if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
@@ -170,7 +173,7 @@ class Router
     public function defaults(array $defaults): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign defaults to. Call defaults() right after defining a route.');
+            throw new LogicException('No route to assign defaults to. Call defaults() right after defining a route.');
         }
 
         if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
@@ -181,7 +184,7 @@ class Router
             if (!isset($this->routeConstraints[$this->lastAddedRouteKey][$param])) {
                 $this->routeConstraints[$this->lastAddedRouteKey][$param] = [];
             }
-            
+
             $this->routeConstraints[$this->lastAddedRouteKey][$param]['default'] = $value;
             $this->routeConstraints[$this->lastAddedRouteKey][$param]['optional'] = true;
         }
@@ -196,7 +199,7 @@ class Router
 
         // Обрабатываем опциональные параметры {param?} или {param:regex?}
         $hasOptionalParams = $this->hasOptionalParameters($uri);
-        
+
         if ($hasOptionalParams) {
             // Генерируем несколько вариантов роута для опциональных параметров
             $this->addOptionalRoute($method, $uri, $action);
@@ -225,7 +228,7 @@ class Router
         $pattern = '#^' . trim($pattern, '/') . '$#';
 
         $routeIndex = count($this->routes[$method] ?? []);
-        
+
         // Получаем домен из стека групп
         $domain = $this->getGroupDomain();
 
@@ -256,7 +259,7 @@ class Router
         // Разбиваем URI на сегменты
         $segments = explode('/', trim($uri, '/'));
         $patterns = [''];
-        
+
         // Находим первый опциональный параметр
         $firstOptionalIndex = null;
         foreach ($segments as $index => $segment) {
@@ -275,14 +278,14 @@ class Router
         // Создаем варианты роутов:
         // 1. Без опциональных параметров
         $requiredPart = implode('/', array_slice($segments, 0, $firstOptionalIndex));
-        
+
         // 2. С каждым последующим опциональным параметром
         $currentPath = $requiredPart;
         $optionalSegments = array_slice($segments, $firstOptionalIndex);
-        
+
         // Добавляем роут без опциональных параметров
         $this->addSingleRoute($method, $currentPath, $action);
-        
+
         // Добавляем роуты с опциональными параметрами по одному
         foreach ($optionalSegments as $segment) {
             // Убираем знак вопроса из параметра
@@ -306,7 +309,7 @@ class Router
     protected function applyGroupPrefix(string $uri): string
     {
         $prefix = '';
-        
+
         foreach ($this->groupStack as $group) {
             if (isset($group['prefix'])) {
                 $prefix .= '/' . trim($group['prefix'], '/');
@@ -322,7 +325,7 @@ class Router
     protected function getGroupMiddleware(): array
     {
         $middleware = [];
-        
+
         foreach ($this->groupStack as $group) {
             if (isset($group['middleware'])) {
                 $middleware = array_merge($middleware, (array)$group['middleware']);
@@ -379,7 +382,7 @@ class Router
 
                 // Получаем middleware для этого роута
                 $middleware = $this->routeMiddleware[$routeKey] ?? [];
-                
+
                 // Добавляем middleware из группы
                 $middleware = array_merge($route['middleware'] ?? [], $middleware);
 
@@ -388,24 +391,24 @@ class Router
 
                 // Создаем финальный обработчик
                 $action = $route['action'];
-                $finalHandler = function() use ($action, $params, $method) {
+                $finalHandler = function () use ($action, $params, $method) {
                     $result = null;
 
-                if (is_array($action)) {
+                    if (is_array($action)) {
                         [$controller, $methodName] = $action;
-                    if (!class_exists($controller)) {
-                        $controller = "App\\Controllers\\{$controller}";
+                        if (!class_exists($controller)) {
+                            $controller = "App\\Controllers\\{$controller}";
                         }
                         $result = $this->callControllerAction($controller, $methodName, $params);
                     } else {
                         $result = $action(...array_values($params));
                     }
-                    
+
                     // Если возвращен Response объект, отправляем его
                     if ($result instanceof Response) {
                         $result->send();
                     }
-                    
+
                     return $result;
                 };
 
@@ -428,7 +431,7 @@ class Router
         // Если установлен кастомный обработчик
         if ($this->notFoundHandler !== null) {
             $handler = $this->notFoundHandler;
-            
+
             if (is_array($handler)) {
                 [$controller, $methodName] = $handler;
                 if (!class_exists($controller)) {
@@ -450,16 +453,8 @@ class Router
      */
     protected function renderDefaultNotFound(string $method, string $uri): void
     {
-        $details = [
-            'method' => $method,
-            'path' => '/' . $uri,
-        ];
-
-        echo ErrorRenderer::render(404, 'Not Found', $details);
+        echo ErrorRenderer::render(404, 'Not Found');
     }
-
-
-
 
     /**
      * Выполнить цепочку middleware
@@ -493,7 +488,7 @@ class Router
         } elseif (class_exists($name)) {
             $class = $name;
         } else {
-            throw new \InvalidArgumentException("Middleware '{$name}' not found.");
+            throw new InvalidArgumentException("Middleware '{$name}' not found.");
         }
 
         return new $class();
@@ -505,11 +500,11 @@ class Router
     public function name(string $name): self
     {
         if ($this->lastAddedRouteKey === null) {
-            throw new \LogicException('No route to assign name to. Call name() right after defining a route.');
+            throw new LogicException('No route to assign name to. Call name() right after defining a route.');
         }
 
         if (isset($this->namedRoutes[$name])) {
-            throw new \LogicException("Route name '{$name}' is already in use.");
+            throw new LogicException("Route name '{$name}' is already in use.");
         }
 
         $this->namedRoutes[$name] = $this->lastAddedRouteKey;
@@ -523,19 +518,19 @@ class Router
      * @param string $name Имя роута
      * @param array<string, mixed> $params Параметры для подстановки
      * @return string
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function route(string $name, array $params = []): string
     {
         if (!isset($this->namedRoutes[$name])) {
-            throw new \InvalidArgumentException("Route '{$name}' not found.");
+            throw new InvalidArgumentException("Route '{$name}' not found.");
         }
 
         [$method, $index] = explode(':', $this->namedRoutes[$name]);
         $uri = $this->originalUris[$method][(int)$index] ?? '';
 
         if (empty($uri)) {
-            throw new \InvalidArgumentException("URI for route '{$name}' not found.");
+            throw new InvalidArgumentException("URI for route '{$name}' not found.");
         }
 
         // Заменяем параметры в URI
@@ -543,9 +538,9 @@ class Router
             '#\{(\w+)(?::([^}]+))?\}#',
             function ($matches) use ($params, $name) {
                 $paramName = $matches[1];
-                
+
                 if (!array_key_exists($paramName, $params)) {
-                    throw new \InvalidArgumentException(
+                    throw new InvalidArgumentException(
                         "Missing required parameter '{$paramName}' for route '{$name}'."
                     );
                 }
@@ -738,7 +733,7 @@ class Router
      */
     protected function addRouteByMethod(string $method, string $uri, callable|array $action): self
     {
-        return match(strtoupper($method)) {
+        return match (strtoupper($method)) {
             'GET' => $this->get($uri, $action),
             'POST' => $this->post($uri, $action),
             'PUT' => $this->put($uri, $action),
@@ -746,7 +741,7 @@ class Router
             'DELETE' => $this->delete($uri, $action),
             'OPTIONS' => $this->options($uri, $action),
             'HEAD' => $this->head($uri, $action),
-            default => throw new \InvalidArgumentException("Invalid HTTP method: {$method}"),
+            default => throw new InvalidArgumentException("Invalid HTTP method: {$method}"),
         };
     }
 
@@ -770,7 +765,7 @@ class Router
 
     /**
      * Зарегистрировать глобальные middleware
-     * 
+     *
      * @param array $middleware Массив middleware (классы или алиасы)
      * @return void
      */
@@ -781,7 +776,7 @@ class Router
 
     /**
      * Добавить глобальный middleware
-     * 
+     *
      * @param string $middleware Класс или алиас middleware
      * @return void
      */
@@ -862,24 +857,19 @@ class Router
      */
     protected function handleValidationError(Validation\ValidationException $e): void
     {
-        $details = [
-            'errors' => $e->getErrors(),
-        ];
-
-        echo ErrorRenderer::render(422, $e->getMessage(), $details);
+        echo ErrorRenderer::render(422, $e->getMessage());
     }
-
 
     /**
      * Включить кеширование роутов
      *
-     * @param string $cachePath Путь к файлу кеша
+     * @param ?string $cachePath Путь к файлу кеша
      * @return void
      */
-    public function enableCache(string $cachePath = ''): void
+    public function enableCache(?string $cachePath = null): void
     {
         $this->cacheEnabled = true;
-        $this->cachePath = $cachePath ?: __DIR__ . '/../storage/cache/routes.php';
+        $this->cachePath = $cachePath ?: STORAGE_DIR . '/cache/routes.php';
     }
 
     /**
@@ -980,28 +970,28 @@ class Router
             $indexed = array_keys($var) === range(0, count($var) - 1);
             $r = [];
             $spaces = str_repeat('    ', $indent);
-            
+
             foreach ($var as $key => $value) {
                 $r[] = $spaces . '    '
                     . ($indexed ? '' : var_export($key, true) . ' => ')
                     . $this->varExportFormatted($value, $indent + 1);
             }
-            
+
             return "[\n" . implode(",\n", $r) . "\n" . $spaces . ']';
         }
-        
+
         if (is_string($var)) {
             return var_export($var, true);
         }
-        
+
         if (is_bool($var)) {
             return $var ? 'true' : 'false';
         }
-        
+
         if (is_null($var)) {
             return 'null';
         }
-        
+
         return var_export($var, true);
     }
 }
