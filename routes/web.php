@@ -11,8 +11,15 @@
 // Home page
 $router->get('', [\App\Controllers\HomeController::class, 'index'])->name('home');
 
-// User profile
-$router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name'])->name('user.profile');
+// User profile with validation
+$router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, 'name'])
+    ->name('user.profile')
+    ->where([
+        'name' => [
+            'type' => 'string',
+            'rules' => ['alpha', 'min:2', 'max:50']
+        ]
+    ]);
 
 // Примеры использования различных возможностей роутера:
 
@@ -35,10 +42,44 @@ $router->get('user/{name:[a-zA-Z]+}', [\App\Controllers\HomeController::class, '
 //     $router->post('posts', [ApiController::class, 'createPost'])->middleware('auth')->name('api.post.create');
 // });
 
-// 4. RESTful примеры
+// 4. RESTful примеры с валидацией
 // $router->get('posts', [PostController::class, 'index'])->name('posts.index');
-// $router->get('posts/{id:\d+}', [PostController::class, 'show'])->name('posts.show');
-// $router->post('posts', [PostController::class, 'store'])->middleware('csrf')->name('posts.store');
-// $router->put('posts/{id:\d+}', [PostController::class, 'update'])->middleware('csrf')->name('posts.update');
-// $router->delete('posts/{id:\d+}', [PostController::class, 'destroy'])->middleware('csrf')->name('posts.destroy');
+// 
+// $router->get('posts/{id:\d+}', [PostController::class, 'show'])
+//     ->name('posts.show')
+//     ->whereNumber('id'); // Быстрая валидация для числовых параметров
+// 
+// $router->post('posts', [PostController::class, 'store'])
+//     ->middleware('csrf')
+//     ->name('posts.store');
+// 
+// $router->put('posts/{id:\d+}', [PostController::class, 'update'])
+//     ->middleware('csrf')
+//     ->name('posts.update')
+//     ->where(['id' => ['type' => 'int', 'rules' => ['min:1']]]);
+// 
+// $router->delete('posts/{id:\d+}', [PostController::class, 'destroy'])
+//     ->middleware('csrf')
+//     ->name('posts.destroy')
+//     ->whereNumber('id');
+
+// 5. Примеры различных валидаций
+// UUID параметр
+// $router->get('items/{uuid}', [ItemController::class, 'show'])
+//     ->whereUuid('uuid');
+//
+// Slug с кастомной валидацией
+// $router->get('blog/{slug}', [BlogController::class, 'show'])
+//     ->where(['slug' => ['type' => 'string', 'rules' => ['alphanumeric', 'min:3', 'max:100']]]);
+//
+// Enum значения
+// $router->get('filter/{type}', [FilterController::class, 'index'])
+//     ->whereIn('type', ['active', 'archived', 'draft']);
+//
+// Сложная валидация с несколькими параметрами
+// $router->get('search/{category}/{term}', [SearchController::class, 'search'])
+//     ->where([
+//         'category' => ['type' => 'string', 'rules' => ['alpha', 'min:2']],
+//         'term' => ['type' => 'string', 'rules' => ['min:3', 'max:100']]
+//     ]);
 

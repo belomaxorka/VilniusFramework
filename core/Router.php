@@ -15,6 +15,8 @@ class Router
     protected bool $cacheEnabled = false;
     protected string $cachePath = '';
     protected ?Container $container = null;
+    protected array $routeConstraints = [];
+    protected ?Validation\RouteParameterValidator $validator = null;
 
     public function get(string $uri, callable|array $action): self
     {
@@ -87,6 +89,73 @@ class Router
         );
 
         return $this;
+    }
+
+    /**
+     * Добавить ограничения валидации для параметров роута
+     *
+     * @param array $constraints ['param' => ['type' => 'int', 'rules' => ['min:1']]]
+     * @return self
+     */
+    public function where(array $constraints): self
+    {
+        if ($this->lastAddedRouteKey === null) {
+            throw new \LogicException('No route to assign constraints to. Call where() right after defining a route.');
+        }
+
+        $this->routeConstraints[$this->lastAddedRouteKey] = $constraints;
+
+        return $this;
+    }
+
+    /**
+     * Добавить ограничение для одного параметра
+     *
+     * @param string $param Имя параметра
+     * @param array $constraint Ограничения
+     * @return self
+     */
+    public function whereParam(string $param, array $constraint): self
+    {
+        if ($this->lastAddedRouteKey === null) {
+            throw new \LogicException('No route to assign constraint to. Call whereParam() right after defining a route.');
+        }
+
+        if (!isset($this->routeConstraints[$this->lastAddedRouteKey])) {
+            $this->routeConstraints[$this->lastAddedRouteKey] = [];
+        }
+
+        $this->routeConstraints[$this->lastAddedRouteKey][$param] = $constraint;
+
+        return $this;
+    }
+
+    /**
+     * Быстрые методы для типов параметров
+     */
+    public function whereNumber(string $param): self
+    {
+        return $this->whereParam($param, ['type' => 'int', 'rules' => ['numeric']]);
+    }
+
+    public function whereAlpha(string $param): self
+    {
+        return $this->whereParam($param, ['type' => 'string', 'rules' => ['alpha']]);
+    }
+
+    public function whereAlphaNumeric(string $param): self
+    {
+        return $this->whereParam($param, ['type' => 'string', 'rules' => ['alphanumeric']]);
+    }
+
+    public function whereUuid(string $param): self
+    {
+        return $this->whereParam($param, ['type' => 'string', 'rules' => ['uuid']]);
+    }
+
+    public function whereIn(string $param, array $values): self
+    {
+        return $this->whereParam($param, ['rules' => ['in:' . implode(',', $values)]]);
     }
 
     protected function addRoute(string $method, string $uri, callable|array $action): void
@@ -163,8 +232,20 @@ class Router
             if (preg_match($route['pattern'], $uri, $matches)) {
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
-                // Получаем middleware для этого роута
+                // Получаем ключ роута
                 $routeKey = $method . ':' . $index;
+
+                // Валидируем параметры, если есть ограничения
+                if (isset($this->routeConstraints[$routeKey]) && !empty($params)) {
+                    try {
+                        $params = $this->validateParams($params, $this->routeConstraints[$routeKey]);
+                    } catch (Validation\ValidationException $e) {
+                        $this->handleValidationError($e);
+                        return;
+                    }
+                }
+
+                // Получаем middleware для этого роута
                 $middleware = $this->routeMiddleware[$routeKey] ?? [];
                 
                 // Добавляем middleware из группы
@@ -729,6 +810,143 @@ HTML;
 
         // Вызываем метод с параметрами роута
         return $instance->$method(...array_values($params));
+    }
+
+    /**
+     * Валидировать параметры роута
+     */
+    protected function validateParams(array $params, array $constraints): array
+    {
+        if ($this->validator === null) {
+            $this->validator = new Validation\RouteParameterValidator();
+        }
+
+        return $this->validator->validate($params, $constraints);
+    }
+
+    /**
+     * Обработать ошибку валидации
+     */
+    protected function handleValidationError(Validation\ValidationException $e): void
+    {
+        http_response_code(422); // Unprocessable Entity
+
+        if ($this->isJsonRequest()) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'error' => 'Validation Failed',
+                'message' => $e->getMessage(),
+                'errors' => $e->getErrors(),
+            ], JSON_PRETTY_PRINT);
+        } else {
+            echo $this->renderValidationErrorPage($e);
+        }
+    }
+
+    /**
+     * Отрендерить HTML страницу ошибки валидации
+     */
+    protected function renderValidationErrorPage(Validation\ValidationException $e): string
+    {
+        $errors = $e->getErrors();
+        $errorList = '';
+        
+        foreach ($errors as $error) {
+            $errorList .= '<li>' . htmlspecialchars($error) . '</li>';
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>422 - Validation Failed</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .error-code {
+            font-size: 80px;
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            font-size: 24px;
+        }
+        .content {
+            padding: 40px;
+        }
+        h2 {
+            color: #f5576c;
+            margin-bottom: 15px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: #fff0f0;
+            border-left: 4px solid #f5576c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            color: #c92a2a;
+        }
+        .actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #f5576c;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="error-code">422</div>
+            <div class="error-message">Validation Failed</div>
+        </div>
+        <div class="content">
+            <h2>The following validation errors occurred:</h2>
+            <ul>{$errorList}</ul>
+            <div class="actions">
+                <a href="javascript:history.back()" class="btn">Go Back</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
     }
 
     /**
