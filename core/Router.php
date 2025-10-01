@@ -17,6 +17,7 @@ class Router
     protected ?Container $container = null;
     protected array $routeConstraints = [];
     protected ?Validation\RouteParameterValidator $validator = null;
+    protected array $routeDomains = [];
 
     public function get(string $uri, callable|array $action): self
     {
@@ -224,14 +225,23 @@ class Router
 
         $routeIndex = count($this->routes[$method] ?? []);
         
+        // Получаем домен из стека групп
+        $domain = $this->getGroupDomain();
+        
         $this->routes[$method][] = [
             'pattern' => $pattern,
             'action' => $action,
             'middleware' => $this->getGroupMiddleware(),
+            'domain' => $domain,
         ];
 
         // Сохраняем оригинальный URI для отладки
         $this->originalUris[$method][$routeIndex] = $uri;
+
+        // Сохраняем домен для этого роута
+        if ($domain) {
+            $this->routeDomains[$method . ':' . $routeIndex] = $domain;
+        }
 
         // Сохраняем ключ последнего добавленного роута для name()
         $this->lastAddedRouteKey = $method . ':' . $routeIndex;
@@ -321,12 +331,35 @@ class Router
         return $middleware;
     }
 
+    /**
+     * Получить домен из текущих групп
+     */
+    protected function getGroupDomain(): ?string
+    {
+        // Берем домен из последней группы в стеке (более специфичный)
+        for ($i = count($this->groupStack) - 1; $i >= 0; $i--) {
+            if (isset($this->groupStack[$i]['domain'])) {
+                return $this->groupStack[$i]['domain'];
+            }
+        }
+
+        return null;
+    }
+
     public function dispatch(string $method, string $uri): void
     {
         $uri = trim(parse_url($uri, PHP_URL_PATH), '/');
         $uri = preg_replace('#^index\.php/?#', '', $uri);
 
+        // Получаем текущий домен
+        $currentDomain = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+
         foreach ($this->routes[$method] ?? [] as $index => $route) {
+            // Проверяем домен, если он задан для роута
+            if (isset($route['domain']) && !$this->matchesDomain($route['domain'], $currentDomain)) {
+                continue;
+            }
+
             if (preg_match($route['pattern'], $uri, $matches)) {
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
@@ -352,15 +385,15 @@ class Router
                 // Создаем финальный обработчик
                 $action = $route['action'];
                 $finalHandler = function() use ($action, $params, $method) {
-                    if (is_array($action)) {
+                if (is_array($action)) {
                         [$controller, $methodName] = $action;
-                        if (!class_exists($controller)) {
-                            $controller = "App\\Controllers\\{$controller}";
-                        }
-                        return $this->callControllerAction($controller, $methodName, $params);
-                    } else {
-                        return $action(...array_values($params));
+                    if (!class_exists($controller)) {
+                        $controller = "App\\Controllers\\{$controller}";
                     }
+                        return $this->callControllerAction($controller, $methodName, $params);
+                } else {
+                        return $action(...array_values($params));
+                }
                 };
 
                 // Выполняем middleware pipeline
@@ -821,7 +854,7 @@ HTML;
     /**
      * Создать группу роутов
      *
-     * @param array{prefix?: string, middleware?: string|array<string>} $attributes Атрибуты группы
+     * @param array{prefix?: string, middleware?: string|array<string>, domain?: string} $attributes Атрибуты группы
      * @param callable $callback Коллбэк для регистрации роутов внутри группы
      * @return void
      */
@@ -835,6 +868,147 @@ HTML;
 
         // Удаляем группу из стека
         array_pop($this->groupStack);
+    }
+
+    /**
+     * Создать группу роутов для определенного домена/поддомена
+     *
+     * @param string $domain Домен (например: 'api.example.com', '{subdomain}.example.com')
+     * @param callable $callback
+     * @return void
+     */
+    public function domain(string $domain, callable $callback): void
+    {
+        $this->group(['domain' => $domain], $callback);
+    }
+
+    /**
+     * Проверить, соответствует ли текущий домен паттерну
+     */
+    protected function matchesDomain(string $pattern, string $domain): bool
+    {
+        // Если паттерн точно совпадает с доменом
+        if ($pattern === $domain) {
+            return true;
+        }
+
+        // Преобразуем паттерн домена в regex
+        // {subdomain}.example.com -> (?P<subdomain>[^.]+)\.example\.com
+        $regex = preg_replace_callback(
+            '#\{(\w+)(?::([^}]+))?\}#',
+            function ($matches) {
+                $name = $matches[1];
+                $regex = $matches[2] ?? '[^.]+'; // По умолчанию - любые символы кроме точки
+                return '(?P<' . $name . '>' . $regex . ')';
+            },
+            $pattern
+        );
+
+        // Экранируем точки в домене
+        $regex = str_replace('.', '\.', $regex);
+        $regex = '#^' . $regex . '$#i';
+
+        return preg_match($regex, $domain) === 1;
+    }
+
+    /**
+     * Зарегистрировать ресурсный контроллер
+     *
+     * Создает стандартные RESTful роуты для CRUD операций:
+     * - GET    /resource           -> index   (список всех ресурсов)
+     * - GET    /resource/create    -> create  (форма создания)
+     * - POST   /resource           -> store   (сохранить новый)
+     * - GET    /resource/{id}      -> show    (показать один)
+     * - GET    /resource/{id}/edit -> edit    (форма редактирования)
+     * - PUT    /resource/{id}      -> update  (обновить)
+     * - DELETE /resource/{id}      -> destroy (удалить)
+     *
+     * @param string $uri Базовый URI ресурса
+     * @param string $controller Класс контроллера
+     * @param array $options Опции: ['only' => [], 'except' => [], 'names' => [], 'middleware' => []]
+     * @return void
+     */
+    public function resource(string $uri, string $controller, array $options = []): void
+    {
+        $only = $options['only'] ?? [];
+        $except = $options['except'] ?? [];
+        $names = $options['names'] ?? [];
+        $middleware = $options['middleware'] ?? [];
+        $parameter = $options['parameter'] ?? 'id';
+
+        // Определяем базовое имя для роутов
+        $baseName = $options['as'] ?? str_replace('/', '.', trim($uri, '/'));
+
+        // Все доступные действия
+        $actions = [
+            'index' => ['GET', $uri, 'index'],
+            'create' => ['GET', $uri . '/create', 'create'],
+            'store' => ['POST', $uri, 'store'],
+            'show' => ['GET', $uri . '/{' . $parameter . ':\d+}', 'show'],
+            'edit' => ['GET', $uri . '/{' . $parameter . ':\d+}/edit', 'edit'],
+            'update' => ['PUT', $uri . '/{' . $parameter . ':\d+}', 'update'],
+            'destroy' => ['DELETE', $uri . '/{' . $parameter . ':\d+}', 'destroy'],
+        ];
+
+        foreach ($actions as $action => [$method, $actionUri, $controllerMethod]) {
+            // Пропускаем если в except
+            if (!empty($except) && in_array($action, $except)) {
+                continue;
+            }
+
+            // Пропускаем если указан only и этого действия нет в списке
+            if (!empty($only) && !in_array($action, $only)) {
+                continue;
+            }
+
+            // Создаем роут
+            $route = $this->addRouteByMethod($method, $actionUri, [$controller, $controllerMethod]);
+
+            // Добавляем имя роута
+            $routeName = $names[$action] ?? ($baseName . '.' . $action);
+            $this->name($routeName);
+
+            // Добавляем middleware
+            if (!empty($middleware)) {
+                $this->middleware($middleware);
+            }
+
+            // Добавляем валидацию для ID параметра
+            if (in_array($action, ['show', 'edit', 'update', 'destroy'])) {
+                $this->whereNumber($parameter);
+            }
+        }
+    }
+
+    /**
+     * Зарегистрировать API ресурсный контроллер (без create и edit)
+     *
+     * @param string $uri
+     * @param string $controller
+     * @param array $options
+     * @return void
+     */
+    public function apiResource(string $uri, string $controller, array $options = []): void
+    {
+        $options['except'] = array_merge($options['except'] ?? [], ['create', 'edit']);
+        $this->resource($uri, $controller, $options);
+    }
+
+    /**
+     * Добавить роут по методу HTTP
+     */
+    protected function addRouteByMethod(string $method, string $uri, callable|array $action): self
+    {
+        return match(strtoupper($method)) {
+            'GET' => $this->get($uri, $action),
+            'POST' => $this->post($uri, $action),
+            'PUT' => $this->put($uri, $action),
+            'PATCH' => $this->patch($uri, $action),
+            'DELETE' => $this->delete($uri, $action),
+            'OPTIONS' => $this->options($uri, $action),
+            'HEAD' => $this->head($uri, $action),
+            default => throw new \InvalidArgumentException("Invalid HTTP method: {$method}"),
+        };
     }
 
     /**
