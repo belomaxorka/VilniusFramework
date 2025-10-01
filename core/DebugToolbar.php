@@ -3,7 +3,6 @@
 namespace Core;
 
 use Core\DebugToolbar\CollectorInterface;
-use Core\Config;
 use Core\DebugToolbar\Collectors\CacheCollector;
 use Core\DebugToolbar\Collectors\OverviewCollector;
 use Core\DebugToolbar\Collectors\RequestCollector;
@@ -38,6 +37,7 @@ class DebugToolbar
         self::addCollector(new ResponseCollector());
         self::addCollector(new RoutesCollector());
         self::addCollector(new DumpsCollector());
+        self::addCollector(new CacheCollector());
         self::addCollector(new QueriesCollector());
         self::addCollector(new TimersCollector());
         self::addCollector(new MemoryCollector());
