@@ -16,6 +16,11 @@ class TemplateEngine
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
+    
+    // Поддержка блоков (extends/block)
+    private array $blocks = []; // Определённые блоки
+    private ?string $currentBlock = null; // Текущий блок
+    private ?string $parentTemplate = null; // Родительский шаблон
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
@@ -77,6 +82,11 @@ class TemplateEngine
             throw new \InvalidArgumentException("Template not found: {$template}");
         }
 
+        // Сбрасываем блоки для нового рендеринга
+        $this->blocks = [];
+        $this->currentBlock = null;
+        $this->parentTemplate = null;
+
         // Объединяем переменные
         $allVariables = array_merge($this->variables, $variables);
 
@@ -86,21 +96,21 @@ class TemplateEngine
             $cachedContent = $this->getCachedContent($templatePath);
             if ($cachedContent !== null) {
                 $fromCache = true;
-                $output = $this->executeTemplate($cachedContent, $allVariables);
+                $output = $this->executeTemplate($cachedContent, $allVariables, $template);
             }
         }
 
         if (!$fromCache) {
             // Читаем и компилируем шаблон
             $templateContent = file_get_contents($templatePath);
-            $compiledContent = $this->compileTemplate($templateContent);
+            $compiledContent = $this->compileTemplate($templateContent, $template);
 
             // Сохраняем в кэш
             if ($this->cacheEnabled) {
                 $this->saveCachedContent($templatePath, $compiledContent);
             }
 
-            $output = $this->executeTemplate($compiledContent, $allVariables);
+            $output = $this->executeTemplate($compiledContent, $allVariables, $template);
         }
 
         // Сохраняем информацию о рендеринге для Debug Toolbar
@@ -279,8 +289,26 @@ class TemplateEngine
     /**
      * Компилирует шаблон в PHP код
      */
-    private function compileTemplate(string $content): string
+    private function compileTemplate(string $content, string $templateName = ''): string
     {
+        // Проверяем наличие extends
+        if (preg_match('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', $content, $extendsMatch)) {
+            $parentTemplate = $extendsMatch[1];
+            // Удаляем директиву extends из контента
+            $content = preg_replace('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', '', $content);
+            
+            // Парсим блоки в текущем шаблоне
+            $childBlocks = $this->parseBlocks($content);
+            
+            // Читаем родительский шаблон
+            $parentPath = $this->templateDir . '/' . $parentTemplate;
+            if (file_exists($parentPath)) {
+                $parentContent = file_get_contents($parentPath);
+                // Компилируем родительский шаблон с заменой блоков
+                return $this->compileWithBlocks($parentContent, $childBlocks, $parentTemplate);
+            }
+        }
+
         // Удаляем комментарии {# comment #}
         $content = preg_replace('/\{#.*?#\}/s', '', $content);
 
@@ -358,22 +386,13 @@ class TemplateEngine
             return $this->processInclude($matches[1]);
         }, $content);
 
-        // Обрабатываем расширения {% extends 'base.tpl' %}
-        $content = preg_replace_callback('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
-            return $this->processExtends($matches[1]);
-        }, $content);
-
-        // Обрабатываем блоки {% block name %}...{% endblock %}
-        $content = preg_replace('/\{\%\s*block\s+(\w+)\s*\%\}/', '<?php $this->startBlock(\'\\1\'); ?>', $content);
-        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '<?php $this->endBlock(); ?>', $content);
-
         return $content;
     }
 
     /**
      * Выполняет скомпилированный шаблон
      */
-    private function executeTemplate(string $compiledContent, array $variables): string
+    private function executeTemplate(string $compiledContent, array $variables, string $templateName = ''): string
     {
         extract($variables);
 
@@ -518,19 +537,149 @@ class TemplateEngine
     }
 
     /**
-     * Обрабатывает расширения шаблонов
+     * Парсит блоки из шаблона
      */
-    private function processExtends(string $template): string
+    private function parseBlocks(string $content): array
     {
-        $extendsPath = $this->templateDir . '/' . $template;
-
-        if (!file_exists($extendsPath)) {
-            Logger::warning("Extends template not found: {$template}");
-            return '';
+        $blocks = [];
+        
+        // Находим все блоки в шаблоне
+        if (preg_match_all('/\{\%\s*block\s+(\w+)\s*\%\}(.*?)\{\%\s*endblock\s*\%\}/s', $content, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $blockName = $match[1];
+                $blockContent = $match[2];
+                $blocks[$blockName] = $blockContent;
+            }
         }
+        
+        return $blocks;
+    }
 
-        $content = file_get_contents($extendsPath);
-        return $this->compileTemplate($content);
+    /**
+     * Компилирует родительский шаблон с заменой блоков
+     */
+    private function compileWithBlocks(string $parentContent, array $childBlocks, string $parentTemplate = ''): string
+    {
+        // Парсим блоки в родительском шаблоне
+        $parentBlocks = $this->parseBlocks($parentContent);
+        
+        // Заменяем блоки родительского шаблона на блоки из дочернего
+        foreach ($childBlocks as $blockName => $blockContent) {
+            // Ищем блок в родительском шаблоне и заменяем его
+            $pattern = '/\{\%\s*block\s+' . preg_quote($blockName, '/') . '\s*\%\}.*?\{\%\s*endblock\s*\%\}/s';
+            $parentContent = preg_replace($pattern, $blockContent, $parentContent);
+        }
+        
+        // Удаляем оставшиеся теги block (которые не были переопределены)
+        $parentContent = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $parentContent);
+        $parentContent = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $parentContent);
+        
+        // Проверяем, есть ли в родительском еще extends
+        if (preg_match('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', $parentContent, $extendsMatch)) {
+            $grandparentTemplate = $extendsMatch[1];
+            $parentContent = preg_replace('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', '', $parentContent);
+            
+            // Объединяем блоки
+            $mergedBlocks = $this->parseBlocks($parentContent);
+            foreach ($childBlocks as $blockName => $blockContent) {
+                $mergedBlocks[$blockName] = $blockContent;
+            }
+            
+            // Читаем прародительский шаблон
+            $grandparentPath = $this->templateDir . '/' . $grandparentTemplate;
+            if (file_exists($grandparentPath)) {
+                $grandparentContent = file_get_contents($grandparentPath);
+                return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
+            }
+        }
+        
+        // Компилируем финальный результат
+        return $this->compileTemplateContent($parentContent);
+    }
+
+    /**
+     * Компилирует содержимое шаблона (без обработки extends)
+     */
+    private function compileTemplateContent(string $content): string
+    {
+        // Удаляем комментарии {# comment #}
+        $content = preg_replace('/\{#.*?#\}/s', '', $content);
+
+        // Экранируем PHP теги
+        $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
+
+        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
+        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
+        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
+
+        // Обрабатываем циклы {% for item in items %}
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
+        }, $content);
+        $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
+
+        // Обрабатываем циклы while {% while condition %}
+        $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
+
+        // Обрабатываем переменные {{ variable }} с поддержкой фильтров
+        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
+            // Разделяем на переменную и фильтры
+            $parts = $this->splitByPipe($matches[1]);
+            $variable = $this->processVariable(array_shift($parts));
+
+            // Применяем фильтры
+            $compiled = $variable;
+            foreach ($parts as $filter) {
+                $filter = trim($filter);
+                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                    $filterName = $filterMatches[1];
+                    $args = $filterMatches[2];
+                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+                } else {
+                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+                }
+            }
+
+            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
+        }, $content);
+
+        // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
+        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
+            // Разделяем на переменную и фильтры
+            $parts = $this->splitByPipe($matches[1]);
+            $variable = $this->processVariable(array_shift($parts));
+
+            // Применяем фильтры
+            $compiled = $variable;
+            foreach ($parts as $filter) {
+                $filter = trim($filter);
+                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                    $filterName = $filterMatches[1];
+                    $args = $filterMatches[2];
+                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+                } else {
+                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+                }
+            }
+
+            return '<?= ' . $compiled . ' ?? \'\' ?>';
+        }, $content);
+
+        // Обрабатываем включения {% include 'template.tpl' %}
+        $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
+            return $this->processInclude($matches[1]);
+        }, $content);
+
+        return $content;
     }
 
     /**

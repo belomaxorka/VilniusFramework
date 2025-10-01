@@ -6,7 +6,7 @@
     <meta name="description" content="TorrentPier Framework - A modern, lightweight PHP framework">
     <title>{% block title %}{{ title|default('TorrentPier Framework') }}{% endblock %}</title>
     
-    <!-- Tailwind CSS (development - замените на build версию в production) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Tailwind Config -->
@@ -77,7 +77,7 @@
                 <div class="flex space-x-6 mt-4 md:mt-0">
                     <a href="#" class="text-gray-500 hover:text-gray-900 text-sm transition-colors">About</a>
                     <a href="#" class="text-gray-500 hover:text-gray-900 text-sm transition-colors">Documentation</a>
-                    <a href="#" class="text-gray-500 hover:text-gray-900 text-sm transition-colors">GitHub</a>
+                    <a href="https://github.com" class="text-gray-500 hover:text-gray-900 text-sm transition-colors">GitHub</a>
                 </div>
             </div>
         </div>
