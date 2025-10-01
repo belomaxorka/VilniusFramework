@@ -39,9 +39,16 @@
     }
   },
   "scripts": {
-    "init-project": [
+    "setup": [
+      "composer install --no-dev",
+      "@php -r \"! file_exists('.env') || copy('.env.example', '.env');\"",
+      "npm install",
+      "npm run build"
+    ],
+    "post-root-package-install": [
       "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
     ],
+    "post-create-project-cmd": [],
     "test": "@php ./vendor/bin/pest",
     "test-coverage": "@php ./vendor/bin/pest --coverage",
     "test-coverage-html": "@php ./vendor/bin/pest --coverage-html=coverage"
