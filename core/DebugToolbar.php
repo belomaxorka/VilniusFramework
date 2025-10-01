@@ -22,6 +22,7 @@ class DebugToolbar
     private static bool $collapsed = true;
     private static array $collectors = [];
     private static bool $initialized = false;
+    private static ?Router $router = null;
 
     /**
      * Инициализация стандартных коллекторов
@@ -86,6 +87,7 @@ class DebugToolbar
     public static function setRouter(Router $router): void
     {
         self::initialize();
+        self::$router = $router;
 
         $routesCollector = self::getCollector('routes');
         if ($routesCollector instanceof RoutesCollector) {
@@ -95,6 +97,14 @@ class DebugToolbar
                 Http::getUri()
             );
         }
+    }
+
+    /**
+     * Получить Router
+     */
+    public static function getRouter(): ?Router
+    {
+        return self::$router;
     }
 
     /**
