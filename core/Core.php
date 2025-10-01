@@ -9,7 +9,7 @@ final class Core
         self::initEnvironment();
         self::initConfigLoader();
         self::initDebugSystem();
-        self::initializeLangManager();
+        self::initializeLang();
         self::initializeDatabase();
     }
 
@@ -60,7 +60,7 @@ final class Core
         }
     }
 
-    private static function initializeLangManager(): void
+    private static function initializeLang(): void
     {
         Lang::init();
     }
