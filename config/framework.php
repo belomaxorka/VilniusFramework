@@ -21,5 +21,5 @@ return [
     /**
      * Framework version
      */
-    'version' => 'v1.0.0-alpha.3',
+    'version' => 'v1.0.0-beta.1',
 ];
