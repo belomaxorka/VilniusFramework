@@ -41,8 +41,8 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function resolveRequestKey(): string
     {
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        $ip = \Core\Http::getClientIp();
+        $uri = \Core\Http::getUri();
         
         return 'throttle:' . sha1($ip . '|' . $uri);
     }
@@ -124,11 +124,7 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-        
-        return str_contains($contentType, 'application/json') 
-            || str_contains($accept, 'application/json');
+        return \Core\Http::isJson() || \Core\Http::acceptsJson();
     }
 }
 

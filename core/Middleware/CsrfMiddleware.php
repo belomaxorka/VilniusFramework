@@ -85,21 +85,20 @@ class CsrfMiddleware implements MiddlewareInterface
     protected function getTokenFromRequest(): ?string
     {
         // Проверяем POST данные
-        if (isset($_POST['_csrf_token'])) {
-            return $_POST['_csrf_token'];
+        $postData = \Core\Http::getPostData();
+        if (isset($postData['_csrf_token'])) {
+            return $postData['_csrf_token'];
         }
 
         // Проверяем заголовки
-        $headers = [
-            'X-CSRF-TOKEN',
-            'X-XSRF-TOKEN',
-        ];
+        $token = \Core\Http::getHeader('X-CSRF-TOKEN');
+        if ($token) {
+            return $token;
+        }
 
-        foreach ($headers as $header) {
-            $value = $_SERVER['HTTP_' . str_replace('-', '_', $header)] ?? null;
-            if ($value) {
-                return $value;
-            }
+        $token = \Core\Http::getHeader('X-XSRF-TOKEN');
+        if ($token) {
+            return $token;
         }
 
         return null;
@@ -156,11 +155,7 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-        
-        return str_contains($contentType, 'application/json') 
-            || str_contains($accept, 'application/json');
+        return \Core\Http::isJson() || \Core\Http::acceptsJson();
     }
 }
 

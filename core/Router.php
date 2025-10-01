@@ -352,7 +352,7 @@ class Router
         $uri = preg_replace('#^index\.php/?#', '', $uri);
 
         // Получаем текущий домен
-        $currentDomain = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+        $currentDomain = Http::getHost();
 
         foreach ($this->routes[$method] ?? [] as $index => $route) {
             // Проверяем домен, если он задан для роута
@@ -715,11 +715,7 @@ HTML;
      */
     protected function isJsonRequest(): bool
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-        
-        return str_contains($contentType, 'application/json') 
-            || str_contains($accept, 'application/json');
+        return Http::isJson() || Http::acceptsJson();
     }
 
     /**

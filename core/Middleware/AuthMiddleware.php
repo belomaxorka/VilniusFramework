@@ -54,7 +54,7 @@ class AuthMiddleware implements MiddlewareInterface
             ]);
         } else {
             // Сохраняем URL, на который пользователь пытался попасть
-            Session::set('redirect_after_login', $_SERVER['REQUEST_URI'] ?? '/');
+            Session::set('redirect_after_login', \Core\Http::getUri());
             
             header('Location: ' . $this->redirectTo);
         }
@@ -67,11 +67,7 @@ class AuthMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-        
-        return str_contains($contentType, 'application/json') 
-            || str_contains($accept, 'application/json');
+        return \Core\Http::isJson() || \Core\Http::acceptsJson();
     }
 }
 
