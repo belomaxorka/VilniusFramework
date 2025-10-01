@@ -3,6 +3,7 @@
 namespace Core;
 
 use Core\DebugToolbar\CollectorInterface;
+use Core\Config;
 use Core\DebugToolbar\Collectors\CacheCollector;
 use Core\DebugToolbar\Collectors\OverviewCollector;
 use Core\DebugToolbar\Collectors\RequestCollector;
@@ -253,7 +254,8 @@ class DebugToolbar
     {
         $html = '<div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">';
 
-        $html .= '<div style="font-weight: bold; color: #fff;">🐛 Debug Toolbar</div>';
+        $frameworkName = Config::get('framework.short_name', 'Vilnius');
+        $html .= '<div style="font-weight: bold; color: #fff;">🐛 ' . $frameworkName . ' Toolbar</div>';
 
         // Собираем статистику из коллекторов
         $stats = self::collectHeaderStats();
