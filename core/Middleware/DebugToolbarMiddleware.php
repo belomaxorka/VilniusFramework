@@ -102,12 +102,12 @@ class DebugToolbarMiddleware implements MiddlewareInterface
      */
     protected function renderDebugToolbar(): string
     {
-        if (!function_exists('render_debug_toolbar')) {
+        if (!class_exists('\Core\DebugToolbar')) {
             return '';
         }
 
         try {
-            return render_debug_toolbar();
+            return \Core\DebugToolbar::render();
         } catch (\Throwable $e) {
             // Если произошла ошибка при рендеринге toolbar, не ломаем страницу
             if (Environment::isDevelopment()) {
