@@ -8,6 +8,7 @@ class Router
     protected array $originalUris = [];
     protected array $namedRoutes = [];
     protected ?string $lastAddedRouteKey = null;
+    protected array $groupStack = [];
 
     public function get(string $uri, callable|array $action): self
     {
@@ -61,6 +62,9 @@ class Router
 
     protected function addRoute(string $method, string $uri, callable|array $action): void
     {
+        // Применяем префикс группы, если есть
+        $uri = $this->applyGroupPrefix($uri);
+
         // Преобразуем {param:regex} в (?P<param>regex)
         $pattern = preg_replace_callback(
             '#\{(\w+)(?::([^}]+))?\}#',
@@ -79,6 +83,7 @@ class Router
         $this->routes[$method][] = [
             'pattern' => $pattern,
             'action' => $action,
+            'middleware' => $this->getGroupMiddleware(),
         ];
 
         // Сохраняем оригинальный URI для отладки
@@ -86,6 +91,38 @@ class Router
 
         // Сохраняем ключ последнего добавленного роута для name()
         $this->lastAddedRouteKey = $method . ':' . $routeIndex;
+    }
+
+    /**
+     * Применить префикс группы к URI
+     */
+    protected function applyGroupPrefix(string $uri): string
+    {
+        $prefix = '';
+        
+        foreach ($this->groupStack as $group) {
+            if (isset($group['prefix'])) {
+                $prefix .= '/' . trim($group['prefix'], '/');
+            }
+        }
+
+        return trim($prefix, '/') . '/' . trim($uri, '/');
+    }
+
+    /**
+     * Получить middleware из текущих групп
+     */
+    protected function getGroupMiddleware(): array
+    {
+        $middleware = [];
+        
+        foreach ($this->groupStack as $group) {
+            if (isset($group['middleware'])) {
+                $middleware = array_merge($middleware, (array)$group['middleware']);
+            }
+        }
+
+        return $middleware;
     }
 
     public function dispatch(string $method, string $uri): void
@@ -205,5 +242,24 @@ class Router
     public function getNamedRoutes(): array
     {
         return $this->namedRoutes;
+    }
+
+    /**
+     * Создать группу роутов
+     *
+     * @param array{prefix?: string, middleware?: string|array<string>} $attributes Атрибуты группы
+     * @param callable $callback Коллбэк для регистрации роутов внутри группы
+     * @return void
+     */
+    public function group(array $attributes, callable $callback): void
+    {
+        // Добавляем группу в стек
+        $this->groupStack[] = $attributes;
+
+        // Выполняем коллбэк
+        $callback($this);
+
+        // Удаляем группу из стека
+        array_pop($this->groupStack);
     }
 }
