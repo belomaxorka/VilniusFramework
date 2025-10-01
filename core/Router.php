@@ -725,10 +725,31 @@ HTML;
 
     /**
      * Проверить, является ли запрос JSON
+     * 
+     * Проверяет:
+     * 1. Content-Type: application/json (для POST/PUT/PATCH)
+     * 2. Accept: application/json (явно запрошен JSON)
+     * 3. X-Requested-With: XMLHttpRequest + Accept: application/json
      */
     protected function isJsonRequest(): bool
     {
-        return Http::isJson() || Http::acceptsJson();
+        // Если Content-Type: application/json - это JSON запрос
+        if (Http::isJson()) {
+            return true;
+        }
+        
+        // Если явно запрошен application/json (не */*)
+        $types = Http::getAcceptedContentTypes();
+        if (in_array('application/json', $types)) {
+            return true;
+        }
+        
+        // Если AJAX запрос и есть JSON в Accept (даже с */*)
+        if (Http::isAjax() && Http::acceptsJson()) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**

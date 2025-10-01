@@ -472,7 +472,18 @@ class Http
     public static function acceptsJson(): bool
     {
         $types = self::getAcceptedContentTypes();
-        return in_array('application/json', $types) || in_array('*/*', $types);
+        
+        // Явно проверяем application/json (без учета */*)
+        if (in_array('application/json', $types)) {
+            return true;
+        }
+        
+        // Если есть */* но НЕТ text/html - значит это API клиент
+        if (in_array('*/*', $types) && !in_array('text/html', $types)) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -481,7 +492,18 @@ class Http
     public static function acceptsHtml(): bool
     {
         $types = self::getAcceptedContentTypes();
-        return in_array('text/html', $types) || in_array('*/*', $types);
+        
+        // Явно проверяем text/html
+        if (in_array('text/html', $types)) {
+            return true;
+        }
+        
+        // Если есть */* - считаем что браузер
+        if (in_array('*/*', $types)) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
