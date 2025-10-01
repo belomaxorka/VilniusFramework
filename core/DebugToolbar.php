@@ -9,7 +9,9 @@ use Core\DebugToolbar\Collectors\ResponseCollector;
 use Core\DebugToolbar\Collectors\RoutesCollector;
 use Core\DebugToolbar\Collectors\DumpsCollector;
 use Core\DebugToolbar\Collectors\QueriesCollector;
+use Core\DebugToolbar\Collectors\TemplatesCollector;
 use Core\DebugToolbar\Collectors\TimersCollector;
+use Core\DebugToolbar\Collectors\LogsCollector;
 use Core\DebugToolbar\Collectors\MemoryCollector;
 use Core\DebugToolbar\Collectors\ContextsCollector;
 
@@ -35,9 +37,11 @@ class DebugToolbar
         self::addCollector(new ResponseCollector());
         self::addCollector(new RoutesCollector());
         self::addCollector(new DumpsCollector());
-        self::addCollector(new CacheCollector());
         self::addCollector(new QueriesCollector());
+        self::addCollector(new CacheCollector());
+        self::addCollector(new TemplatesCollector());
         self::addCollector(new TimersCollector());
+        self::addCollector(new LogsCollector());
         self::addCollector(new MemoryCollector());
         self::addCollector(new ContextsCollector());
 

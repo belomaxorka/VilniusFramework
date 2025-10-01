@@ -15,6 +15,7 @@ class TemplateEngine
     private array $filters = [];
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
+    private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
 
     public function __construct(?string $templateDir = null, ?string $cacheDir = null)
     {
@@ -67,6 +68,9 @@ class TemplateEngine
      */
     public function render(string $template, array $variables = []): string
     {
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
         $templatePath = $this->templateDir . '/' . $template;
 
         if (!file_exists($templatePath)) {
@@ -77,23 +81,45 @@ class TemplateEngine
         $allVariables = array_merge($this->variables, $variables);
 
         // Проверяем кэш
+        $fromCache = false;
         if ($this->cacheEnabled) {
             $cachedContent = $this->getCachedContent($templatePath);
             if ($cachedContent !== null) {
-                return $this->executeTemplate($cachedContent, $allVariables);
+                $fromCache = true;
+                $output = $this->executeTemplate($cachedContent, $allVariables);
             }
         }
 
-        // Читаем и компилируем шаблон
-        $templateContent = file_get_contents($templatePath);
-        $compiledContent = $this->compileTemplate($templateContent);
+        if (!$fromCache) {
+            // Читаем и компилируем шаблон
+            $templateContent = file_get_contents($templatePath);
+            $compiledContent = $this->compileTemplate($templateContent);
 
-        // Сохраняем в кэш
-        if ($this->cacheEnabled) {
-            $this->saveCachedContent($templatePath, $compiledContent);
+            // Сохраняем в кэш
+            if ($this->cacheEnabled) {
+                $this->saveCachedContent($templatePath, $compiledContent);
+            }
+
+            $output = $this->executeTemplate($compiledContent, $allVariables);
         }
 
-        return $this->executeTemplate($compiledContent, $allVariables);
+        // Сохраняем информацию о рендеринге для Debug Toolbar
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+
+        self::$renderedTemplates[] = [
+            'template' => $template,
+            'path' => $templatePath,
+            'variables' => array_keys($allVariables),
+            'variables_count' => count($allVariables),
+            'time' => ($endTime - $startTime) * 1000, // в миллисекундах
+            'memory' => $endMemory - $startMemory,
+            'size' => strlen($output),
+            'from_cache' => $fromCache,
+            'timestamp' => microtime(true),
+        ];
+
+        return $output;
     }
 
     /**
@@ -150,6 +176,51 @@ class TemplateEngine
     public static function clearUndefinedVars(): void
     {
         self::$undefinedVars = [];
+    }
+
+    /**
+     * Получить список отрендеренных шаблонов
+     */
+    public static function getRenderedTemplates(): array
+    {
+        return self::$renderedTemplates;
+    }
+
+    /**
+     * Очистить список отрендеренных шаблонов
+     */
+    public static function clearRenderedTemplates(): void
+    {
+        self::$renderedTemplates = [];
+    }
+
+    /**
+     * Получить статистику по рендерингу
+     */
+    public static function getRenderStats(): array
+    {
+        $totalTime = 0;
+        $totalMemory = 0;
+        $totalSize = 0;
+        $fromCache = 0;
+
+        foreach (self::$renderedTemplates as $tpl) {
+            $totalTime += $tpl['time'];
+            $totalMemory += $tpl['memory'];
+            $totalSize += $tpl['size'];
+            if ($tpl['from_cache']) {
+                $fromCache++;
+            }
+        }
+
+        return [
+            'total' => count(self::$renderedTemplates),
+            'total_time' => $totalTime,
+            'total_memory' => $totalMemory,
+            'total_size' => $totalSize,
+            'from_cache' => $fromCache,
+            'compiled' => count(self::$renderedTemplates) - $fromCache,
+        ];
     }
 
     /**
