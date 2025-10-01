@@ -22,20 +22,20 @@ class Http
     public static function getActualMethod(): string
     {
         $method = self::getMethod();
-        
+
         if ($method === 'POST') {
             // Проверяем заголовок X-HTTP-Method-Override
             $override = self::getHeader('X-HTTP-Method-Override');
             if ($override) {
                 return strtoupper($override);
             }
-            
+
             // Проверяем _method в POST данных
             if (isset($_POST['_method'])) {
                 return strtoupper($_POST['_method']);
             }
         }
-        
+
         return $method;
     }
 
@@ -230,10 +230,10 @@ class Http
     public static function getHeader(string $name): ?string
     {
         $headers = self::getHeaders();
-        
+
         // Нормализуем имя заголовка
         $normalizedName = str_replace(' ', '-', ucwords(strtolower(str_replace(['-', '_'], ' ', $name))));
-        
+
         return $headers[$normalizedName] ?? null;
     }
 
@@ -242,7 +242,7 @@ class Http
      */
     public static function isAjax(): bool
     {
-        return !empty($_SERVER['HTTP_X_REQUESTED_WITH']) 
+        return !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
             && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
     }
 
@@ -481,7 +481,7 @@ class Http
     public static function getBearerToken(): ?string
     {
         $header = self::getHeader('Authorization');
-        
+
         if (!$header) {
             return null;
         }
@@ -509,10 +509,10 @@ class Http
 
         // Проверяем Authorization заголовок (nginx, etc)
         $header = self::getHeader('Authorization');
-        
+
         if ($header && preg_match('/Basic\s+(.*)$/i', $header, $matches)) {
             $credentials = base64_decode($matches[1]);
-            
+
             if (str_contains($credentials, ':')) {
                 list($username, $password) = explode(':', $credentials, 2);
                 return [
@@ -547,7 +547,7 @@ class Http
     public static function getMimeType(): string
     {
         $contentType = self::getContentType();
-        
+
         if (empty($contentType)) {
             return '';
         }
@@ -606,13 +606,13 @@ class Http
     {
         $all = self::all();
         $result = [];
-        
+
         foreach ($keys as $key) {
             if (isset($all[$key])) {
                 $result[$key] = $all[$key];
             }
         }
-        
+
         return $result;
     }
 
@@ -622,11 +622,11 @@ class Http
     public static function except(array $keys): array
     {
         $all = self::all();
-        
+
         foreach ($keys as $key) {
             unset($all[$key]);
         }
-        
+
         return $all;
     }
 
@@ -653,7 +653,7 @@ class Http
     public static function parseQueryString(string $queryString = null): array
     {
         $queryString = $queryString ?? self::getQueryString();
-        
+
         if (empty($queryString)) {
             return [];
         }
@@ -676,7 +676,7 @@ class Http
     public static function getUrlWithParams(array $params, bool $merge = true): string
     {
         $baseUrl = self::getBaseUrl() . self::getPath();
-        
+
         if ($merge) {
             $currentParams = self::getQueryParams();
             $params = array_merge($currentParams, $params);
@@ -705,7 +705,7 @@ class Http
     public static function isBot(): bool
     {
         $userAgent = strtolower(self::getUserAgent());
-        
+
         $bots = [
             'bot', 'crawler', 'spider', 'scraper',
             'googlebot', 'bingbot', 'yandexbot',
@@ -728,7 +728,7 @@ class Http
     public static function getPreferredLanguage(array $supportedLanguages = []): string
     {
         $acceptLanguage = self::getHeader('Accept-Language');
-        
+
         if (empty($acceptLanguage)) {
             return $supportedLanguages[0] ?? 'en';
         }
@@ -739,10 +739,10 @@ class Http
             $parts = explode(';q=', $lang);
             $code = strtolower(trim($parts[0]));
             $quality = isset($parts[1]) ? (float)$parts[1] : 1.0;
-            
+
             // Берем только первые 2 символа (en-US -> en)
             $code = substr($code, 0, 2);
-            
+
             if ($code) {
                 $languages[$code] = $quality;
             }
@@ -771,7 +771,7 @@ class Http
     public static function getAcceptedLanguages(): array
     {
         $acceptLanguage = self::getHeader('Accept-Language');
-        
+
         if (empty($acceptLanguage)) {
             return [];
         }
@@ -781,14 +781,14 @@ class Http
             $parts = explode(';q=', $lang);
             $code = trim($parts[0]);
             $quality = isset($parts[1]) ? (float)$parts[1] : 1.0;
-            
+
             if ($code) {
                 $languages[$code] = $quality;
             }
         }
 
         arsort($languages);
-        
+
         return $languages;
     }
 
@@ -798,7 +798,7 @@ class Http
     public static function getCharset(): string
     {
         $contentType = self::getContentType();
-        
+
         if (preg_match('/charset=([^\s;]+)/i', $contentType, $matches)) {
             return trim($matches[1], '"\'');
         }
@@ -813,7 +813,7 @@ class Http
     public static function isMobile(): bool
     {
         $userAgent = strtolower(self::getUserAgent());
-        
+
         $mobileKeywords = [
             'mobile', 'android', 'iphone', 'ipad', 'ipod',
             'blackberry', 'windows phone', 'opera mini',
@@ -859,7 +859,7 @@ class Http
     public static function getIfModifiedSince(): ?int
     {
         $header = self::getHeader('If-Modified-Since');
-        
+
         if (!$header) {
             return null;
         }
