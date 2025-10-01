@@ -60,7 +60,16 @@ class Http
      */
     public static function getQueryString(): string
     {
-        return $_SERVER['QUERY_STRING'] ?? '';
+        // Если QUERY_STRING установлен, используем его
+        if (isset($_SERVER['QUERY_STRING'])) {
+            return $_SERVER['QUERY_STRING'];
+        }
+        
+        // Иначе пытаемся извлечь из REQUEST_URI
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        $queryString = parse_url($uri, PHP_URL_QUERY);
+        
+        return $queryString ?? '';
     }
 
     /**
@@ -678,7 +687,9 @@ class Http
         $baseUrl = self::getBaseUrl() . self::getPath();
 
         if ($merge) {
-            $currentParams = self::getQueryParams();
+            // Парсим параметры из текущего query string, а не из $_GET
+            // Это позволяет корректно работать с параметрами из URI
+            $currentParams = self::parseQueryString();
             $params = array_merge($currentParams, $params);
         }
 

@@ -57,6 +57,12 @@ describe('HTTP Basic Methods', function () {
         expect(Http::getQueryString())->toBe('sort=name&order=asc');
     });
 
+    test('getQueryString extracts from REQUEST_URI if QUERY_STRING not set', function () {
+        $_SERVER['REQUEST_URI'] = '/test?sort=name&order=asc';
+        
+        expect(Http::getQueryString())->toBe('sort=name&order=asc');
+    });
+
     test('getProtocol returns server protocol', function () {
         $_SERVER['SERVER_PROTOCOL'] = 'HTTP/2.0';
         
