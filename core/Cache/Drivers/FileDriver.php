@@ -37,16 +37,17 @@ class FileDriver extends AbstractCacheDriver
     public function get(string $key, mixed $default = null): mixed
     {
         $startTime = microtime(true);
+        $originalKey = $key;
         $file = $this->getFilePath($key);
 
         if (!file_exists($file)) {
-            $this->logGet($key, false, null, $startTime);
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
         $content = @file_get_contents($file);
         if ($content === false) {
-            $this->logGet($key, false, null, $startTime);
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
@@ -55,12 +56,12 @@ class FileDriver extends AbstractCacheDriver
         // Проверяем срок годности
         if (isset($data['expires_at']) && $data['expires_at'] < time()) {
             $this->delete($key);
-            $this->logGet($key, false, null, $startTime);
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
         $value = $data['value'] ?? $default;
-        $this->logGet($key, true, $value, $startTime);
+        $this->logGet($originalKey, true, $value, $startTime);
         return $value;
     }
 
@@ -70,6 +71,7 @@ class FileDriver extends AbstractCacheDriver
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
         $startTime = microtime(true);
+        $originalKey = $key;
         $file = $this->getFilePath($key);
         $ttl = $this->normalizeTtl($ttl);
 
@@ -93,7 +95,7 @@ class FileDriver extends AbstractCacheDriver
         }
 
         $result = @rename($tmpFile, $file);
-        $this->logSet($key, $value, $startTime);
+        $this->logSet($originalKey, $value, $startTime);
         return $result;
     }
 
@@ -103,15 +105,16 @@ class FileDriver extends AbstractCacheDriver
     public function delete(string $key): bool
     {
         $startTime = microtime(true);
+        $originalKey = $key;
         $file = $this->getFilePath($key);
 
         if (file_exists($file)) {
             $result = @unlink($file);
-            $this->logDelete($key, $startTime);
+            $this->logDelete($originalKey, $startTime);
             return $result;
         }
 
-        $this->logDelete($key, $startTime);
+        $this->logDelete($originalKey, $startTime);
         return true;
     }
 
