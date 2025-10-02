@@ -742,6 +742,10 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
 
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $condition = $this->processFunctionCalls($condition, $strings, $functionProtected);
+
         // Обрабатываем комплексные выражения с точками и массивами
         $result = $this->processPropertyAccess($condition);
         $condition = $result['expression'];
@@ -753,6 +757,7 @@ class TemplateEngine
         $condition = str_replace(' not ', ' ! ', $condition);
 
         // Обрабатываем простые переменные (которые еще не обработаны)
+        // ВАЖНО: Пропускаем плейсхолдеры функций (___FUNC_N___)
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
         $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty) {
             $var = $matches[1];
@@ -769,6 +774,11 @@ class TemplateEngine
             // Оборачиваем переменную в isset() && $var для безопасной проверки
             return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
+
+        // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
+        foreach ($functionProtected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
 
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
@@ -872,6 +882,7 @@ class TemplateEngine
         $protected = $result['protected'];
 
         // Обрабатываем простые переменные (которые еще не обработаны)
+        // ВАЖНО: Пропускаем плейсхолдеры функций (___FUNC_N___)
         $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) {
             $var = $matches[1];
             // Пропускаем защищенные фрагменты и строки
@@ -881,7 +892,7 @@ class TemplateEngine
             return '$' . $var;
         }, $expression);
 
-        // Восстанавливаем защищенные фрагменты функций
+        // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
         foreach ($functionProtected as $placeholder => $value) {
             $expression = str_replace($placeholder, $value, $expression);
         }
@@ -919,16 +930,29 @@ class TemplateEngine
             $replacementCount = 0;
             
             // Ищем самые внутренние вызовы функций (без вложенных скобок в аргументах)
+            // Также находим плейсхолдеры ___FUNC_N___
             $expression = preg_replace_callback(
-                '/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/',
+                '/\b([a-zA-Z_][a-zA-Z0-9_]*|___FUNC_\d+___)\s*\(([^()]*)\)/',
                 function ($matches) use (&$strings, &$replacementCount, &$protected) {
                     $fullMatch = $matches[0];
                     $funcName = $matches[1];
                     $argsString = $matches[2];
                     
+                    // Если это плейсхолдер функции - восстанавливаем его
+                    if (strpos($funcName, '___FUNC_') === 0) {
+                        // Ищем соответствующий вызов в protected
+                        foreach ($protected as $key => $value) {
+                            if ($key === $funcName) {
+                                // Заменяем плейсхолдер на реальный вызов функции
+                                return $value;
+                            }
+                        }
+                        return $fullMatch; // На всякий случай
+                    }
+                    
                     // Пропускаем уже обработанные вызовы или защищенные фрагменты
                     if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || 
-                        strpos($fullMatch, '->') !== false || strpos($fullMatch, '___FUNC_') !== false) {
+                        strpos($fullMatch, '->') !== false) {
                         return $fullMatch;
                     }
                     
@@ -991,6 +1015,10 @@ class TemplateEngine
             // Если это placeholder строки, восстанавливаем её
             if (preg_match('/^___STRING_(\d+)___$/', $arg, $match)) {
                 $processedArgs[] = $strings[(int)$match[1]];
+            }
+            // Если это placeholder функции, оставляем как есть (без $)
+            elseif (preg_match('/^___FUNC_\d+___$/', $arg)) {
+                $processedArgs[] = $arg;
             }
             // Если это число
             elseif (is_numeric($arg)) {
