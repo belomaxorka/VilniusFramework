@@ -732,12 +732,6 @@ class TemplateEngine
     {
         $condition = trim($condition);
 
-        // Проверяем, использует ли пользователь уже isset() или empty()
-        $hasIssetOrEmpty = preg_match('/\b(isset|empty)\s*\(/', $condition);
-
-        // Проверяем, есть ли операторы сравнения (==, !=, <, >, <=, >=, ===, !==)
-        $hasComparisonOperators = preg_match('/[=!<>]=|[<>](?!=)/', $condition);
-
         // Защищаем строки в кавычках
         $strings = [];
         $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
@@ -759,24 +753,26 @@ class TemplateEngine
         $condition = str_replace(' or ', ' || ', $condition);
         $condition = str_replace(' not ', ' ! ', $condition);
 
-        // Обрабатываем простые переменные (которые еще не обработаны)
-        // ВАЖНО: Пропускаем плейсхолдеры функций (___FUNC_N___)
+        // Проверяем, это простое условие (только переменная) или сложное выражение
+        $trimmedCondition = trim($condition);
+        $isSimpleVariable = preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $trimmedCondition);
+
+        // Обрабатываем простые переменные
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty, $hasComparisonOperators) {
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $isSimpleVariable) {
             $var = $matches[1];
             // Пропускаем ключевые слова и защищенные фрагменты
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
 
-            // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
-            // Или если есть операторы сравнения - тоже не добавляем (чтобы не сломать сравнение)
-            if ($hasIssetOrEmpty || $hasComparisonOperators) {
+            // Только для простых условий (одна переменная) добавляем isset()
+            // Для сложных выражений просто добавляем $
+            if ($isSimpleVariable) {
+                return '(isset($' . $var . ') && $' . $var . ')';
+            } else {
                 return '$' . $var;
             }
-
-            // Оборачиваем переменную в isset() && $var для безопасной проверки
-            return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
 
         // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
