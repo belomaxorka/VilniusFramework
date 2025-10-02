@@ -4,7 +4,7 @@ namespace Core\Http;
 
 /**
  * HTTP Status Codes и их описания
- * 
+ *
  * Централизованное хранилище всех HTTP статус-кодов.
  * Используется в ErrorRenderer и ResponseCollector.
  */
@@ -13,7 +13,7 @@ class HttpStatus
     /**
      * Все известные HTTP статус-коды
      */
-    private const STATUS_CODES = [
+    private const array STATUS_CODES = [
         // 1xx Informational
         100 => 'Continue',
         101 => 'Switching Protocols',
@@ -171,7 +171,7 @@ class HttpStatus
 
     /**
      * Получить все доступные статус-коды
-     * 
+     *
      * @return array<int, string> Массив [код => текст]
      */
     public static function getAll(): array
