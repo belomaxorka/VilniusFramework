@@ -172,13 +172,17 @@ describe('MemoryCollector Rendering', function () {
 });
 
 describe('MemoryCollector Header Stats', function () {
-    test('does not provide header stats by default', function () {
+    test('provides header stats with memory information', function () {
         $this->collector->collect();
         $stats = $this->collector->getHeaderStats();
         
-        // MemoryCollector doesn't implement custom header stats
-        // (memory is shown in OverviewCollector)
-        expect($stats)->toBe([]);
+        // MemoryCollector now provides header stats
+        expect($stats)->toBeArray();
+        expect($stats)->toHaveCount(1);
+        expect($stats[0])->toHaveKey('icon');
+        expect($stats[0])->toHaveKey('value');
+        expect($stats[0])->toHaveKey('color');
+        expect($stats[0]['icon'])->toBe('💾');
     });
 });
 

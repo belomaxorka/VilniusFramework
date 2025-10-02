@@ -82,22 +82,22 @@ describe('AbstractCollector formatBytes', function () {
     });
 
     test('formats bytes correctly', function () {
-        expect($this->collector->testFormatBytes(500))->toBe('500 B');
+        expect($this->collector->testFormatBytes(500))->toBe('500.00 B');
     });
 
     test('formats kilobytes correctly', function () {
-        expect($this->collector->testFormatBytes(1024))->toBe('1 KB');
-        expect($this->collector->testFormatBytes(1536))->toBe('1.5 KB');
+        expect($this->collector->testFormatBytes(1024))->toBe('1.00 KB');
+        expect($this->collector->testFormatBytes(1536))->toBe('1.50 KB');
     });
 
     test('formats megabytes correctly', function () {
-        expect($this->collector->testFormatBytes(1048576))->toBe('1 MB');
-        expect($this->collector->testFormatBytes(2621440))->toBe('2.5 MB');
+        expect($this->collector->testFormatBytes(1048576))->toBe('1.00 MB');
+        expect($this->collector->testFormatBytes(2621440))->toBe('2.50 MB');
     });
 
     test('formats gigabytes correctly', function () {
-        expect($this->collector->testFormatBytes(1073741824))->toBe('1 GB');
-        expect($this->collector->testFormatBytes(2147483648))->toBe('2 GB');
+        expect($this->collector->testFormatBytes(1073741824))->toBe('1.00 GB');
+        expect($this->collector->testFormatBytes(2147483648))->toBe('2.00 GB');
     });
 
     test('handles zero bytes', function () {
@@ -125,25 +125,25 @@ describe('AbstractCollector formatTime', function () {
     });
 
     test('formats milliseconds correctly', function () {
-        expect($this->collector->testFormatTime(100))->toBe('100.00ms');
-        expect($this->collector->testFormatTime(1.5))->toBe('1.50ms');
+        expect($this->collector->testFormatTime(100))->toBe('100.00 ms');
+        expect($this->collector->testFormatTime(1.5))->toBe('1.50 ms');
     });
 
     test('formats microseconds for values less than 1ms', function () {
-        expect($this->collector->testFormatTime(0.5))->toBe('500.00μs');
-        expect($this->collector->testFormatTime(0.001))->toBe('1.00μs');
+        expect($this->collector->testFormatTime(0.5))->toBe('500.00 μs');
+        expect($this->collector->testFormatTime(0.001))->toBe('1.00 μs');
     });
 
     test('handles zero time', function () {
-        expect($this->collector->testFormatTime(0))->toBe('0.00μs');
+        expect($this->collector->testFormatTime(0))->toBe('0.00 μs');
     });
 
     test('rounds to 2 decimal places', function () {
-        expect($this->collector->testFormatTime(123.456))->toBe('123.46ms');
+        expect($this->collector->testFormatTime(123.456))->toBe('123.46 ms');
     });
 
     test('handles very small values', function () {
-        expect($this->collector->testFormatTime(0.0001))->toBe('0.10μs');
+        expect($this->collector->testFormatTime(0.0001))->toBe('0.10 μs');
     });
 });
 

@@ -390,7 +390,7 @@ describe('DebugToolbar Integration with Custom Collectors', function () {
         
         // Should have both custom and built-in collectors
         expect($collectors)->toHaveKey('test1'); // Custom
-        expect($collectors)->toHaveKey('overview'); // Built-in
         expect($collectors)->toHaveKey('memory'); // Built-in
+        expect($collectors)->toHaveKey('request'); // Built-in
     });
 });

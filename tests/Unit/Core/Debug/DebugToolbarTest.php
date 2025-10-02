@@ -203,9 +203,9 @@ describe('Visual Indicators', function () {
     });
 });
 
-describe('Helper Function', function () {
-    test('render_debug_toolbar works', function () {
-        $html = render_debug_toolbar();
+describe('DebugToolbar::render() Method', function () {
+    test('DebugToolbar::render() works', function () {
+        $html = DebugToolbar::render();
 
         expect($html)->toBeString();
         expect($html)->toContain('debug-toolbar');
@@ -214,7 +214,7 @@ describe('Helper Function', function () {
     test('returns empty string when disabled', function () {
         DebugToolbar::enable(false);
 
-        expect(render_debug_toolbar())->toBe('');
+        expect(DebugToolbar::render())->toBe('');
     });
 });
 
