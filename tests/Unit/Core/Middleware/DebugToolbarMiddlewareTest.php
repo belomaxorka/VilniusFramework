@@ -19,7 +19,7 @@ beforeEach(function () {
 describe('DebugToolbarMiddleware - Basic Functionality', function () {
     
     it('does nothing in production mode', function () {
-        Environment::set('APP_ENV', 'production');
+        Environment::set('production');
         
         $middleware = new DebugToolbarMiddleware();
         $output = '<html><body>Content</body></html>';
@@ -39,7 +39,7 @@ describe('DebugToolbarMiddleware - Basic Functionality', function () {
     });
     
     it('injects toolbar in development mode for HTML responses', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         $output = '<html><body><h1>Test</h1></body></html>';
@@ -60,7 +60,7 @@ describe('DebugToolbarMiddleware - Basic Functionality', function () {
     });
     
     it('does not inject toolbar if no closing body tag', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         $output = '<html><head><title>Test</title></head>';
@@ -84,7 +84,7 @@ describe('DebugToolbarMiddleware - Basic Functionality', function () {
 describe('DebugToolbarMiddleware - Content-Type Detection', function () {
     
     it('does not inject toolbar for JSON responses', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         // Устанавливаем JSON Content-Type
         if (!headers_sent()) {
@@ -108,7 +108,7 @@ describe('DebugToolbarMiddleware - Content-Type Detection', function () {
     });
     
     it('injects toolbar for text/html Content-Type', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         // Устанавливаем HTML Content-Type
         if (!headers_sent()) {
@@ -135,7 +135,7 @@ describe('DebugToolbarMiddleware - Content-Type Detection', function () {
 describe('DebugToolbarMiddleware - Output Buffering', function () {
     
     it('captures all output from next handler', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         
@@ -157,7 +157,7 @@ describe('DebugToolbarMiddleware - Output Buffering', function () {
     });
     
     it('handles empty output gracefully', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         
@@ -174,7 +174,7 @@ describe('DebugToolbarMiddleware - Output Buffering', function () {
     });
     
     it('returns result from next handler', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         $expectedResult = 'test-result';
@@ -196,7 +196,7 @@ describe('DebugToolbarMiddleware - Output Buffering', function () {
 describe('DebugToolbarMiddleware - Error Handling', function () {
     
     it('handles missing render_debug_toolbar function', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         // Этот тест предполагает, что функция существует
         // Но мы проверяем, что middleware не падает
@@ -220,7 +220,7 @@ describe('DebugToolbarMiddleware - Error Handling', function () {
 describe('DebugToolbarMiddleware - Integration', function () {
     
     it('works with Response objects', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         
@@ -241,7 +241,7 @@ describe('DebugToolbarMiddleware - Integration', function () {
     });
     
     it('preserves middleware chain result', function () {
-        Environment::set('APP_ENV', 'development');
+        Environment::set('development');
         
         $middleware = new DebugToolbarMiddleware();
         $chainResult = ['status' => 'success'];

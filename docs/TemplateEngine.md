@@ -58,6 +58,30 @@
 {% endwhile %}
 ```
 
+### Функции
+
+```twig
+<!-- Вызов функции без аргументов -->
+{! vite() !}
+
+<!-- Вызов функции с аргументами -->
+{! vite("app") !}
+
+<!-- Вызов функции с переменной -->
+{! greet(username) !}
+
+<!-- Вызов функции с несколькими аргументами -->
+{! format_date(date, "Y-m-d") !}
+
+<!-- Вложенные вызовы функций -->
+{! upper(greet(username)) !}
+
+<!-- Функции в условиях -->
+{% if is_admin() %}
+    Admin Panel
+{% endif %}
+```
+
 ### Включения
 
 ```twig
@@ -129,6 +153,65 @@ class HomeController
         
         display('home.twig', $data);
     }
+}
+```
+
+## Функции
+
+### Регистрация функций
+
+Вы можете регистрировать свои функции для использования в шаблонах:
+
+```php
+$template = TemplateEngine::getInstance();
+
+// Регистрация простой функции
+$template->addFunction('hello', function() {
+    return 'Hello, World!';
+});
+
+// Регистрация функции с аргументами
+$template->addFunction('greet', function($name) {
+    return "Hello, {$name}!";
+});
+
+// Регистрация функции с несколькими аргументами
+$template->addFunction('format_price', function($price, $currency = 'USD') {
+    return number_format($price, 2) . ' ' . $currency;
+});
+```
+
+### Использование функций в шаблонах
+
+```twig
+{! hello() !}
+{! greet("John") !}
+{! greet(username) !}
+{! format_price(100.5) !}
+{! format_price(price, "EUR") !}
+```
+
+### Встроенные функции
+
+Шаблонизатор автоматически регистрирует следующие функции (если они определены в вашем проекте):
+
+- `vite(entry)` - генерация тегов для Vite assets
+- `vite_asset(entry, type)` - получение URL Vite asset  
+- `asset(path)` - получение URL для статического ресурса
+- `url(path)` - генерация URL
+- `route(name, params)` - генерация URL по имени маршрута
+- `csrf_token()` - получение CSRF токена
+- `csrf_field()` - генерация скрытого поля с CSRF токеном
+- `old(key, default)` - получение старого значения формы
+- `config(key, default)` - получение значения конфигурации
+- `env(key, default)` - получение переменной окружения
+- `trans(key, params)` - перевод строки
+
+### Проверка существования функции
+
+```php
+if ($template->hasFunction('vite')) {
+    // Функция зарегистрирована
 }
 ```
 

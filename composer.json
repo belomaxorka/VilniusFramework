@@ -28,7 +28,10 @@
   "autoload-dev": {
     "psr-4": {
       "Tests\\": "tests/"
-    }
+    },
+    "classmap": [
+      "tests/Unit/Core/Database/BaseModelTest.php"
+    ]
   },
   "config": {
     "optimize-autoloader": true,

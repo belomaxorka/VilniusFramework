@@ -355,3 +355,185 @@ test('can handle float comparisons', function () {
     $result2 = $engine->render('float_comparison.twig', ['price' => 50.00]);
     expect($result2)->toBe('');
 });
+
+test('can handle complex and conditions', function () {
+    $templateContent = '{% if age >= 18 and score >= 80 and isActive == true %}Eligible{% endif %}';
+    $templateFile = $this->testTemplateDir . '/complex_and.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('complex_and.twig', ['age' => 20, 'score' => 85, 'isActive' => true]);
+    expect($result1)->toBe('Eligible');
+
+    $result2 = $engine->render('complex_and.twig', ['age' => 20, 'score' => 75, 'isActive' => true]);
+    expect($result2)->toBe('');
+
+    $result3 = $engine->render('complex_and.twig', ['age' => 16, 'score' => 85, 'isActive' => true]);
+    expect($result3)->toBe('');
+});
+
+test('can handle complex or conditions', function () {
+    $templateContent = '{% if role == "admin" or role == "moderator" or role == "owner" %}Has access{% endif %}';
+    $templateFile = $this->testTemplateDir . '/complex_or.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('complex_or.twig', ['role' => 'admin']);
+    expect($result1)->toBe('Has access');
+
+    $result2 = $engine->render('complex_or.twig', ['role' => 'moderator']);
+    expect($result2)->toBe('Has access');
+
+    $result3 = $engine->render('complex_or.twig', ['role' => 'owner']);
+    expect($result3)->toBe('Has access');
+
+    $result4 = $engine->render('complex_or.twig', ['role' => 'user']);
+    expect($result4)->toBe('');
+});
+
+test('can handle mixed and/or conditions', function () {
+    $templateContent = '{% if age >= 18 and (status == "active" or status == "premium") %}Welcome{% endif %}';
+    $templateFile = $this->testTemplateDir . '/mixed_conditions.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('mixed_conditions.twig', ['age' => 20, 'status' => 'active']);
+    expect($result1)->toBe('Welcome');
+
+    $result2 = $engine->render('mixed_conditions.twig', ['age' => 20, 'status' => 'premium']);
+    expect($result2)->toBe('Welcome');
+
+    $result3 = $engine->render('mixed_conditions.twig', ['age' => 16, 'status' => 'active']);
+    expect($result3)->toBe('');
+
+    $result4 = $engine->render('mixed_conditions.twig', ['age' => 20, 'status' => 'inactive']);
+    expect($result4)->toBe('');
+});
+
+test('can handle not operator with comparisons', function () {
+    $templateContent = '{% if not age < 18 %}Adult content{% endif %}';
+    $templateFile = $this->testTemplateDir . '/not_operator.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('not_operator.twig', ['age' => 20]);
+    expect($result1)->toBe('Adult content');
+
+    $result2 = $engine->render('not_operator.twig', ['age' => 16]);
+    expect($result2)->toBe('');
+});
+
+test('can handle strict not equal operator', function () {
+    $templateContent = '{% if status !== "banned" %}Access granted{% endif %}';
+    $templateFile = $this->testTemplateDir . '/not_equal_strict.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('not_equal_strict.twig', ['status' => 'active']);
+    expect($result1)->toBe('Access granted');
+
+    $result2 = $engine->render('not_equal_strict.twig', ['status' => 'banned']);
+    expect($result2)->toBe('');
+});
+
+test('can handle strict equal operator', function () {
+    $templateContent = '{% if count === 0 %}Empty{% endif %}';
+    $templateFile = $this->testTemplateDir . '/equal_strict.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('equal_strict.twig', ['count' => 0]);
+    expect($result1)->toBe('Empty');
+
+    $result2 = $engine->render('equal_strict.twig', ['count' => 1]);
+    expect($result2)->toBe('');
+});
+
+test('can handle multiple variables in condition', function () {
+    $templateContent = '{% if minAge <= age and age <= maxAge %}In range{% endif %}';
+    $templateFile = $this->testTemplateDir . '/range_check.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('range_check.twig', ['minAge' => 18, 'age' => 25, 'maxAge' => 65]);
+    expect($result1)->toBe('In range');
+
+    $result2 = $engine->render('range_check.twig', ['minAge' => 18, 'age' => 16, 'maxAge' => 65]);
+    expect($result2)->toBe('');
+
+    $result3 = $engine->render('range_check.twig', ['minAge' => 18, 'age' => 70, 'maxAge' => 65]);
+    expect($result3)->toBe('');
+});
+
+test('can handle arithmetic in conditions', function () {
+    $templateContent = '{% if price * quantity > 100 %}Bulk discount{% endif %}';
+    $templateFile = $this->testTemplateDir . '/arithmetic.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('arithmetic.twig', ['price' => 15, 'quantity' => 10]);
+    expect($result1)->toBe('Bulk discount');
+
+    $result2 = $engine->render('arithmetic.twig', ['price' => 5, 'quantity' => 10]);
+    expect($result2)->toBe('');
+});
+
+test('can handle elseif with comparisons', function () {
+    $templateContent = '{% if score >= 90 %}A{% elseif score >= 80 %}B{% elseif score >= 70 %}C{% else %}F{% endif %}';
+    $templateFile = $this->testTemplateDir . '/elseif_grades.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('elseif_grades.twig', ['score' => 95]);
+    expect($result1)->toBe('A');
+
+    $result2 = $engine->render('elseif_grades.twig', ['score' => 85]);
+    expect($result2)->toBe('B');
+
+    $result3 = $engine->render('elseif_grades.twig', ['score' => 75]);
+    expect($result3)->toBe('C');
+
+    $result4 = $engine->render('elseif_grades.twig', ['score' => 65]);
+    expect($result4)->toBe('F');
+});
+
+test('can handle simple variable condition without operators', function () {
+    $templateContent = '{% if isLoggedIn %}Welcome back!{% endif %}';
+    $templateFile = $this->testTemplateDir . '/simple_variable.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('simple_variable.twig', ['isLoggedIn' => true]);
+    expect($result1)->toBe('Welcome back!');
+
+    $result2 = $engine->render('simple_variable.twig', ['isLoggedIn' => false]);
+    expect($result2)->toBe('');
+});
+
+test('can handle object property in simple condition', function () {
+    $templateContent = '{% if user.isAdmin %}Admin panel{% endif %}';
+    $templateFile = $this->testTemplateDir . '/object_property_condition.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $user = new \stdClass();
+    $user->isAdmin = true;
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+
+    $result1 = $engine->render('object_property_condition.twig', ['user' => $user]);
+    expect($result1)->toBe('Admin panel');
+
+    $user->isAdmin = false;
+    $result2 = $engine->render('object_property_condition.twig', ['user' => $user]);
+    expect($result2)->toBe('');
+});

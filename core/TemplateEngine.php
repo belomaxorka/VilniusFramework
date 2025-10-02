@@ -13,6 +13,7 @@ class TemplateEngine
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
     private array $filters = [];
+    private array $functions = []; // Зарегистрированные функции для использования в шаблонах
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
@@ -34,6 +35,9 @@ class TemplateEngine
 
         // Регистрируем встроенные фильтры
         $this->registerBuiltInFilters();
+        
+        // Регистрируем встроенные функции
+        $this->registerBuiltInFunctions();
     }
 
     /**
@@ -287,6 +291,35 @@ class TemplateEngine
     }
 
     /**
+     * Регистрирует функцию для использования в шаблонах
+     */
+    public function addFunction(string $name, callable $callback): self
+    {
+        $this->functions[$name] = $callback;
+        return $this;
+    }
+
+    /**
+     * Проверяет существование функции
+     */
+    public function hasFunction(string $name): bool
+    {
+        return isset($this->functions[$name]);
+    }
+
+    /**
+     * Вызывает зарегистрированную функцию
+     */
+    public function callFunction(string $name, ...$args): mixed
+    {
+        if (!isset($this->functions[$name])) {
+            throw new \InvalidArgumentException("Function '{$name}' not found");
+        }
+
+        return call_user_func($this->functions[$name], ...$args);
+    }
+
+    /**
      * Компилирует шаблон в PHP код
      */
     private function compileTemplate(string $content, string $templateName = ''): string
@@ -385,6 +418,11 @@ class TemplateEngine
         $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
             return $this->processInclude($matches[1]);
         }, $content);
+
+        // Удаляем теги блоков (если шаблон используется без extends)
+        // Оставляем только содержимое блоков
+        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
 
         return $content;
     }
@@ -679,6 +717,11 @@ class TemplateEngine
             return $this->processInclude($matches[1]);
         }, $content);
 
+        // Удаляем теги блоков (если шаблон используется без extends)
+        // Оставляем только содержимое блоков
+        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
+
         return $content;
     }
 
@@ -689,9 +732,6 @@ class TemplateEngine
     {
         $condition = trim($condition);
 
-        // Проверяем, использует ли пользователь уже isset() или empty()
-        $hasIssetOrEmpty = preg_match('/\b(isset|empty)\s*\(/', $condition);
-
         // Защищаем строки в кавычках
         $strings = [];
         $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
@@ -699,33 +739,83 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
 
+        // Защищаем логические операторы ДО обработки функций
+        $logicalOperators = [];
+        
+        // Обрабатываем 'not' особым образом: 
+        // если после 'not' идёт скобка - просто заменяем на !
+        // если после 'not' идёт выражение без скобок - добавляем скобки до конца выражения или до and/or
+        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?!\()/i', function ($matches) use (&$logicalOperators) {
+            // Сохраняем 'not ' с маркером, что нужно добавить скобки
+            $logicalOperators[] = ['type' => 'not_no_parens', 'original' => $matches[0]];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+        
+        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
+            // Сохраняем 'not ' как есть
+            $logicalOperators[] = ['type' => 'not_with_parens', 'original' => $matches[0]];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+        
+        // Обрабатываем 'and' и 'or' между выражениями
+        $condition = preg_replace_callback('/\s+(and|or)\s+/i', function ($matches) use (&$logicalOperators) {
+            $logicalOperators[] = ['type' => strtolower(trim($matches[1])), 'original' => $matches[0]];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $condition = $this->processFunctionCalls($condition, $strings, $functionProtected);
+
         // Обрабатываем комплексные выражения с точками и массивами
         $result = $this->processPropertyAccess($condition);
         $condition = $result['expression'];
         $protected = $result['protected'];
 
-        // Заменяем логические операторы
-        $condition = str_replace(' and ', ' && ', $condition);
-        $condition = str_replace(' or ', ' || ', $condition);
-        $condition = str_replace(' not ', ' ! ', $condition);
+        // Восстанавливаем и заменяем логические операторы
+        foreach ($logicalOperators as $index => $operator) {
+            $placeholder = '___LOGICAL_' . $index . '___';
+            
+            if ($operator['type'] === 'and') {
+                $condition = str_replace($placeholder, ' && ', $condition);
+            } elseif ($operator['type'] === 'or') {
+                $condition = str_replace($placeholder, ' || ', $condition);
+            } elseif ($operator['type'] === 'not_with_parens') {
+                $condition = str_replace($placeholder, '!', $condition);
+            } elseif ($operator['type'] === 'not_no_parens') {
+                // Для 'not' без скобок нужно обернуть следующее выражение
+                // Находим выражение после плейсхолдера до следующего логического оператора
+                $pattern = '/' . preg_quote($placeholder, '/') . '([^&|]+?)(?=\s+(?:&&|\|\|)|$)/';
+                $condition = preg_replace($pattern, '!($1)', $condition);
+            }
+        }
 
-        // Обрабатываем простые переменные (которые еще не обработаны)
+        // Проверяем, это простое условие (только переменная) или сложное выражение
+        $trimmedCondition = trim($condition);
+        $isSimpleVariable = preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $trimmedCondition);
+
+        // Обрабатываем простые переменные
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty) {
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $isSimpleVariable) {
             $var = $matches[1];
             // Пропускаем ключевые слова и защищенные фрагменты
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
                 return $var;
             }
 
-            // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
-            if ($hasIssetOrEmpty) {
+            // Только для простых условий (одна переменная) добавляем isset()
+            // Для сложных выражений просто добавляем $
+            if ($isSimpleVariable) {
+                return '(isset($' . $var . ') && $' . $var . ')';
+            } else {
                 return '$' . $var;
             }
-
-            // Оборачиваем переменную в isset() && $var для безопасной проверки
-            return '(isset($' . $var . ') && $' . $var . ')';
         }, $condition);
+
+        // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
+        foreach ($functionProtected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
 
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
@@ -819,12 +909,17 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
 
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
+
         // Обрабатываем комплексные выражения с точками и массивами
         $result = $this->processPropertyAccess($expression);
         $expression = $result['expression'];
         $protected = $result['protected'];
 
         // Обрабатываем простые переменные (которые еще не обработаны)
+        // ВАЖНО: Пропускаем плейсхолдеры функций (___FUNC_N___)
         $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) {
             $var = $matches[1];
             // Пропускаем защищенные фрагменты и строки
@@ -833,6 +928,11 @@ class TemplateEngine
             }
             return '$' . $var;
         }, $expression);
+
+        // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
+        foreach ($functionProtected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
 
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
@@ -845,6 +945,235 @@ class TemplateEngine
         }
 
         return $expression;
+    }
+
+    /**
+     * Обрабатывает вызовы функций в выражениях
+     */
+    private function processFunctionCalls(string $expression, array &$strings, array &$protected): string
+    {
+        // Проверяем, есть ли вообще вызовы функций
+        if (!preg_match('/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/', $expression)) {
+            return $expression;
+        }
+        
+        // Обрабатываем вызовы функций, начиная с самых вложенных
+        // Используем итеративный подход с ограничением итераций для предотвращения бесконечного цикла
+        $maxIterations = 10;
+        $iteration = 0;
+        
+        while ($iteration < $maxIterations) {
+            $oldExpression = $expression;
+            $replacementCount = 0;
+            
+            // Ищем самые внутренние вызовы функций (без вложенных скобок в аргументах)
+            // Также находим плейсхолдеры ___FUNC_N___
+            $expression = preg_replace_callback(
+                '/\b([a-zA-Z_][a-zA-Z0-9_]*|___FUNC_\d+___)\s*\(([^()]*)\)/',
+                function ($matches) use (&$strings, &$replacementCount, &$protected) {
+                    $fullMatch = $matches[0];
+                    $funcName = $matches[1];
+                    $argsString = $matches[2];
+                    
+                    // Пропускаем плейсхолдеры логических операторов
+                    if (strpos($funcName, '___LOGICAL_') === 0 || strpos($funcName, '___STRING_') === 0 || 
+                        strpos($funcName, '___PROTECTED_') === 0) {
+                        return $fullMatch;
+                    }
+                    
+                    // Если это плейсхолдер функции - восстанавливаем его
+                    if (strpos($funcName, '___FUNC_') === 0) {
+                        // Ищем соответствующий вызов в protected
+                        foreach ($protected as $key => $value) {
+                            if ($key === $funcName) {
+                                // Заменяем плейсхолдер на реальный вызов функции
+                                return $value;
+                            }
+                        }
+                        return $fullMatch; // На всякий случай
+                    }
+                    
+                    // Пропускаем уже обработанные вызовы или защищенные фрагменты
+                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || 
+                        strpos($fullMatch, '->') !== false) {
+                        return $fullMatch;
+                    }
+                    
+                    // Пропускаем, если это уже начинается с $
+                    if (isset($matches[0][0]) && $matches[0][0] === '$') {
+                        return $fullMatch;
+                    }
+                    
+                    // Обрабатываем аргументы
+                    $processedArgs = $this->processFunctionArguments($argsString, $strings, $protected);
+                    
+                    $replacementCount++;
+                    
+                    // Генерируем вызов через callFunction и защищаем его
+                    $functionCall = '$__tpl->callFunction(\'' . $funcName . '\'' . 
+                                   ($processedArgs ? ', ' . $processedArgs : '') . ')';
+                    
+                    // Создаем плейсхолдер для защиты от дальнейшей обработки
+                    $placeholder = '___FUNC_' . count($protected) . '___';
+                    $protected[$placeholder] = $functionCall;
+                    
+                    return $placeholder;
+                },
+                $expression
+            );
+            
+            // Если строка не изменилась или не было замен, выходим из цикла
+            if ($expression === $oldExpression || $replacementCount === 0) {
+                break;
+            }
+            
+            $iteration++;
+        }
+        
+        return $expression;
+    }
+
+    /**
+     * Обрабатывает аргументы функций
+     */
+    private function processFunctionArguments(string $argsString, array &$strings, array &$functionProtected): string
+    {
+        $argsString = trim($argsString);
+        
+        if ($argsString === '') {
+            return '';
+        }
+        
+        // Разделяем аргументы по запятым (с учетом вложенности)
+        $args = $this->splitArguments($argsString);
+        $processedArgs = [];
+        
+        foreach ($args as $arg) {
+            $arg = trim($arg);
+            
+            if ($arg === '') {
+                continue;
+            }
+            
+            // Если это placeholder строки, восстанавливаем её
+            if (preg_match('/^___STRING_(\d+)___$/', $arg, $match)) {
+                $processedArgs[] = $strings[(int)$match[1]];
+            }
+            // Если это placeholder функции, восстанавливаем его
+            elseif (preg_match('/^___FUNC_\d+___$/', $arg)) {
+                // Ищем соответствующий вызов в protected и восстанавливаем
+                if (isset($functionProtected[$arg])) {
+                    $processedArgs[] = $functionProtected[$arg];
+                } else {
+                    // На всякий случай оставляем как есть
+                    $processedArgs[] = $arg;
+                }
+            }
+            // Если это число
+            elseif (is_numeric($arg)) {
+                $processedArgs[] = $arg;
+            }
+            // Если это уже обработанный вызов функции или содержит $__tpl
+            elseif (strpos($arg, '$__tpl') !== false) {
+                $processedArgs[] = $arg;
+            }
+            // Иначе обрабатываем как переменную
+            else {
+                // Проверяем, не является ли это простой переменной
+                if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $arg)) {
+                    $processedArgs[] = '$' . $arg;
+                } else {
+                    // Сложное выражение - обрабатываем рекурсивно
+                    $result = $this->processPropertyAccess($arg);
+                    
+                    if (!is_array($result) || !isset($result['expression'])) {
+                        // Если что-то пошло не так, используем исходный аргумент
+                        $processedArgs[] = $arg;
+                        continue;
+                    }
+                    
+                    $processed = $result['expression'];
+                    $protected = $result['protected'] ?? [];
+                    
+                    // Если остались необработанные переменные, добавляем $
+                    $processed = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($m) {
+                        if (strpos($m[1], '___') === 0) {
+                            return $m[1];
+                        }
+                        return '$' . $m[1];
+                    }, $processed);
+                    
+                    // Восстанавливаем защищенные фрагменты
+                    foreach ($protected as $placeholder => $value) {
+                        $processed = str_replace($placeholder, $value, $processed);
+                    }
+                    
+                    $processedArgs[] = $processed;
+                }
+            }
+        }
+        
+        return implode(', ', $processedArgs);
+    }
+
+    /**
+     * Разделяет строку аргументов по запятым с учетом вложенности скобок
+     */
+    private function splitArguments(string $argsString): array
+    {
+        $args = [];
+        $current = '';
+        $depth = 0;
+        $inString = false;
+        $stringChar = null;
+        $length = strlen($argsString);
+        
+        for ($i = 0; $i < $length; $i++) {
+            $char = $argsString[$i];
+            $prevChar = $i > 0 ? $argsString[$i - 1] : '';
+            
+            // Проверяем открытие/закрытие строки
+            if (($char === '"' || $char === "'") && $prevChar !== '\\') {
+                if (!$inString) {
+                    $inString = true;
+                    $stringChar = $char;
+                } elseif ($char === $stringChar) {
+                    $inString = false;
+                    $stringChar = null;
+                }
+                $current .= $char;
+                continue;
+            }
+            
+            // Внутри строки просто добавляем символ
+            if ($inString) {
+                $current .= $char;
+                continue;
+            }
+            
+            // Отслеживаем вложенность скобок
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            }
+            
+            // Разделяем по запятой только на верхнем уровне
+            if ($char === ',' && $depth === 0) {
+                $args[] = $current;
+                $current = '';
+                continue;
+            }
+            
+            $current .= $char;
+        }
+        
+        // Добавляем последний аргумент
+        if ($current !== '') {
+            $args[] = $current;
+        }
+        
+        return $args;
     }
 
     /**
@@ -983,5 +1312,88 @@ class TemplateEngine
             var_dump($value);
             return '<pre>' . htmlspecialchars(ob_get_clean(), ENT_QUOTES, 'UTF-8') . '</pre>';
         });
+    }
+
+    /**
+     * Регистрирует встроенные функции
+     */
+    private function registerBuiltInFunctions(): void
+    {
+        // Регистрируем функцию vite (если она существует)
+        if (function_exists('vite')) {
+            $this->addFunction('vite', function (?string $entry = 'app') {
+                return vite($entry);
+            });
+        }
+
+        // Регистрируем функцию vite_asset (если она существует)
+        if (function_exists('vite_asset')) {
+            $this->addFunction('vite_asset', function (string $entry, string $type = 'js') {
+                return vite_asset($entry, $type);
+            });
+        }
+
+        // Регистрируем функцию asset (если она существует)
+        if (function_exists('asset')) {
+            $this->addFunction('asset', function (string $path) {
+                return asset($path);
+            });
+        }
+
+        // Регистрируем функцию url (если она существует)
+        if (function_exists('url')) {
+            $this->addFunction('url', function (string $path = '') {
+                return url($path);
+            });
+        }
+
+        // Регистрируем функцию route (если она существует)
+        if (function_exists('route')) {
+            $this->addFunction('route', function (string $name, array $params = []) {
+                return route($name, $params);
+            });
+        }
+
+        // Регистрируем функцию csrf_token (если она существует)
+        if (function_exists('csrf_token')) {
+            $this->addFunction('csrf_token', function () {
+                return csrf_token();
+            });
+        }
+
+        // Регистрируем функцию csrf_field (если она существует)
+        if (function_exists('csrf_field')) {
+            $this->addFunction('csrf_field', function () {
+                return csrf_field();
+            });
+        }
+
+        // Регистрируем функцию old (если она существует)
+        if (function_exists('old')) {
+            $this->addFunction('old', function (string $key, mixed $default = null) {
+                return old($key, $default);
+            });
+        }
+
+        // Регистрируем функцию config (если она существует)
+        if (function_exists('config')) {
+            $this->addFunction('config', function (string $key, mixed $default = null) {
+                return config($key, $default);
+            });
+        }
+
+        // Регистрируем функцию env (если она существует)
+        if (function_exists('env')) {
+            $this->addFunction('env', function (string $key, mixed $default = null) {
+                return env($key, $default);
+            });
+        }
+
+        // Регистрируем функцию trans (если она существует)
+        if (function_exists('trans')) {
+            $this->addFunction('trans', function (string $key, array $params = []) {
+                return trans($key, $params);
+            });
+        }
     }
 }
