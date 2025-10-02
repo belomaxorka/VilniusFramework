@@ -741,14 +741,25 @@ class TemplateEngine
 
         // Защищаем логические операторы ДО обработки функций
         $logicalOperators = [];
-        // Обрабатываем 'not' в начале или после пробелов
-        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
-            $logicalOperators[] = $matches[0];
+        
+        // Обрабатываем 'not' особым образом: 
+        // если после 'not' идёт скобка - просто заменяем на !
+        // если после 'not' идёт выражение без скобок - добавляем скобки до конца выражения или до and/or
+        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?!\()/i', function ($matches) use (&$logicalOperators) {
+            // Сохраняем 'not ' с маркером, что нужно добавить скобки
+            $logicalOperators[] = ['type' => 'not_no_parens', 'original' => $matches[0]];
             return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
         }, $condition);
+        
+        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
+            // Сохраняем 'not ' как есть
+            $logicalOperators[] = ['type' => 'not_with_parens', 'original' => $matches[0]];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+        
         // Обрабатываем 'and' и 'or' между выражениями
         $condition = preg_replace_callback('/\s+(and|or)\s+/i', function ($matches) use (&$logicalOperators) {
-            $logicalOperators[] = $matches[0];
+            $logicalOperators[] = ['type' => strtolower(trim($matches[1])), 'original' => $matches[0]];
             return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
         }, $condition);
 
@@ -763,15 +774,20 @@ class TemplateEngine
 
         // Восстанавливаем и заменяем логические операторы
         foreach ($logicalOperators as $index => $operator) {
-            $trimmedOp = trim($operator);
-            if (stripos($trimmedOp, 'and') !== false) {
-                $phpOperator = ' && ';
-            } elseif (stripos($trimmedOp, 'or') !== false) {
-                $phpOperator = ' || ';
-            } elseif (stripos($trimmedOp, 'not') !== false) {
-                $phpOperator = '!';
+            $placeholder = '___LOGICAL_' . $index . '___';
+            
+            if ($operator['type'] === 'and') {
+                $condition = str_replace($placeholder, ' && ', $condition);
+            } elseif ($operator['type'] === 'or') {
+                $condition = str_replace($placeholder, ' || ', $condition);
+            } elseif ($operator['type'] === 'not_with_parens') {
+                $condition = str_replace($placeholder, '!', $condition);
+            } elseif ($operator['type'] === 'not_no_parens') {
+                // Для 'not' без скобок нужно обернуть следующее выражение
+                // Находим выражение после плейсхолдера до следующего логического оператора
+                $pattern = '/' . preg_quote($placeholder, '/') . '([^&|]+?)(?=\s+(?:&&|\|\|)|$)/';
+                $condition = preg_replace($pattern, '!($1)', $condition);
             }
-            $condition = str_replace('___LOGICAL_' . $index . '___', $phpOperator, $condition);
         }
 
         // Проверяем, это простое условие (только переменная) или сложное выражение
