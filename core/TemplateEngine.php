@@ -962,7 +962,7 @@ class TemplateEngine
                     }
                     
                     // Обрабатываем аргументы
-                    $processedArgs = $this->processFunctionArguments($argsString, $strings);
+                    $processedArgs = $this->processFunctionArguments($argsString, $strings, $protected);
                     
                     $replacementCount++;
                     
@@ -993,7 +993,7 @@ class TemplateEngine
     /**
      * Обрабатывает аргументы функций
      */
-    private function processFunctionArguments(string $argsString, array &$strings): string
+    private function processFunctionArguments(string $argsString, array &$strings, array &$functionProtected): string
     {
         $argsString = trim($argsString);
         
@@ -1016,9 +1016,15 @@ class TemplateEngine
             if (preg_match('/^___STRING_(\d+)___$/', $arg, $match)) {
                 $processedArgs[] = $strings[(int)$match[1]];
             }
-            // Если это placeholder функции, оставляем как есть (без $)
+            // Если это placeholder функции, восстанавливаем его
             elseif (preg_match('/^___FUNC_\d+___$/', $arg)) {
-                $processedArgs[] = $arg;
+                // Ищем соответствующий вызов в protected и восстанавливаем
+                if (isset($functionProtected[$arg])) {
+                    $processedArgs[] = $functionProtected[$arg];
+                } else {
+                    // На всякий случай оставляем как есть
+                    $processedArgs[] = $arg;
+                }
             }
             // Если это число
             elseif (is_numeric($arg)) {
