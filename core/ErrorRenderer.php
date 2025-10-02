@@ -42,7 +42,10 @@ class ErrorRenderer
             try {
                 $engine = TemplateEngine::getInstance();
                 $engine->setCacheEnabled(false);
-                return $engine->render('errors/' . $code . '.twig');
+                $html = $engine->render('errors/' . $code . '.twig');
+                
+                // Внедряем Debug Toolbar в пользовательский шаблон
+                return self::injectDebugToolbar($html);
             } catch (\Throwable $e) {
                 // Если ошибка при рендере шаблона, используем дефолтный
                 return null;
