@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\Http\HttpStatus;
 
 /**
  * Коллектор информации о HTTP ответе
@@ -90,7 +91,7 @@ class ResponseCollector extends AbstractCollector
 
         $this->data = [
             'status_code' => $statusCode,
-            'status_text' => $this->getStatusText($statusCode),
+            'status_text' => HttpStatus::getText($statusCode),
             'headers' => $headers,
             'content_type' => $contentType,
             'content_length' => $contentLength,
@@ -104,7 +105,7 @@ class ResponseCollector extends AbstractCollector
         $html = '<div style="padding: 20px;">';
 
         // Status Section
-        $statusColor = $this->getStatusColor($this->data['status_code']);
+        $statusColor = HttpStatus::getColor($this->data['status_code']);
         $html .= '<div style="background: ' . $statusColor . '20; border-left: 4px solid ' . $statusColor . '; padding: 15px; margin-bottom: 20px; border-radius: 4px;">';
         $html .= '<h3 style="margin: 0 0 10px 0; color: ' . $statusColor . ';">HTTP Response Status</h3>';
         $html .= '<div style="font-size: 24px; font-weight: bold; color: ' . $statusColor . ';">';
@@ -182,7 +183,7 @@ class ResponseCollector extends AbstractCollector
         // Status Code Info
         $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">';
         $html .= '<h4 style="margin: 0 0 10px 0;">📖 Status Code Information</h4>';
-        $html .= '<p style="margin: 0; color: #666;">' . $this->getStatusDescription($this->data['status_code']) . '</p>';
+        $html .= '<p style="margin: 0; color: #666;">' . HttpStatus::getDescription($this->data['status_code']) . '</p>';
         $html .= '</div>';
 
         $html .= '</div>';
@@ -200,7 +201,7 @@ class ResponseCollector extends AbstractCollector
         $stats = [];
 
         // Status Code
-        $statusColor = $this->getStatusColor($this->data['status_code']);
+        $statusColor = HttpStatus::getColor($this->data['status_code']);
         $stats[] = [
             'icon' => '📤',
             'value' => $this->data['status_code'] . ' ' . $this->data['status_text'],
@@ -220,122 +221,6 @@ class ResponseCollector extends AbstractCollector
         $html .= '<div style="font-size: 18px; font-weight: bold; color: ' . $color . ';">' . $value . '</div>';
         $html .= '</div>';
         return $html;
-    }
-
-    /**
-     * Получить текст статуса
-     */
-    private function getStatusText(int $code): string
-    {
-        return match ($code) {
-            // 1xx Informational
-            100 => 'Continue',
-            101 => 'Switching Protocols',
-            102 => 'Processing',
-            103 => 'Early Hints',
-
-            // 2xx Success
-            200 => 'OK',
-            201 => 'Created',
-            202 => 'Accepted',
-            203 => 'Non-Authoritative Information',
-            204 => 'No Content',
-            205 => 'Reset Content',
-            206 => 'Partial Content',
-            207 => 'Multi-Status',
-            208 => 'Already Reported',
-            226 => 'IM Used',
-
-            // 3xx Redirection
-            300 => 'Multiple Choices',
-            301 => 'Moved Permanently',
-            302 => 'Found',
-            303 => 'See Other',
-            304 => 'Not Modified',
-            305 => 'Use Proxy',
-            307 => 'Temporary Redirect',
-            308 => 'Permanent Redirect',
-
-            // 4xx Client Errors
-            400 => 'Bad Request',
-            401 => 'Unauthorized',
-            402 => 'Payment Required',
-            403 => 'Forbidden',
-            404 => 'Not Found',
-            405 => 'Method Not Allowed',
-            406 => 'Not Acceptable',
-            407 => 'Proxy Authentication Required',
-            408 => 'Request Timeout',
-            409 => 'Conflict',
-            410 => 'Gone',
-            411 => 'Length Required',
-            412 => 'Precondition Failed',
-            413 => 'Payload Too Large',
-            414 => 'URI Too Long',
-            415 => 'Unsupported Media Type',
-            416 => 'Range Not Satisfiable',
-            417 => 'Expectation Failed',
-            418 => 'I\'m a teapot',
-            421 => 'Misdirected Request',
-            422 => 'Unprocessable Entity',
-            423 => 'Locked',
-            424 => 'Failed Dependency',
-            425 => 'Too Early',
-            426 => 'Upgrade Required',
-            428 => 'Precondition Required',
-            429 => 'Too Many Requests',
-            431 => 'Request Header Fields Too Large',
-            451 => 'Unavailable For Legal Reasons',
-
-            // 5xx Server Errors
-            500 => 'Internal Server Error',
-            501 => 'Not Implemented',
-            502 => 'Bad Gateway',
-            503 => 'Service Unavailable',
-            504 => 'Gateway Timeout',
-            505 => 'HTTP Version Not Supported',
-            506 => 'Variant Also Negotiates',
-            507 => 'Insufficient Storage',
-            508 => 'Loop Detected',
-            510 => 'Not Extended',
-            511 => 'Network Authentication Required',
-
-            default => 'Unknown Status',
-        };
-    }
-
-    /**
-     * Получить описание статуса
-     */
-    private function getStatusDescription(int $code): string
-    {
-        $category = (int)($code / 100);
-
-        return match ($category) {
-            1 => 'ℹ️ Informational response - Request received, continuing process.',
-            2 => '✅ Success - The request was successfully received, understood, and accepted.',
-            3 => '↪️ Redirection - Further action needs to be taken to complete the request.',
-            4 => '❌ Client Error - The request contains bad syntax or cannot be fulfilled.',
-            5 => '🔥 Server Error - The server failed to fulfill an apparently valid request.',
-            default => '❓ Unknown status code category.',
-        };
-    }
-
-    /**
-     * Получить цвет для статуса
-     */
-    private function getStatusColor(int $code): string
-    {
-        $category = (int)($code / 100);
-
-        return match ($category) {
-            1 => '#2196f3', // Blue - Informational
-            2 => '#4caf50', // Green - Success
-            3 => '#ff9800', // Orange - Redirection
-            4 => '#ff5722', // Red-Orange - Client Error
-            5 => '#f44336', // Red - Server Error
-            default => '#757575', // Grey - Unknown
-        };
     }
 
     /**

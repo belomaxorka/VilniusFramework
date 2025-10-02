@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use Core\Http\HttpStatus;
+
 /**
  * Рендерит страницы ошибок
  */
@@ -42,7 +44,10 @@ class ErrorRenderer
             try {
                 $engine = TemplateEngine::getInstance();
                 $engine->setCacheEnabled(false);
-                return $engine->render('errors/' . $code . '.twig');
+                $html = $engine->render('errors/' . $code . '.twig');
+                
+                // Внедряем Debug Toolbar в пользовательский шаблон
+                return self::injectDebugToolbar($html);
             } catch (\Throwable $e) {
                 // Если ошибка при рендере шаблона, используем дефолтный
                 return null;
@@ -183,21 +188,7 @@ HTML;
      */
     private static function getErrorTitle(int $code): string
     {
-        return match ($code) {
-            400 => 'Bad Request',
-            401 => 'Unauthorized',
-            403 => 'Forbidden',
-            404 => 'Not Found',
-            405 => 'Method Not Allowed',
-            408 => 'Request Timeout',
-            422 => 'Unprocessable Entity',
-            429 => 'Too Many Requests',
-            500 => 'Internal Server Error',
-            502 => 'Bad Gateway',
-            503 => 'Service Unavailable',
-            504 => 'Gateway Timeout',
-            default => 'Error',
-        };
+        return HttpStatus::getText($code);
     }
 
     /**
