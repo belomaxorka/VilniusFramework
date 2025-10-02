@@ -739,6 +739,19 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
 
+        // Защищаем логические операторы ДО обработки функций
+        $logicalOperators = [];
+        // Обрабатываем 'not' в начале или после пробелов
+        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
+            $logicalOperators[] = $matches[0];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+        // Обрабатываем 'and' и 'or' между выражениями
+        $condition = preg_replace_callback('/\s+(and|or)\s+/i', function ($matches) use (&$logicalOperators) {
+            $logicalOperators[] = $matches[0];
+            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
+        }, $condition);
+
         // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
         $functionProtected = [];
         $condition = $this->processFunctionCalls($condition, $strings, $functionProtected);
@@ -748,10 +761,18 @@ class TemplateEngine
         $condition = $result['expression'];
         $protected = $result['protected'];
 
-        // Заменяем логические операторы
-        $condition = str_replace(' and ', ' && ', $condition);
-        $condition = str_replace(' or ', ' || ', $condition);
-        $condition = str_replace(' not ', ' ! ', $condition);
+        // Восстанавливаем и заменяем логические операторы
+        foreach ($logicalOperators as $index => $operator) {
+            $trimmedOp = trim($operator);
+            if (stripos($trimmedOp, 'and') !== false) {
+                $phpOperator = ' && ';
+            } elseif (stripos($trimmedOp, 'or') !== false) {
+                $phpOperator = ' || ';
+            } elseif (stripos($trimmedOp, 'not') !== false) {
+                $phpOperator = '!';
+            }
+            $condition = str_replace('___LOGICAL_' . $index . '___', $phpOperator, $condition);
+        }
 
         // Проверяем, это простое условие (только переменная) или сложное выражение
         $trimmedCondition = trim($condition);
@@ -937,6 +958,12 @@ class TemplateEngine
                     $fullMatch = $matches[0];
                     $funcName = $matches[1];
                     $argsString = $matches[2];
+                    
+                    // Пропускаем плейсхолдеры логических операторов
+                    if (strpos($funcName, '___LOGICAL_') === 0 || strpos($funcName, '___STRING_') === 0 || 
+                        strpos($funcName, '___PROTECTED_') === 0) {
+                        return $fullMatch;
+                    }
                     
                     // Если это плейсхолдер функции - восстанавливаем его
                     if (strpos($funcName, '___FUNC_') === 0) {
