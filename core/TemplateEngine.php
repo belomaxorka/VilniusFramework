@@ -419,6 +419,11 @@ class TemplateEngine
             return $this->processInclude($matches[1]);
         }, $content);
 
+        // Удаляем теги блоков (если шаблон используется без extends)
+        // Оставляем только содержимое блоков
+        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
+
         return $content;
     }
 
@@ -853,7 +858,8 @@ class TemplateEngine
         }, $expression);
 
         // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
-        $expression = $this->processFunctionCalls($expression, $strings);
+        $functionProtected = [];
+        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
 
         // Обрабатываем комплексные выражения с точками и массивами
         $result = $this->processPropertyAccess($expression);
@@ -869,6 +875,11 @@ class TemplateEngine
             }
             return '$' . $var;
         }, $expression);
+
+        // Восстанавливаем защищенные фрагменты функций
+        foreach ($functionProtected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
 
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
@@ -886,7 +897,7 @@ class TemplateEngine
     /**
      * Обрабатывает вызовы функций в выражениях
      */
-    private function processFunctionCalls(string $expression, array &$strings): string
+    private function processFunctionCalls(string $expression, array &$strings, array &$protected): string
     {
         // Проверяем, есть ли вообще вызовы функций
         if (!preg_match('/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/', $expression)) {
@@ -905,13 +916,14 @@ class TemplateEngine
             // Ищем самые внутренние вызовы функций (без вложенных скобок в аргументах)
             $expression = preg_replace_callback(
                 '/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/',
-                function ($matches) use (&$strings, &$replacementCount) {
+                function ($matches) use (&$strings, &$replacementCount, &$protected) {
                     $fullMatch = $matches[0];
                     $funcName = $matches[1];
                     $argsString = $matches[2];
                     
-                    // Пропускаем уже обработанные вызовы callFunction
-                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || strpos($fullMatch, '->') !== false) {
+                    // Пропускаем уже обработанные вызовы или защищенные фрагменты
+                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || 
+                        strpos($fullMatch, '->') !== false || strpos($fullMatch, '___FUNC_') !== false) {
                         return $fullMatch;
                     }
                     
@@ -925,9 +937,15 @@ class TemplateEngine
                     
                     $replacementCount++;
                     
-                    // Генерируем вызов через callFunction
-                    return '$__tpl->callFunction(\'' . $funcName . '\'' . 
-                           ($processedArgs ? ', ' . $processedArgs : '') . ')';
+                    // Генерируем вызов через callFunction и защищаем его
+                    $functionCall = '$__tpl->callFunction(\'' . $funcName . '\'' . 
+                                   ($processedArgs ? ', ' . $processedArgs : '') . ')';
+                    
+                    // Создаем плейсхолдер для защиты от дальнейшей обработки
+                    $placeholder = '___FUNC_' . count($protected) . '___';
+                    $protected[$placeholder] = $functionCall;
+                    
+                    return $placeholder;
                 },
                 $expression
             );
