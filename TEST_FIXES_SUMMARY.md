@@ -55,8 +55,17 @@
   - `debug_output()` → `Debug::getOutput()`
   - `debug_render_on_page()` → `Debug::setRenderOnPage()`
 
+- `tests/Unit/Core/Debug/DebugToolbarTest.php`
+  - `render_debug_toolbar()` → `DebugToolbar::render()`
+
 **Для обратной совместимости:**
-- Добавлены deprecated функции в `core/helpers/debug/output.php`
+- Добавлены deprecated функции в `core/helpers/debug/output.php`:
+  - `has_debug_output()` → `Debug::hasOutput()`
+  - `debug_output()` → `Debug::getOutput()`
+  - `debug_flush()` → `Debug::flush()`
+  - `debug_render_on_page()` → `Debug::setRenderOnPage()`
+  - `render_debug()` → `Debug::getOutput()`
+  - `render_debug_toolbar()` → `DebugToolbar::render()`
 - Создана документация по миграции в `docs/DeprecatedHelpers.md`
 
 ## Изменённые файлы
@@ -68,6 +77,7 @@
 4. `tests/Unit/Core/Template/TemplateEngineFunctionsTest.php`
 5. `tests/Unit/Core/Debug/DebugHelpersTest.php`
 6. `tests/Unit/Core/Debug/DebugTest.php`
+7. `tests/Unit/Core/Debug/DebugToolbarTest.php`
 
 ### Код
 1. `core/helpers/debug/output.php` - добавлены deprecated функции для обратной совместимости

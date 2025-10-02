@@ -13,6 +13,7 @@
  * - Debug::hasOutput()       вместо has_debug_output()
  * - Debug::setRenderOnPage() вместо debug_render_on_page()
  * - Debug::getOutput()       вместо render_debug()
+ * - DebugToolbar::render()   вместо render_debug_toolbar()
  * 
  * Преимущества прямого использования классов:
  * - Лучшая поддержка IDE (автодополнение, переход к определению)
@@ -69,10 +70,21 @@ if (!function_exists('debug_render_on_page')) {
 if (!function_exists('render_debug')) {
     /**
      * Отрендерить debug вывод
-     * @deprecated Debug Toolbar теперь автоматически инъектируется через DebugToolbarMiddleware
+     * @deprecated Используйте Debug::getOutput()
      */
     function render_debug(): string
     {
         return \Core\Debug::getOutput();
+    }
+}
+
+if (!function_exists('render_debug_toolbar')) {
+    /**
+     * Отрендерить debug toolbar
+     * @deprecated Используйте DebugToolbar::render()
+     */
+    function render_debug_toolbar(): string
+    {
+        return \Core\DebugToolbar::render();
     }
 }

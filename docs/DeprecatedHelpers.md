@@ -15,6 +15,7 @@
 | `debug_flush()` | `Debug::flush()` | Вывести и очистить debug буфер |
 | `debug_render_on_page()` | `Debug::setRenderOnPage()` | Включить/выключить рендеринг |
 | `render_debug()` | `Debug::getOutput()` | Получить debug вывод |
+| `render_debug_toolbar()` | `DebugToolbar::render()` | Отрендерить debug toolbar |
 
 ### Примеры миграции
 
@@ -27,11 +28,14 @@ if (has_debug_output()) {
 
 debug_flush();
 debug_render_on_page(false);
+
+$toolbar = render_debug_toolbar();
 ```
 
 **Стало:**
 ```php
 use Core\Debug;
+use Core\DebugToolbar;
 
 if (Debug::hasOutput()) {
     $output = Debug::getOutput();
@@ -40,6 +44,8 @@ if (Debug::hasOutput()) {
 
 Debug::flush();
 Debug::setRenderOnPage(false);
+
+$toolbar = DebugToolbar::render();
 ```
 
 ## Преимущества прямого использования классов
