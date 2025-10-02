@@ -49,11 +49,10 @@ if (Environment::isProduction()) {
 if (!$routesLoaded) {
     // Load routes from file
     $routesFile = ROOT . '/routes/web.php';
-    if (is_file($routesFile)) {
-        require_once $routesFile;
-    } else {
-        // Todo: Exception routes file not found
+    if (!is_file($routesFile)) {
+        throw new RuntimeException("Routes file not found: {$routesFile}");
     }
+    require_once $routesFile;
 }
 
 // Let the Magic begin!
