@@ -36,14 +36,17 @@ class FileDriver extends AbstractCacheDriver
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $startTime = microtime(true);
         $file = $this->getFilePath($key);
 
         if (!file_exists($file)) {
+            $this->logGet($key, false, null, $startTime);
             return $default;
         }
 
         $content = @file_get_contents($file);
         if ($content === false) {
+            $this->logGet($key, false, null, $startTime);
             return $default;
         }
 
@@ -52,10 +55,13 @@ class FileDriver extends AbstractCacheDriver
         // Проверяем срок годности
         if (isset($data['expires_at']) && $data['expires_at'] < time()) {
             $this->delete($key);
+            $this->logGet($key, false, null, $startTime);
             return $default;
         }
 
-        return $data['value'] ?? $default;
+        $value = $data['value'] ?? $default;
+        $this->logGet($key, true, $value, $startTime);
+        return $value;
     }
 
     /**
@@ -63,6 +69,7 @@ class FileDriver extends AbstractCacheDriver
      */
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
+        $startTime = microtime(true);
         $file = $this->getFilePath($key);
         $ttl = $this->normalizeTtl($ttl);
 
@@ -85,7 +92,9 @@ class FileDriver extends AbstractCacheDriver
             return false;
         }
 
-        return @rename($tmpFile, $file);
+        $result = @rename($tmpFile, $file);
+        $this->logSet($key, $value, $startTime);
+        return $result;
     }
 
     /**
@@ -93,12 +102,16 @@ class FileDriver extends AbstractCacheDriver
      */
     public function delete(string $key): bool
     {
+        $startTime = microtime(true);
         $file = $this->getFilePath($key);
 
         if (file_exists($file)) {
-            return @unlink($file);
+            $result = @unlink($file);
+            $this->logDelete($key, $startTime);
+            return $result;
         }
 
+        $this->logDelete($key, $startTime);
         return true;
     }
 

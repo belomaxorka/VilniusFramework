@@ -18,19 +18,25 @@ class ArrayDriver extends AbstractCacheDriver
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
 
         if (!isset($this->storage[$key])) {
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
         // Проверяем срок годности
         if (isset($this->expiration[$key]) && $this->expiration[$key] < time()) {
-            $this->delete($key);
+            $this->delete($originalKey);
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
-        return $this->storage[$key];
+        $value = $this->storage[$key];
+        $this->logGet($originalKey, true, $value, $startTime);
+        return $value;
     }
 
     /**
@@ -38,6 +44,8 @@ class ArrayDriver extends AbstractCacheDriver
      */
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $this->storage[$key] = $value;
 
@@ -48,6 +56,7 @@ class ArrayDriver extends AbstractCacheDriver
             unset($this->expiration[$key]);
         }
 
+        $this->logSet($originalKey, $value, $startTime);
         return true;
     }
 
@@ -56,8 +65,11 @@ class ArrayDriver extends AbstractCacheDriver
      */
     public function delete(string $key): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         unset($this->storage[$key], $this->expiration[$key]);
+        $this->logDelete($originalKey, $startTime);
         return true;
     }
 

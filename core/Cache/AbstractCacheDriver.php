@@ -16,10 +16,53 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
      */
     protected ?int $defaultTtl = null;
 
+    /**
+     * Статистика операций
+     */
+    protected array $stats = [
+        'hits' => 0,
+        'misses' => 0,
+        'writes' => 0,
+        'deletes' => 0,
+        'operations' => [],
+    ];
+
+    /**
+     * Включено ли логирование для debug toolbar
+     */
+    protected bool $debugEnabled = false;
+
     public function __construct(array $config = [])
     {
         $this->prefix = $config['prefix'] ?? '';
         $this->defaultTtl = $config['ttl'] ?? null;
+        
+        // Включаем debug только если установлен APP_DEBUG
+        if (defined('ROOT') && function_exists('env')) {
+            $this->debugEnabled = env('APP_DEBUG', false);
+        }
+    }
+
+    /**
+     * Получить статистику операций
+     */
+    public function getStats(): array
+    {
+        return $this->stats;
+    }
+
+    /**
+     * Очистить статистику
+     */
+    public function clearStats(): void
+    {
+        $this->stats = [
+            'hits' => 0,
+            'misses' => 0,
+            'writes' => 0,
+            'deletes' => 0,
+            'operations' => [],
+        ];
     }
 
     /**
@@ -161,6 +204,95 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
     protected function unserialize(string $value): mixed
     {
         return unserialize($value);
+    }
+
+    /**
+     * Залогировать операцию get (hit/miss)
+     */
+    protected function logGet(string $key, bool $hit, mixed $value = null, float $startTime = 0.0): void
+    {
+        if (!$this->debugEnabled) {
+            return;
+        }
+
+        $time = $startTime > 0 ? (microtime(true) - $startTime) * 1000 : 0;
+
+        if ($hit) {
+            $this->stats['hits']++;
+            $operation = [
+                'type' => 'hit',
+                'key' => $key,
+                'value' => $value,
+                'time' => $time,
+            ];
+        } else {
+            $this->stats['misses']++;
+            $operation = [
+                'type' => 'miss',
+                'key' => $key,
+                'time' => $time,
+            ];
+        }
+
+        $this->stats['operations'][] = $operation;
+
+        // Логируем в CacheCollector если доступен
+        if (class_exists('\Core\DebugToolbar\Collectors\CacheCollector')) {
+            if ($hit) {
+                \Core\DebugToolbar\Collectors\CacheCollector::logHit($key, $value, $time);
+            } else {
+                \Core\DebugToolbar\Collectors\CacheCollector::logMiss($key, $time);
+            }
+        }
+    }
+
+    /**
+     * Залогировать операцию set
+     */
+    protected function logSet(string $key, mixed $value = null, float $startTime = 0.0): void
+    {
+        if (!$this->debugEnabled) {
+            return;
+        }
+
+        $time = $startTime > 0 ? (microtime(true) - $startTime) * 1000 : 0;
+        $this->stats['writes']++;
+
+        $this->stats['operations'][] = [
+            'type' => 'write',
+            'key' => $key,
+            'value' => $value,
+            'time' => $time,
+        ];
+
+        // Логируем в CacheCollector если доступен
+        if (class_exists('\Core\DebugToolbar\Collectors\CacheCollector')) {
+            \Core\DebugToolbar\Collectors\CacheCollector::logWrite($key, $value, $time);
+        }
+    }
+
+    /**
+     * Залогировать операцию delete
+     */
+    protected function logDelete(string $key, float $startTime = 0.0): void
+    {
+        if (!$this->debugEnabled) {
+            return;
+        }
+
+        $time = $startTime > 0 ? (microtime(true) - $startTime) * 1000 : 0;
+        $this->stats['deletes']++;
+
+        $this->stats['operations'][] = [
+            'type' => 'delete',
+            'key' => $key,
+            'time' => $time,
+        ];
+
+        // Логируем в CacheCollector если доступен
+        if (class_exists('\Core\DebugToolbar\Collectors\CacheCollector')) {
+            \Core\DebugToolbar\Collectors\CacheCollector::logDelete($key, $time);
+        }
     }
 }
 

@@ -325,9 +325,23 @@ class MyController extends Controller
    - Development: `file` или `array`
    - Production: `redis` или `memcached`
 
+## Debug Toolbar
+
+При `APP_DEBUG=true` вся статистика кэша доступна в Debug Toolbar:
+
+```
+🗃️ Cache
+  Driver: file (file)
+  Total: 15 | Hits: 10 | Misses: 3 | Writes: 2
+  Hit Rate: 76.9%
+```
+
+Вы увидите каждую операцию с временем выполнения и значениями!
+
 ## Что дальше?
 
 - [Полная документация по кэшу](Cache.md)
+- [Debug Toolbar интеграция](CacheDebugToolbar.md)
 - [Примеры использования](../examples/cache_examples.php)
 - [Создание кастомных драйверов](Cache.md#добавление-кастомного-драйвера)
 
