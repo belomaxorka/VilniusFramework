@@ -906,12 +906,18 @@ class TemplateEngine
             $expression = preg_replace_callback(
                 '/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/',
                 function ($matches) use (&$strings, &$replacementCount) {
+                    $fullMatch = $matches[0];
                     $funcName = $matches[1];
                     $argsString = $matches[2];
                     
                     // Пропускаем уже обработанные вызовы callFunction
-                    if ($funcName === 'callFunction' || strpos($matches[0], '$__tpl') !== false) {
-                        return $matches[0];
+                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || strpos($fullMatch, '->') !== false) {
+                        return $fullMatch;
+                    }
+                    
+                    // Пропускаем, если это уже начинается с $
+                    if (isset($matches[0][0]) && $matches[0][0] === '$') {
+                        return $fullMatch;
                     }
                     
                     // Обрабатываем аргументы
