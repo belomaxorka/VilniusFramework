@@ -154,11 +154,11 @@ describe('debug_log() function', function () {
     });
 });
 
-describe('render_debug() function', function () {
+describe('Debug::getOutput() method', function () {
     test('returns debug output as string', function () {
         dump(['test' => 'data'], 'Test Data');
         
-        $output = render_debug();
+        $output = Debug::getOutput();
         
         expect($output)->toBeString();
         expect($output)->toContain('Test Data');
@@ -166,7 +166,7 @@ describe('render_debug() function', function () {
     });
 
     test('returns empty string when no output', function () {
-        $output = render_debug();
+        $output = Debug::getOutput();
         
         expect($output)->toBe('');
     });
@@ -174,7 +174,7 @@ describe('render_debug() function', function () {
     test('does not clear buffer', function () {
         dump(['test' => 'data']);
         
-        render_debug();
+        Debug::getOutput();
         
         expect(Debug::hasOutput())->toBeTrue();
     });

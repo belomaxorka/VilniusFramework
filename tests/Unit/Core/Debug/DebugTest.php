@@ -319,29 +319,29 @@ describe('Global Helper Functions', function () {
         expect($output)->toContain('Second');
     });
 
-    test('has_debug_output() helper works', function () {
-        expect(has_debug_output())->toBeFalse();
+    test('Debug::hasOutput() method works', function () {
+        expect(Debug::hasOutput())->toBeFalse();
         
         dump(['test' => 'data']);
         
-        expect(has_debug_output())->toBeTrue();
+        expect(Debug::hasOutput())->toBeTrue();
     });
 
-    test('debug_flush() helper works', function () {
+    test('Debug::flush() method works', function () {
         dump(['test' => 'data']);
         
         ob_start();
-        debug_flush();
+        Debug::flush();
         $output = ob_get_clean();
         
         expect($output)->toContain('test');
-        expect(has_debug_output())->toBeFalse();
+        expect(Debug::hasOutput())->toBeFalse();
     });
 
-    test('debug_output() helper works', function () {
+    test('Debug::getOutput() method works', function () {
         dump(['test' => 'data'], 'Test Output');
         
-        $output = debug_output();
+        $output = Debug::getOutput();
         
         expect($output)->toContain('Test Output');
         expect($output)->toContain('test');
@@ -403,11 +403,11 @@ describe('Debug Render On Page', function () {
         expect(Debug::isRenderOnPage())->toBeFalse();
     });
 
-    test('debug_render_on_page() helper function works', function () {
-        debug_render_on_page(true);
+    test('Debug::setRenderOnPage() method works', function () {
+        Debug::setRenderOnPage(true);
         expect(Debug::isRenderOnPage())->toBeTrue();
-        
-        debug_render_on_page(false);
+
+        Debug::setRenderOnPage(false);
         expect(Debug::isRenderOnPage())->toBeFalse();
     });
 
