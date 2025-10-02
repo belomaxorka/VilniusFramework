@@ -735,6 +735,9 @@ class TemplateEngine
         // Проверяем, использует ли пользователь уже isset() или empty()
         $hasIssetOrEmpty = preg_match('/\b(isset|empty)\s*\(/', $condition);
 
+        // Проверяем, есть ли операторы сравнения (==, !=, <, >, <=, >=, ===, !==)
+        $hasComparisonOperators = preg_match('/[=!<>]=|[<>](?!=)/', $condition);
+
         // Защищаем строки в кавычках
         $strings = [];
         $condition = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
@@ -759,7 +762,7 @@ class TemplateEngine
         // Обрабатываем простые переменные (которые еще не обработаны)
         // ВАЖНО: Пропускаем плейсхолдеры функций (___FUNC_N___)
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
-        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty) {
+        $condition = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords, $hasIssetOrEmpty, $hasComparisonOperators) {
             $var = $matches[1];
             // Пропускаем ключевые слова и защищенные фрагменты
             if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
@@ -767,7 +770,8 @@ class TemplateEngine
             }
 
             // Если пользователь уже использует isset/empty - не добавляем автоматическую проверку
-            if ($hasIssetOrEmpty) {
+            // Или если есть операторы сравнения - тоже не добавляем (чтобы не сломать сравнение)
+            if ($hasIssetOrEmpty || $hasComparisonOperators) {
                 return '$' . $var;
             }
 
