@@ -717,6 +717,11 @@ class TemplateEngine
             return $this->processInclude($matches[1]);
         }, $content);
 
+        // Удаляем теги блоков (если шаблон используется без extends)
+        // Оставляем только содержимое блоков
+        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
+
         return $content;
     }
 
