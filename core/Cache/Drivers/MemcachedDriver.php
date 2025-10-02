@@ -74,13 +74,17 @@ class MemcachedDriver extends AbstractCacheDriver
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $value = $this->memcached->get($key);
 
         if ($this->memcached->getResultCode() === Memcached::RES_NOTFOUND) {
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
+        $this->logGet($originalKey, true, $value, $startTime);
         return $value;
     }
 
@@ -89,6 +93,8 @@ class MemcachedDriver extends AbstractCacheDriver
      */
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $ttl = $this->normalizeTtl($ttl) ?? 0;
 
@@ -97,7 +103,9 @@ class MemcachedDriver extends AbstractCacheDriver
             $ttl = time() + $ttl;
         }
 
-        return $this->memcached->set($key, $value, $ttl);
+        $result = $this->memcached->set($key, $value, $ttl);
+        $this->logSet($originalKey, $value, $startTime);
+        return $result;
     }
 
     /**
@@ -105,11 +113,15 @@ class MemcachedDriver extends AbstractCacheDriver
      */
     public function delete(string $key): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $result = $this->memcached->delete($key);
         
         // Считаем успехом, если ключ не найден
-        return $result || $this->memcached->getResultCode() === Memcached::RES_NOTFOUND;
+        $success = $result || $this->memcached->getResultCode() === Memcached::RES_NOTFOUND;
+        $this->logDelete($originalKey, $startTime);
+        return $success;
     }
 
     /**

@@ -29,13 +29,17 @@ class ApcuDriver extends AbstractCacheDriver
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $value = apcu_fetch($key, $success);
 
         if (!$success) {
+            $this->logGet($originalKey, false, null, $startTime);
             return $default;
         }
 
+        $this->logGet($originalKey, true, $value, $startTime);
         return $value;
     }
 
@@ -44,10 +48,14 @@ class ApcuDriver extends AbstractCacheDriver
      */
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $ttl = $this->normalizeTtl($ttl) ?? 0;
 
-        return apcu_store($key, $value, $ttl);
+        $result = apcu_store($key, $value, $ttl);
+        $this->logSet($originalKey, $value, $startTime);
+        return $result;
     }
 
     /**
@@ -55,8 +63,12 @@ class ApcuDriver extends AbstractCacheDriver
      */
     public function delete(string $key): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
-        return apcu_delete($key);
+        $result = apcu_delete($key);
+        $this->logDelete($originalKey, $startTime);
+        return $result;
     }
 
     /**

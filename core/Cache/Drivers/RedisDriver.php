@@ -76,10 +76,14 @@ class RedisDriver extends AbstractCacheDriver
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $value = $this->redis->get($key);
 
-        return $value !== false ? $value : $default;
+        $result = $value !== false ? $value : $default;
+        $this->logGet($originalKey, $value !== false, $result, $startTime);
+        return $result;
     }
 
     /**
@@ -87,14 +91,19 @@ class RedisDriver extends AbstractCacheDriver
      */
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
         $ttl = $this->normalizeTtl($ttl);
 
         if ($ttl === null) {
-            return $this->redis->set($key, $value);
+            $result = $this->redis->set($key, $value);
+        } else {
+            $result = $this->redis->setex($key, $ttl, $value);
         }
 
-        return $this->redis->setex($key, $ttl, $value);
+        $this->logSet($originalKey, $value, $startTime);
+        return $result;
     }
 
     /**
@@ -102,8 +111,12 @@ class RedisDriver extends AbstractCacheDriver
      */
     public function delete(string $key): bool
     {
+        $startTime = microtime(true);
+        $originalKey = $key;
         $key = $this->getKey($key);
-        return $this->redis->del($key) > 0;
+        $result = $this->redis->del($key) > 0;
+        $this->logDelete($originalKey, $startTime);
+        return $result;
     }
 
     /**
