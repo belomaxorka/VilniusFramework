@@ -13,6 +13,7 @@ class TemplateEngine
     private bool $cacheEnabled = true;
     private int $cacheLifetime = 3600; // 1 час
     private array $filters = [];
+    private array $functions = []; // Зарегистрированные функции для использования в шаблонах
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
@@ -34,6 +35,9 @@ class TemplateEngine
 
         // Регистрируем встроенные фильтры
         $this->registerBuiltInFilters();
+        
+        // Регистрируем встроенные функции
+        $this->registerBuiltInFunctions();
     }
 
     /**
@@ -284,6 +288,35 @@ class TemplateEngine
         }
 
         return call_user_func($this->filters[$name], $value, ...$args);
+    }
+
+    /**
+     * Регистрирует функцию для использования в шаблонах
+     */
+    public function addFunction(string $name, callable $callback): self
+    {
+        $this->functions[$name] = $callback;
+        return $this;
+    }
+
+    /**
+     * Проверяет существование функции
+     */
+    public function hasFunction(string $name): bool
+    {
+        return isset($this->functions[$name]);
+    }
+
+    /**
+     * Вызывает зарегистрированную функцию
+     */
+    public function callFunction(string $name, ...$args): mixed
+    {
+        if (!isset($this->functions[$name])) {
+            throw new \InvalidArgumentException("Function '{$name}' not found");
+        }
+
+        return call_user_func($this->functions[$name], ...$args);
     }
 
     /**
@@ -819,6 +852,9 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
 
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $expression = $this->processFunctionCalls($expression, $strings);
+
         // Обрабатываем комплексные выражения с точками и массивами
         $result = $this->processPropertyAccess($expression);
         $expression = $result['expression'];
@@ -845,6 +881,193 @@ class TemplateEngine
         }
 
         return $expression;
+    }
+
+    /**
+     * Обрабатывает вызовы функций в выражениях
+     */
+    private function processFunctionCalls(string $expression, array &$strings): string
+    {
+        // Проверяем, есть ли вообще вызовы функций
+        if (!preg_match('/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/', $expression)) {
+            return $expression;
+        }
+        
+        // Обрабатываем вызовы функций, начиная с самых вложенных
+        // Используем итеративный подход с ограничением итераций для предотвращения бесконечного цикла
+        $maxIterations = 10;
+        $iteration = 0;
+        
+        while ($iteration < $maxIterations) {
+            $oldExpression = $expression;
+            $replacementCount = 0;
+            
+            // Ищем самые внутренние вызовы функций (без вложенных скобок в аргументах)
+            $expression = preg_replace_callback(
+                '/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/',
+                function ($matches) use (&$strings, &$replacementCount) {
+                    $funcName = $matches[1];
+                    $argsString = $matches[2];
+                    
+                    // Пропускаем уже обработанные вызовы callFunction
+                    if ($funcName === 'callFunction' || strpos($matches[0], '$__tpl') !== false) {
+                        return $matches[0];
+                    }
+                    
+                    // Обрабатываем аргументы
+                    $processedArgs = $this->processFunctionArguments($argsString, $strings);
+                    
+                    $replacementCount++;
+                    
+                    // Генерируем вызов через callFunction
+                    return '$__tpl->callFunction(\'' . $funcName . '\'' . 
+                           ($processedArgs ? ', ' . $processedArgs : '') . ')';
+                },
+                $expression
+            );
+            
+            // Если строка не изменилась или не было замен, выходим из цикла
+            if ($expression === $oldExpression || $replacementCount === 0) {
+                break;
+            }
+            
+            $iteration++;
+        }
+        
+        return $expression;
+    }
+
+    /**
+     * Обрабатывает аргументы функций
+     */
+    private function processFunctionArguments(string $argsString, array &$strings): string
+    {
+        $argsString = trim($argsString);
+        
+        if ($argsString === '') {
+            return '';
+        }
+        
+        // Разделяем аргументы по запятым (с учетом вложенности)
+        $args = $this->splitArguments($argsString);
+        $processedArgs = [];
+        
+        foreach ($args as $arg) {
+            $arg = trim($arg);
+            
+            if ($arg === '') {
+                continue;
+            }
+            
+            // Если это placeholder строки, восстанавливаем её
+            if (preg_match('/^___STRING_(\d+)___$/', $arg, $match)) {
+                $processedArgs[] = $strings[(int)$match[1]];
+            }
+            // Если это число
+            elseif (is_numeric($arg)) {
+                $processedArgs[] = $arg;
+            }
+            // Если это уже обработанный вызов функции или содержит $__tpl
+            elseif (strpos($arg, '$__tpl') !== false) {
+                $processedArgs[] = $arg;
+            }
+            // Иначе обрабатываем как переменную
+            else {
+                // Проверяем, не является ли это простой переменной
+                if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $arg)) {
+                    $processedArgs[] = '$' . $arg;
+                } else {
+                    // Сложное выражение - обрабатываем рекурсивно
+                    $result = $this->processPropertyAccess($arg);
+                    
+                    if (!is_array($result) || !isset($result['expression'])) {
+                        // Если что-то пошло не так, используем исходный аргумент
+                        $processedArgs[] = $arg;
+                        continue;
+                    }
+                    
+                    $processed = $result['expression'];
+                    $protected = $result['protected'] ?? [];
+                    
+                    // Если остались необработанные переменные, добавляем $
+                    $processed = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($m) {
+                        if (strpos($m[1], '___') === 0) {
+                            return $m[1];
+                        }
+                        return '$' . $m[1];
+                    }, $processed);
+                    
+                    // Восстанавливаем защищенные фрагменты
+                    foreach ($protected as $placeholder => $value) {
+                        $processed = str_replace($placeholder, $value, $processed);
+                    }
+                    
+                    $processedArgs[] = $processed;
+                }
+            }
+        }
+        
+        return implode(', ', $processedArgs);
+    }
+
+    /**
+     * Разделяет строку аргументов по запятым с учетом вложенности скобок
+     */
+    private function splitArguments(string $argsString): array
+    {
+        $args = [];
+        $current = '';
+        $depth = 0;
+        $inString = false;
+        $stringChar = null;
+        $length = strlen($argsString);
+        
+        for ($i = 0; $i < $length; $i++) {
+            $char = $argsString[$i];
+            $prevChar = $i > 0 ? $argsString[$i - 1] : '';
+            
+            // Проверяем открытие/закрытие строки
+            if (($char === '"' || $char === "'") && $prevChar !== '\\') {
+                if (!$inString) {
+                    $inString = true;
+                    $stringChar = $char;
+                } elseif ($char === $stringChar) {
+                    $inString = false;
+                    $stringChar = null;
+                }
+                $current .= $char;
+                continue;
+            }
+            
+            // Внутри строки просто добавляем символ
+            if ($inString) {
+                $current .= $char;
+                continue;
+            }
+            
+            // Отслеживаем вложенность скобок
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            }
+            
+            // Разделяем по запятой только на верхнем уровне
+            if ($char === ',' && $depth === 0) {
+                $args[] = $current;
+                $current = '';
+                continue;
+            }
+            
+            $current .= $char;
+        }
+        
+        // Добавляем последний аргумент
+        if ($current !== '') {
+            $args[] = $current;
+        }
+        
+        return $args;
     }
 
     /**
@@ -983,5 +1206,88 @@ class TemplateEngine
             var_dump($value);
             return '<pre>' . htmlspecialchars(ob_get_clean(), ENT_QUOTES, 'UTF-8') . '</pre>';
         });
+    }
+
+    /**
+     * Регистрирует встроенные функции
+     */
+    private function registerBuiltInFunctions(): void
+    {
+        // Регистрируем функцию vite (если она существует)
+        if (function_exists('vite')) {
+            $this->addFunction('vite', function (?string $entry = 'app') {
+                return vite($entry);
+            });
+        }
+
+        // Регистрируем функцию vite_asset (если она существует)
+        if (function_exists('vite_asset')) {
+            $this->addFunction('vite_asset', function (string $entry, string $type = 'js') {
+                return vite_asset($entry, $type);
+            });
+        }
+
+        // Регистрируем функцию asset (если она существует)
+        if (function_exists('asset')) {
+            $this->addFunction('asset', function (string $path) {
+                return asset($path);
+            });
+        }
+
+        // Регистрируем функцию url (если она существует)
+        if (function_exists('url')) {
+            $this->addFunction('url', function (string $path = '') {
+                return url($path);
+            });
+        }
+
+        // Регистрируем функцию route (если она существует)
+        if (function_exists('route')) {
+            $this->addFunction('route', function (string $name, array $params = []) {
+                return route($name, $params);
+            });
+        }
+
+        // Регистрируем функцию csrf_token (если она существует)
+        if (function_exists('csrf_token')) {
+            $this->addFunction('csrf_token', function () {
+                return csrf_token();
+            });
+        }
+
+        // Регистрируем функцию csrf_field (если она существует)
+        if (function_exists('csrf_field')) {
+            $this->addFunction('csrf_field', function () {
+                return csrf_field();
+            });
+        }
+
+        // Регистрируем функцию old (если она существует)
+        if (function_exists('old')) {
+            $this->addFunction('old', function (string $key, mixed $default = null) {
+                return old($key, $default);
+            });
+        }
+
+        // Регистрируем функцию config (если она существует)
+        if (function_exists('config')) {
+            $this->addFunction('config', function (string $key, mixed $default = null) {
+                return config($key, $default);
+            });
+        }
+
+        // Регистрируем функцию env (если она существует)
+        if (function_exists('env')) {
+            $this->addFunction('env', function (string $key, mixed $default = null) {
+                return env($key, $default);
+            });
+        }
+
+        // Регистрируем функцию trans (если она существует)
+        if (function_exists('trans')) {
+            $this->addFunction('trans', function (string $key, array $params = []) {
+                return trans($key, $params);
+            });
+        }
     }
 }
