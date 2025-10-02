@@ -427,7 +427,7 @@ test('can handle not operator with comparisons', function () {
     expect($result2)->toBe('');
 });
 
-test('can handle !== operator', function () {
+test('can handle strict not equal operator', function () {
     $templateContent = '{% if status !== "banned" %}Access granted{% endif %}';
     $templateFile = $this->testTemplateDir . '/not_equal_strict.twig';
     file_put_contents($templateFile, $templateContent);
@@ -441,7 +441,7 @@ test('can handle !== operator', function () {
     expect($result2)->toBe('');
 });
 
-test('can handle === operator', function () {
+test('can handle strict equal operator', function () {
     $templateContent = '{% if count === 0 %}Empty{% endif %}';
     $templateFile = $this->testTemplateDir . '/equal_strict.twig';
     file_put_contents($templateFile, $templateContent);
