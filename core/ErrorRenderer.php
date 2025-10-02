@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use Core\Http\HttpStatus;
+
 /**
  * Рендерит страницы ошибок
  */
@@ -186,21 +188,7 @@ HTML;
      */
     private static function getErrorTitle(int $code): string
     {
-        return match ($code) {
-            400 => 'Bad Request',
-            401 => 'Unauthorized',
-            403 => 'Forbidden',
-            404 => 'Not Found',
-            405 => 'Method Not Allowed',
-            408 => 'Request Timeout',
-            422 => 'Unprocessable Entity',
-            429 => 'Too Many Requests',
-            500 => 'Internal Server Error',
-            502 => 'Bad Gateway',
-            503 => 'Service Unavailable',
-            504 => 'Gateway Timeout',
-            default => 'Error',
-        };
+        return HttpStatus::getText($code);
     }
 
     /**

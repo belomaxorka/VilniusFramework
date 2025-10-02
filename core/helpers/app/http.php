@@ -98,16 +98,7 @@ if (!function_exists('abort')) {
         http_response_code($code);
         
         if (empty($message)) {
-            $message = match($code) {
-                400 => 'Bad Request',
-                401 => 'Unauthorized',
-                403 => 'Forbidden',
-                404 => 'Not Found',
-                405 => 'Method Not Allowed',
-                500 => 'Internal Server Error',
-                503 => 'Service Unavailable',
-                default => 'Error',
-            };
+            $message = Core\Http\HttpStatus::getText($code);
         }
         
         if (Core\Http::acceptsJson()) {
