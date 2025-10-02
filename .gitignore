@@ -15,6 +15,7 @@ vendor/
 node_modules/
 storage/cache/templates
 storage/cache/*.php
+storage/cache/data/
 public/build/
 public/hot
 public/mix-manifest.json

@@ -8,8 +8,11 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
+        \Core\Cache::set('key', 'value', 3600);
+        $get = \Core\Cache::get('key');
+
         $data = [
-            'title' => 'Welcome to Vilnius!',
+            'title' => $get,
             'message' => 'A modern, lightweight PHP framework',
             'description' => 'Vilnius Framework - A modern, lightweight PHP framework'
         ];
