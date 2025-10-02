@@ -18,7 +18,7 @@ class ResponseCollector extends AbstractCollector
 
     public function __construct()
     {
-        $this->priority = 88;
+        $this->priority = 89; // Сразу после Request (90)
     }
 
     public function getName(): string
