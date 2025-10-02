@@ -114,9 +114,11 @@ class Response
     /**
      * JSON ответ
      */
-    public function json(mixed $data, int $status = 200, array $headers = [], int $options = 0): self
+    public function json(mixed $data, ?int $status = null, array $headers = [], int $options = 0): self
     {
-        $this->status($status);
+        if ($status !== null) {
+            $this->status($status);
+        }
         $this->header('Content-Type', 'application/json');
         $this->withHeaders($headers);
         $this->content = json_encode($data, $options | JSON_UNESCAPED_UNICODE);
@@ -126,9 +128,11 @@ class Response
     /**
      * HTML ответ
      */
-    public function html(string $content, int $status = 200, array $headers = []): self
+    public function html(string $content, ?int $status = null, array $headers = []): self
     {
-        $this->status($status);
+        if ($status !== null) {
+            $this->status($status);
+        }
         $this->header('Content-Type', 'text/html; charset=UTF-8');
         $this->withHeaders($headers);
         $this->content = $content;
@@ -138,9 +142,11 @@ class Response
     /**
      * Plain text ответ
      */
-    public function text(string $content, int $status = 200, array $headers = []): self
+    public function text(string $content, ?int $status = null, array $headers = []): self
     {
-        $this->status($status);
+        if ($status !== null) {
+            $this->status($status);
+        }
         $this->header('Content-Type', 'text/plain; charset=UTF-8');
         $this->withHeaders($headers);
         $this->content = $content;
@@ -150,9 +156,11 @@ class Response
     /**
      * XML ответ
      */
-    public function xml(string $content, int $status = 200, array $headers = []): self
+    public function xml(string $content, ?int $status = null, array $headers = []): self
     {
-        $this->status($status);
+        if ($status !== null) {
+            $this->status($status);
+        }
         $this->header('Content-Type', 'application/xml; charset=UTF-8');
         $this->withHeaders($headers);
         $this->content = $content;
@@ -317,7 +325,7 @@ class Response
     /**
      * View response (render template)
      */
-    public function view(string $template, array $data = [], int $status = 200, array $headers = []): self
+    public function view(string $template, array $data = [], ?int $status = null, array $headers = []): self
     {
         $content = view($template, $data);
         return $this->html($content, $status, $headers);
