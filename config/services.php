@@ -23,6 +23,10 @@ return [
         \Core\TemplateEngine::class => \Core\TemplateEngine::class,
         \Core\Session::class => \Core\Session::class,
         \Core\Logger::class => \Core\Logger::class,
+        \Core\Cache\CacheManager::class => function ($container) {
+            $config = \Core\Config::get('cache');
+            return new \Core\Cache\CacheManager($config);
+        },
     ],
 
     /*
@@ -53,5 +57,6 @@ return [
         'view' => \Core\TemplateEngine::class,
         'session' => \Core\Session::class,
         'logger' => \Core\Logger::class,
+        'cache' => \Core\Cache\CacheManager::class,
     ],
 ];
