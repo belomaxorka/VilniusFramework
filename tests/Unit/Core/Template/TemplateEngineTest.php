@@ -440,3 +440,39 @@ test('test is array works', function () {
 
     expect($result)->toBe('Array');
 });
+
+test('for else works with empty array', function () {
+    $templateContent = '{% for item in items %}<li>{{ item }}</li>{% else %}<p>No items</p>{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/for_else_empty.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('for_else_empty.twig', ['items' => []]);
+
+    expect($result)->toBe('<p>No items</p>');
+});
+
+test('for else works with non-empty array', function () {
+    $templateContent = '{% for item in items %}<li>{{ item }}</li>{% else %}<p>No items</p>{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/for_else_items.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('for_else_items.twig', ['items' => ['a', 'b']]);
+
+    expect($result)->toBe('<li>a</li><li>b</li>');
+});
+
+test('for else works with destructuring', function () {
+    $templateContent = '{% for key, value in items %}{{ key }}:{{ value }},{% else %}Empty{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/for_else_destruct.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('for_else_destruct.twig', ['items' => []]);
+    expect($result1)->toBe('Empty');
+    
+    $result2 = $engine->render('for_else_destruct.twig', ['items' => ['a' => '1', 'b' => '2']]);
+    expect($result2)->toBe('a:1,b:2,');
+});

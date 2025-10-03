@@ -366,14 +366,27 @@ class TemplateEngine
         $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
             return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
-        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
-        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
+        // Обрабатываем циклы {% for %} с {% else %} ПЕРЕД обработкой обычных for и if
+        $content = preg_replace_callback(
+            '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
+            function ($matches) {
+                $loopVars = [$matches[1], $matches[2] ?? null, $matches[3]];
+                $forContent = $matches[4];
+                $elseContent = $matches[5];
+                return $this->compileForLoopWithElse($loopVars, $forContent, $elseContent);
+            },
+            $content
+        );
 
-        // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
+        // Обрабатываем обычные циклы {% for item in items %} без else
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
             return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
+
+        // Обрабатываем условия {% else %} и {% endif %} для if-блоков
+        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
+        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
         // Обрабатываем циклы while {% while condition %}
         $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
@@ -675,14 +688,27 @@ class TemplateEngine
         $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
             return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
-        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
-        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
+        // Обрабатываем циклы {% for %} с {% else %} ПЕРЕД обработкой обычных for и if
+        $content = preg_replace_callback(
+            '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
+            function ($matches) {
+                $loopVars = [$matches[1], $matches[2] ?? null, $matches[3]];
+                $forContent = $matches[4];
+                $elseContent = $matches[5];
+                return $this->compileForLoopWithElse($loopVars, $forContent, $elseContent);
+            },
+            $content
+        );
 
-        // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
+        // Обрабатываем обычные циклы {% for item in items %} без else
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
             return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
+
+        // Обрабатываем условия {% else %} и {% endif %} для if-блоков
+        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
+        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
         // Обрабатываем циклы while {% while condition %}
         $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
@@ -1420,6 +1446,72 @@ class TemplateEngine
         }
         
         return $expression;
+    }
+
+    /**
+     * Компилирует for-цикл с блоком else
+     */
+    private function compileForLoopWithElse(array $loopVars, string $forContent, string $elseContent): string
+    {
+        $var1 = $loopVars[0];
+        $var2 = $loopVars[1];
+        $iterable = $this->processVariable($loopVars[2]);
+        
+        // Генерируем уникальный ID для переменных цикла
+        $loopId = uniqid('loop_');
+        
+        $code = '<?php ';
+        // Сохраняем родительский loop
+        $code .= '$__loop_parent_' . $loopId . ' = isset($loop) ? $loop : null; ';
+        // Инициализируем массив итераций
+        $code .= '$__loop_items_' . $loopId . ' = ' . $iterable . '; ';
+        // Получаем общее количество элементов
+        $code .= '$__loop_length_' . $loopId . ' = is_array($__loop_items_' . $loopId . ') || $__loop_items_' . $loopId . ' instanceof \Countable ? count($__loop_items_' . $loopId . ') : 0; ';
+        
+        // Проверяем, есть ли элементы
+        $code .= 'if ($__loop_length_' . $loopId . ' > 0): ';
+        
+        // Инициализируем счетчик
+        $code .= '$__loop_index_' . $loopId . ' = 0; ';
+        
+        // Если указана вторая переменная - это деструктуризация (key, value)
+        if (!empty($var2)) {
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $var1 . ' => $' . $var2 . '): ';
+        } else {
+            // Иначе обычный цикл (только value)
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $var1 . '): ';
+        }
+        
+        // Создаем переменную loop
+        $code .= '$loop = [';
+        $code .= '"index" => $__loop_index_' . $loopId . ' + 1, ';
+        $code .= '"index0" => $__loop_index_' . $loopId . ', ';
+        $code .= '"revindex" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ', ';
+        $code .= '"revindex0" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ' - 1, ';
+        $code .= '"first" => $__loop_index_' . $loopId . ' === 0, ';
+        $code .= '"last" => $__loop_index_' . $loopId . ' === $__loop_length_' . $loopId . ' - 1, ';
+        $code .= '"length" => $__loop_length_' . $loopId . ', ';
+        $code .= '"parent" => $__loop_parent_' . $loopId;
+        $code .= ']; ';
+        $code .= '$__loop_index_' . $loopId . '++; ';
+        $code .= '?>';
+        
+        // Добавляем содержимое цикла
+        $code .= $forContent;
+        
+        // Закрываем foreach
+        $code .= '<?php endforeach; ?>';
+        
+        // Закрываем if и добавляем else
+        $code .= '<?php else: ?>';
+        
+        // Добавляем else блок
+        $code .= $elseContent;
+        
+        // Закрываем if
+        $code .= '<?php endif; ?>';
+        
+        return $code;
     }
 
     /**
