@@ -5,7 +5,7 @@
 npm-debug.log
 yarn-error.log
 *.phar
-*.sqlite
+!*.sqlite
 *.lock
 package-lock.json
 Thumbs.db
