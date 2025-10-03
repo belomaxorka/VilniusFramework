@@ -95,6 +95,36 @@ test('can render template with loops', function () {
     expect($result)->toBe('abc');
 });
 
+test('can render template with loop destructuring (key, value)', function () {
+    $templateContent = '{% for key, value in items %}{{ key }}:{{ value }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_destructuring.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_destructuring.twig', [
+        'items' => ['name' => 'John', 'age' => '25', 'city' => 'NYC']
+    ]);
+
+    expect($result)->toBe('name:John,age:25,city:NYC,');
+});
+
+test('can render template with loop destructuring for validation errors', function () {
+    $templateContent = '{% for field, errors in validationErrors %}<div>{{ field }}: {{ errors }}</div>{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/validation_errors.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('validation_errors.twig', [
+        'validationErrors' => [
+            'email' => 'Invalid email',
+            'password' => 'Too short',
+            'username' => 'Already taken'
+        ]
+    ]);
+
+    expect($result)->toBe('<div>email: Invalid email</div><div>password: Too short</div><div>username: Already taken</div>');
+});
+
 test('can handle unescaped variables', function () {
     $templateContent = '{! html_content !}';
     $templateFile = $this->testTemplateDir . '/unescaped.twig';

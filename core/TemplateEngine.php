@@ -358,9 +358,17 @@ class TemplateEngine
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
-        // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
+        // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
+            $iterable = $this->processVariable($matches[3]);
+            
+            // Если указана вторая переменная - это деструктуризация (key, value)
+            if (!empty($matches[2])) {
+                return '<?php foreach (' . $iterable . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ?>';
+            }
+            
+            // Иначе обычный цикл (только value)
+            return '<?php foreach (' . $iterable . ' as $' . $matches[1] . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
@@ -656,9 +664,17 @@ class TemplateEngine
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
-        // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
+        // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
+            $iterable = $this->processVariable($matches[3]);
+            
+            // Если указана вторая переменная - это деструктуризация (key, value)
+            if (!empty($matches[2])) {
+                return '<?php foreach (' . $iterable . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ?>';
+            }
+            
+            // Иначе обычный цикл (только value)
+            return '<?php foreach (' . $iterable . ' as $' . $matches[1] . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
