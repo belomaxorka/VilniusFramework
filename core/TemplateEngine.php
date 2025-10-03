@@ -415,8 +415,8 @@ class TemplateEngine
             '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
             function ($matches) {
                 $innerContent = $matches[1];
-                // Удаляем пробелы между HTML-тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php echo trim(preg_replace(\'/>\s+</\', \'><\', ob_get_clean())); ?>';
+                // Удаляем пробелы между HTML-тегами, после открывающих и перед закрывающими тегами
+                return '<?php ob_start(); ?>' . $innerContent . '<?php $__spaceless = ob_get_clean(); $__spaceless = preg_replace(\'/>\s+/\', \'>\', $__spaceless); $__spaceless = preg_replace(\'/\s+</\', \'<\', $__spaceless); echo trim($__spaceless); ?>';
             },
             $content
         );
@@ -764,8 +764,8 @@ class TemplateEngine
             '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
             function ($matches) {
                 $innerContent = $matches[1];
-                // Удаляем пробелы между HTML-тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php echo trim(preg_replace(\'/>\s+</\', \'><\', ob_get_clean())); ?>';
+                // Удаляем пробелы между HTML-тегами, после открывающих и перед закрывающими тегами
+                return '<?php ob_start(); ?>' . $innerContent . '<?php $__spaceless = ob_get_clean(); $__spaceless = preg_replace(\'/>\s+/\', \'>\', $__spaceless); $__spaceless = preg_replace(\'/\s+</\', \'<\', $__spaceless); echo trim($__spaceless); ?>';
             },
             $content
         );
