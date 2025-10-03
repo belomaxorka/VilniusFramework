@@ -32,6 +32,13 @@ class DatabaseManager implements DatabaseInterface
         $this->config = $config;
         $this->defaultConnection = $config['default'] ?? null;
         $this->loggingQueries = $config['log_queries'] ?? false;
+        
+        // Настраиваем QueryDebugger для Debug Toolbar
+        if (class_exists('\Core\QueryDebugger')) {
+            if (isset($config['slow_query_threshold'])) {
+                \Core\QueryDebugger::setSlowQueryThreshold((float)$config['slow_query_threshold']);
+            }
+        }
     }
 
     /**
@@ -164,14 +171,23 @@ class DatabaseManager implements DatabaseInterface
 
         try {
             $result = $callback($query, $bindings);
+            $time = microtime(true) - $start;
+
+            // Определяем количество затронутых строк
+            $rows = 0;
+            if (is_array($result)) {
+                $rows = count($result);
+            } elseif (is_int($result)) {
+                $rows = $result;
+            }
 
             // Логируем успешный запрос
-            $this->logQuery($query, $bindings, microtime(true) - $start);
+            $this->logQuery($query, $bindings, $time, null, $rows);
 
             return $result;
         } catch (PDOException $e) {
             // Логируем неудачный запрос
-            $this->logQuery($query, $bindings, microtime(true) - $start, $e->getMessage());
+            $this->logQuery($query, $bindings, microtime(true) - $start, $e->getMessage(), 0);
 
             // Пробуем переподключиться при потере соединения
             if ($this->causedByLostConnection($e)) {
@@ -236,19 +252,31 @@ class DatabaseManager implements DatabaseInterface
     /**
      * Логировать запрос
      */
-    protected function logQuery(string $query, array $bindings, float $time, ?string $error = null): void
+    protected function logQuery(string $query, array $bindings, float $time, ?string $error = null, int $rows = 0): void
     {
-        if (!$this->loggingQueries) {
-            return;
+        $timeMs = round($time * 1000, 2); // в миллисекундах
+        
+        if ($this->loggingQueries) {
+            $this->queryLog[] = [
+                'query' => $query,
+                'bindings' => $bindings,
+                'time' => $timeMs,
+                'error' => $error,
+                'rows' => $rows,
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
         }
 
-        $this->queryLog[] = [
-            'query' => $query,
-            'bindings' => $bindings,
-            'time' => round($time * 1000, 2), // в миллисекундах
-            'error' => $error,
-            'timestamp' => date('Y-m-d H:i:s')
-        ];
+        // Интеграция с QueryDebugger для Debug Toolbar
+        if (class_exists('\Core\QueryDebugger')) {
+            // Логируем в QueryDebugger (только если не в production)
+            \Core\QueryDebugger::log(
+                $query,
+                $bindings,
+                $timeMs,
+                $rows
+            );
+        }
     }
 
     /**

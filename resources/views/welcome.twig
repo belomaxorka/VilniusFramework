@@ -45,6 +45,65 @@
                 <welcome-counter :initial-count="{{ initialCount }}"></welcome-counter>
             </div>
 
+            <!-- Database Info Card -->
+            <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 p-8 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                        <span class="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            База данных
+                        </span>
+                    </h2>
+                    <div class="flex items-center space-x-2 px-4 py-2 bg-green-100 rounded-full">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        </svg>
+                        <span class="text-sm font-semibold text-green-700">{{ totalUsers }} пользователей</span>
+                    </div>
+                </div>
+
+                {% if users|length > 0 %}
+                    <!-- Users List -->
+                    <div class="space-y-3">
+                        {% for user in users|slice(0, 5) %}
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                                {{ user.name|slice(0, 1)|upper }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">
+                                    {{ user.name }}
+                                </p>
+                                <p class="text-xs text-gray-500 truncate">
+                                    {{ user.email }}
+                                </p>
+                            </div>
+                            {% if user.email_verified_at %}
+                            <div class="flex-shrink-0">
+                                <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        {% if users|length > 5 %}
+                        <div class="text-center pt-2">
+                            <span class="text-sm text-gray-500">...и еще {{ users|length - 5 }} пользователей</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <p class="text-gray-500 text-sm">Пользователи не найдены</p>
+                        <p class="text-xs text-gray-400 mt-1">Запустите миграции: php vilnius migrate</p>
+                    </div>
+                {% endif %}
+            </div>
+
             <!-- Tech Stack -->
             <div class="flex items-center justify-center space-x-6 text-sm text-gray-500">
                 <div class="flex items-center space-x-1">

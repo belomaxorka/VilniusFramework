@@ -13,6 +13,17 @@ return [
     'default' => env('DB_CONNECTION', 'sqlite'),
 
     /**
+     * Логирование SQL запросов
+     * В debug режиме всегда включено для Debug Toolbar
+     */
+    'log_queries' => env('DB_LOG_QUERIES', true),
+
+    /**
+     * Порог медленных запросов (в миллисекундах)
+     */
+    'slow_query_threshold' => env('DB_SLOW_QUERY_THRESHOLD', 100),
+
+    /**
      * Database connections
      */
     'connections' => [

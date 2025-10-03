@@ -32,6 +32,9 @@ $app->registerCommands([
     \Core\Console\Commands\MakeControllerCommand::class,
     \Core\Console\Commands\MakeModelCommand::class,
     
+    // Database commands
+    \Core\Console\Commands\DbSeedCommand::class,
+    
     // Utility commands
     \Core\Console\Commands\RouteListCommand::class,
     \Core\Console\Commands\RouteCacheCommand::class,

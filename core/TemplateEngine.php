@@ -1387,6 +1387,33 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
 
+        // ========================================
+        // ОБРАБАТЫВАЕМ ФИЛЬТРЫ (пайпы) В УСЛОВИЯХ
+        // ========================================
+        // Разбиваем выражения вида "variable|filter > value" на части и обрабатываем фильтры
+        $filterProtected = [];
+        $condition = preg_replace_callback(
+            '/([a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])*)\s*(\|[^<>=!&|]+)(?=\s*(?:[<>=!&|]|$))/',
+            function ($matches) use (&$filterProtected) {
+                $variable = $matches[1];
+                $filterPart = $matches[2];
+                
+                // Разбираем фильтры
+                $parts = $this->splitByPipe($variable . $filterPart);
+                $varExpr = $this->processVariable(array_shift($parts));
+                
+                // Применяем фильтры
+                $compiled = $this->compileFilters($varExpr, $parts);
+                
+                // Сохраняем скомпилированное выражение
+                $placeholder = '___FILTER_' . count($filterProtected) . '___';
+                $filterProtected[$placeholder] = $compiled;
+                
+                return $placeholder;
+            },
+            $condition
+        );
+
         // Обрабатываем тесты (is defined, is null, is empty, etc.) ПЕРЕД обработкой логических операторов
         $testProtected = [];
         $condition = $this->processTests($condition, $testProtected);
@@ -1471,7 +1498,7 @@ class TemplateEngine
         }, $condition);
 
         // Оптимизация: объединяем все восстановления в одну операцию strtr()
-        $replacements = $testProtected + $inProtected + $startsEndsProtected;
+        $replacements = $testProtected + $inProtected + $startsEndsProtected + $filterProtected;
 
         // Добавляем строки
         foreach ($strings as $index => $string) {
