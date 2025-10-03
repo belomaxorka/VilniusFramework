@@ -2457,24 +2457,9 @@ class TemplateEngine
             });
         }
 
-        // Регистрируем функцию range для создания диапазонов
+        // Регистрируем функцию range для создания диапазонов (используем встроенную функцию PHP)
         $this->addFunction('range', function ($start, $end, $step = 1) {
-            if ($step == 0) {
-                throw new \InvalidArgumentException('Step cannot be zero');
-            }
-
-            $result = [];
-            if ($step > 0) {
-                for ($i = $start; $i <= $end; $i += $step) {
-                    $result[] = $i;
-                }
-            } else {
-                for ($i = $start; $i >= $end; $i += $step) {
-                    $result[] = $i;
-                }
-            }
-
-            return $result;
+            return range($start, $end, $step);
         });
     }
 }
