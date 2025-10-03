@@ -40,8 +40,16 @@ class Input
         // Пропускаем первый элемент (имя скрипта) и второй (имя команды)
         $args = array_slice($argv, 2);
 
+        $stopParsing = false;
+
         foreach ($args as $arg) {
-            if (str_starts_with($arg, '--')) {
+            // После -- все аргументы трактуются как обычные аргументы
+            if ($arg === '--') {
+                $stopParsing = true;
+                continue;
+            }
+
+            if (!$stopParsing && str_starts_with($arg, '--')) {
                 // Длинная опция: --option=value или --option
                 $option = substr($arg, 2);
                 if (str_contains($option, '=')) {
@@ -50,10 +58,15 @@ class Input
                 } else {
                     $this->options[$option] = true;
                 }
-            } elseif (str_starts_with($arg, '-')) {
-                // Короткая опция: -o value или -o
+            } elseif (!$stopParsing && str_starts_with($arg, '-')) {
+                // Короткая опция: -o=value или -o
                 $option = substr($arg, 1);
-                $this->options[$option] = true;
+                if (str_contains($option, '=')) {
+                    [$key, $value] = explode('=', $option, 2);
+                    $this->options[$key] = $value;
+                } else {
+                    $this->options[$option] = true;
+                }
             } else {
                 // Аргумент
                 $this->arguments[] = $arg;
@@ -83,6 +96,14 @@ class Input
     }
 
     /**
+     * Проверить наличие аргумента
+     */
+    public function hasArgument(int $index): bool
+    {
+        return isset($this->arguments[$index]);
+    }
+
+    /**
      * Получить опцию
      */
     public function getOption(string $name, mixed $default = null): mixed
@@ -93,9 +114,17 @@ class Input
     /**
      * Получить все опции
      */
-    public function getOptions(): array
+    public function getAllOptions(): array
     {
         return $this->options;
+    }
+
+    /**
+     * Получить все опции (алиас для getAllOptions)
+     */
+    public function getOptions(): array
+    {
+        return $this->getAllOptions();
     }
 
     /**
@@ -104,6 +133,16 @@ class Input
     public function hasOption(string $name): bool
     {
         return isset($this->options[$name]);
+    }
+
+    /**
+     * Заменить аргументы
+     */
+    public function replace(array $arguments): void
+    {
+        foreach ($arguments as $index => $value) {
+            $this->arguments[$index] = $value;
+        }
     }
 
     /**
