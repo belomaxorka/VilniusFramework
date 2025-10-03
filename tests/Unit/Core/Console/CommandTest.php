@@ -185,7 +185,7 @@ describe('Command Output Methods', function () {
         $command->execute($this->input, $this->output);
         $output = ob_get_clean();
         
-        expect($output)->toContain("Line 1\n\nLine 2");
+        expect($output)->toContain('Line 1' . PHP_EOL . PHP_EOL . 'Line 2');
     });
 });
 
