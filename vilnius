@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php declare(strict_types=1);
+
+/**
+ * Vilnius Framework CLI
+ * 
+ * Console application entry point
+ */
+
+define('VILNIUS_START', microtime(true));
+
+// Load bootstrap
+require_once __DIR__ . '/core/bootstrap.php';
+
+// Initialize core
+\Core\Core::init();
+
+// Create console application
+$app = new \Core\Console\Application();
+
+// Register commands
+$app->registerCommands([
+    // Migration commands
+    \Core\Console\Commands\MigrateCommand::class,
+    \Core\Console\Commands\MigrateRollbackCommand::class,
+    \Core\Console\Commands\MigrateResetCommand::class,
+    \Core\Console\Commands\MigrateRefreshCommand::class,
+    \Core\Console\Commands\MigrateStatusCommand::class,
+    \Core\Console\Commands\MakeMigrationCommand::class,
+]);
+
+// Run application
+$status = $app->run();
+
+exit($status);
+
