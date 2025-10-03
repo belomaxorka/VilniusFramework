@@ -117,7 +117,15 @@ class Schema
      */
     public static function hasTable(string $table): bool
     {
-        $sql = "SHOW TABLES LIKE '{$table}'";
+        $driver = self::getDatabase()->getDriverName();
+
+        $sql = match ($driver) {
+            'mysql' => "SHOW TABLES LIKE '{$table}'",
+            'pgsql' => "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = '{$table}'",
+            'sqlite' => "SELECT name FROM sqlite_master WHERE type='table' AND name = '{$table}'",
+            default => throw new \RuntimeException("Driver '{$driver}' is not supported")
+        };
+
         $result = self::getDatabase()->select($sql);
         return !empty($result);
     }
@@ -127,8 +135,27 @@ class Schema
      */
     public static function hasColumn(string $table, string $column): bool
     {
-        $sql = "SHOW COLUMNS FROM `{$table}` LIKE '{$column}'";
+        $driver = self::getDatabase()->getDriverName();
+
+        $sql = match ($driver) {
+            'mysql' => "SHOW COLUMNS FROM `{$table}` LIKE '{$column}'",
+            'pgsql' => "SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}' AND column_name = '{$column}'",
+            'sqlite' => "PRAGMA table_info({$table})",
+            default => throw new \RuntimeException("Driver '{$driver}' is not supported")
+        };
+
         $result = self::getDatabase()->select($sql);
+        
+        if ($driver === 'sqlite') {
+            // Для SQLite нужно проверить имя колонки в результате
+            foreach ($result as $col) {
+                if ($col['name'] === $column) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         return !empty($result);
     }
 
@@ -137,7 +164,15 @@ class Schema
      */
     public static function getColumns(string $table): array
     {
-        $sql = "SHOW COLUMNS FROM `{$table}`";
+        $driver = self::getDatabase()->getDriverName();
+
+        $sql = match ($driver) {
+            'mysql' => "SHOW COLUMNS FROM `{$table}`",
+            'pgsql' => "SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}'",
+            'sqlite' => "PRAGMA table_info({$table})",
+            default => throw new \RuntimeException("Driver '{$driver}' is not supported")
+        };
+
         return self::getDatabase()->select($sql);
     }
 
@@ -146,6 +181,7 @@ class Schema
      */
     private static function compileCreate(Blueprint $blueprint): string
     {
+        $driver = self::getDatabase()->getDriverName();
         $table = $blueprint->getTable();
         $columns = [];
         $primaryKeys = [];
@@ -165,7 +201,12 @@ class Schema
             $sql .= ",\n  PRIMARY KEY (`" . implode('`, `', $primaryKeys) . "`)";
         }
 
-        $sql .= "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        $sql .= "\n)";
+
+        // Добавляем параметры в зависимости от драйвера
+        if ($driver === 'mysql') {
+            $sql .= " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        }
 
         return $sql;
     }
@@ -175,6 +216,7 @@ class Schema
      */
     private static function compileColumn(Column $column): string
     {
+        $driver = self::getDatabase()->getDriverName();
         $sql = "`{$column->getName()}` ";
 
         // Тип
@@ -195,24 +237,33 @@ class Schema
                 break;
             
             case 'ENUM':
-                $values = array_map(fn($v) => "'{$v}'", $column->getAllowedValues());
-                $sql .= "ENUM(" . implode(', ', $values) . ")";
+                // SQLite не поддерживает ENUM, используем TEXT с CHECK constraint
+                if ($driver === 'sqlite') {
+                    $sql .= 'TEXT';
+                } else {
+                    $values = array_map(fn($v) => "'{$v}'", $column->getAllowedValues());
+                    $sql .= "ENUM(" . implode(', ', $values) . ")";
+                }
                 break;
             
             case 'INTEGER':
-                $sql .= 'INT';
+                $sql .= $driver === 'sqlite' ? 'INTEGER' : 'INT';
+                break;
+            
+            case 'BIGINT':
+                $sql .= $driver === 'sqlite' ? 'INTEGER' : 'BIGINT';
                 break;
             
             case 'BOOLEAN':
-                $sql .= 'TINYINT(1)';
+                $sql .= $driver === 'sqlite' ? 'INTEGER' : 'TINYINT(1)';
                 break;
             
             default:
                 $sql .= $type;
         }
 
-        // Unsigned
-        if ($column->isUnsigned() && in_array($type, ['BIGINT', 'INT', 'TINYINT', 'SMALLINT', 'MEDIUMINT'])) {
+        // Unsigned (не поддерживается в SQLite)
+        if ($driver !== 'sqlite' && $column->isUnsigned() && in_array($type, ['BIGINT', 'INT', 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'INTEGER'])) {
             $sql .= ' UNSIGNED';
         }
 
@@ -225,7 +276,7 @@ class Schema
 
         // Auto increment
         if ($column->isAutoIncrement()) {
-            $sql .= ' AUTO_INCREMENT';
+            $sql .= $driver === 'sqlite' ? ' AUTOINCREMENT' : ' AUTO_INCREMENT';
         }
 
         // Default
@@ -243,8 +294,8 @@ class Schema
             }
         }
 
-        // Comment
-        if ($column->getComment()) {
+        // Comment (не поддерживается в SQLite)
+        if ($driver !== 'sqlite' && $column->getComment()) {
             $sql .= " COMMENT '" . addslashes($column->getComment()) . "'";
         }
 
