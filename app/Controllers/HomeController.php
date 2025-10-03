@@ -5,23 +5,23 @@ namespace App\Controllers;
 class HomeController extends Controller
 {
     /**
-     * Главная страница
+     * Home page
      */
     public function index()
     {
-        // Приветствие в зависимости от времени суток
+        // Time-based greeting
         $hour = (int)date('H');
         if ($hour < 6) {
-            $greeting = 'Доброй ночи! 🌙';
+            $greeting = 'Good Night 🌙';
         } elseif ($hour < 12) {
-            $greeting = 'Доброе утро! ☀️';
+            $greeting = 'Good Morning ☀️';
         } elseif ($hour < 18) {
-            $greeting = 'Добрый день! 🌤️';
+            $greeting = 'Good Afternoon 🌤️';
         } else {
-            $greeting = 'Добрый вечер! 🌆';
+            $greeting = 'Good Evening 🌆';
         }
         
-        // Случайное начальное значение счетчика
+        // Random initial counter value
         $initialCount = rand(0, 10);
         
         return $this->view('welcome.twig', [
