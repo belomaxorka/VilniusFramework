@@ -2,39 +2,34 @@
 
 namespace App\Controllers;
 
+use Core\Cache\CacheManager;
+use Core\Database;
+use Core\Logger;
 use Core\Request;
 use Core\Response;
 
 class HomeController extends Controller
 {
     /**
-     * Constructor with Dependency Injection
-     * 
-     * Example: You can inject additional dependencies here!
-     * 
-     * @param Request $request Auto-injected
-     * @param Response $response Auto-injected
+     * Constructor
      */
     public function __construct(
-        Request $request,
-        Response $response,
-        // Add your custom dependencies here:
-        // protected Database $db,
-        // protected CacheManager $cache,
-        // protected Logger $logger,
-    ) {
+        Request                $request,
+        Response               $response,
+        protected Database     $db,
+        protected CacheManager $cache,
+        protected Logger       $logger,
+    )
+    {
         parent::__construct($request, $response);
-        
-        // Your custom dependencies are now available!
-        // Example: $this->db, $this->cache, $this->logger
     }
-    
+
     /**
      * Home page
      */
-    public function index()
+    public function index(): Response
     {
-        // Time-based greeting
+        // Greeting
         $hour = (int)date('H');
         if ($hour < 6) {
             $greeting = 'Good Night 🌙';
@@ -45,16 +40,17 @@ class HomeController extends Controller
         } else {
             $greeting = 'Good Evening 🌆';
         }
-        
-        // Random initial counter value
-        $initialCount = rand(0, 10);
-        
+
+        // Add something into log ...
+        $this->logger::info($greeting);
+
+        // Render template
         return $this->view('welcome.twig', [
             'title' => 'Vilnius Framework',
             'greeting' => $greeting,
             'phpVersion' => PHP_VERSION,
             'serverTime' => date('H:i:s'),
-            'initialCount' => $initialCount,
+            'initialCount' => rand(0, 10),
         ]);
     }
 }
