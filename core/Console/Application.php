@@ -2,11 +2,12 @@
 
 namespace Core\Console;
 
+use Core\Config;
 use RuntimeException;
 
 /**
  * Console Application
- * 
+ *
  * Главное приложение для CLI (аналог Artisan)
  */
 class Application
@@ -14,12 +15,12 @@ class Application
     /**
      * Название приложения
      */
-    private string $name = 'Vilnius Framework';
+    private string $name;
 
     /**
      * Версия приложения
      */
-    private string $version = '1.0.0';
+    private string $version;
 
     /**
      * Зарегистрированные команды
@@ -34,6 +35,10 @@ class Application
     public function __construct()
     {
         $this->output = new Output();
+
+        // Получаем название и версию из конфига
+        $this->name = Config::get('framework.name');
+        $this->version = Config::get('framework.version');
     }
 
     /**
@@ -86,7 +91,10 @@ class Application
 
         // Показать версию
         if ($commandName === '--version' || $commandName === '-V') {
-            $this->output->line("{$this->name} {$this->version}");
+            $this->output->line('');
+            $this->output->line($this->colorize(" 🚀 {$this->name}", 'cyan'));
+            $this->output->line($this->colorize(" 📦 Version: {$this->version}", 'cyan'));
+            $this->output->line('');
             return 0;
         }
 
@@ -100,17 +108,17 @@ class Application
         if (isset($this->commands[$commandName])) {
             $commandClass = $this->commands[$commandName];
             $command = new $commandClass();
-            
+
             try {
                 return $command->handle();
             } catch (\Throwable $e) {
                 $this->output->error('Command failed: ' . $e->getMessage());
-                
+
                 if (getenv('APP_DEBUG') === 'true') {
                     $this->output->line('');
                     $this->output->line($e->getTraceAsString());
                 }
-                
+
                 return 1;
             }
         }
@@ -128,7 +136,8 @@ class Application
     private function showCommands(): void
     {
         $this->output->line('');
-        $this->output->line($this->colorize("{$this->name} {$this->version}", 'yellow'));
+        $this->output->line($this->colorize(" 🚀 {$this->name}", 'cyan'));
+        $this->output->line($this->colorize(" 📦 Version: {$this->version}", 'cyan'));
         $this->output->line('');
         $this->output->line($this->colorize('Usage:', 'yellow'));
         $this->output->line('  command [options] [arguments]');
@@ -137,12 +146,12 @@ class Application
 
         // Группируем команды по префиксу
         $groupedCommands = [];
-        
+
         foreach ($this->commands as $signature => $commandClass) {
             $command = new $commandClass();
             $parts = explode(':', $signature);
             $group = count($parts) > 1 ? $parts[0] : 'general';
-            
+
             $groupedCommands[$group][] = [
                 'signature' => $signature,
                 'description' => $command->getDescription(),
@@ -184,7 +193,10 @@ class Application
     private function showHelp(): void
     {
         $this->output->line('');
-        $this->output->line($this->colorize("{$this->name} {$this->version}", 'yellow'));
+        $this->output->line(str_repeat('═', 80));
+        $this->output->line($this->colorize("  🚀 {$this->name}", 'cyan'));
+        $this->output->line($this->colorize("  📦 Version: {$this->version}", 'cyan'));
+        $this->output->line(str_repeat('═', 80));
         $this->output->line('');
         $this->output->line($this->colorize('Usage:', 'yellow'));
         $this->output->line('  php vilnius <command> [options] [arguments]');
@@ -208,6 +220,9 @@ class Application
         $colors = [
             'yellow' => "\033[1;33m",
             'green' => "\033[0;32m",
+            'cyan' => "\033[1;36m",
+            'blue' => "\033[0;34m",
+            'red' => "\033[0;31m",
             'reset' => "\033[0m",
         ];
 

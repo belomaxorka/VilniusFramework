@@ -157,7 +157,7 @@ class DumpServer
         // Показываем ОРИГИНАЛЬНЫЙ тип данных
         echo "🔍 Type: {$dataType}\n";
         echo str_repeat('─', 80) . "\n";
-        
+
         if (is_string($content)) {
             echo $content . "\n";
         } else {
@@ -165,7 +165,7 @@ class DumpServer
         }
 
         echo "\n";
-        
+
         // Принудительный flush для немедленного вывода
         flush();
     }

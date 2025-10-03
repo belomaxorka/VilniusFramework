@@ -48,7 +48,37 @@ Configuration files should be placed in a directory and return an array. The fil
 config/
 ├── app.php
 ├── database.php
-└── cache.php
+├── cache.php
+├── framework.php  (Core framework metadata)
+└── ...
+```
+
+#### Framework Configuration (`config/framework.php`)
+
+This configuration file contains core framework metadata used by CLI, DumpServer, and other system components:
+
+```php
+<?php
+return [
+    'name' => 'Vilnius Framework',        // Full framework name
+    'short_name' => 'Vilnius',            // Short name for CLI banners
+    'version' => 'v1.0.0-beta.1',         // Framework version
+];
+```
+
+**Usage:**
+```php
+// Get framework name
+$name = Config::get('framework.name');
+
+// Get framework version
+$version = Config::get('framework.version');
+```
+
+These values are automatically used by:
+- ✅ Console Application (`php vilnius --version`)
+- ✅ DumpServer startup banner
+- ✅ CLI command outputs
 ```
 
 **Example `config/app.php`:**
