@@ -1215,17 +1215,9 @@ class TemplateEngine
         // Обрабатываем оператор конкатенации ~ (как в Twig)
         $expression = str_replace('~', '.', $expression);
         
-        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
-        $functionProtected = [];
-        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
-        
-        // Обрабатываем доступ к свойствам (user.name, items[0])
-        $result = $this->processPropertyAccess($expression);
-        $expression = $result['expression'];
-        $protected = $result['protected'];
-        
-        // Обрабатываем массивы [1, 2, 3]
-        $expression = preg_replace_callback('/\[([^\]]*)\]/', function ($matches) use (&$strings, &$functionProtected) {
+        // Защищаем массивы-литералы [1, 2, 3] ДО обработки доступа к элементам
+        $arrayLiterals = [];
+        $expression = preg_replace_callback('/\[([^\[\]]*)\]/', function ($matches) use (&$strings, &$arrayLiterals) {
             $content = trim($matches[1]);
             if (empty($content)) {
                 return '[]';
@@ -1255,14 +1247,26 @@ class TemplateEngine
                     if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $element)) {
                         $processedElements[] = '$' . $element;
                     } else {
-                        // Сложное выражение
-                        $processedElements[] = $this->processExpression($element);
+                        // Пропускаем сложные выражения - они будут обработаны позже
+                        $processedElements[] = $element;
                     }
                 }
             }
             
-            return '[' . implode(', ', $processedElements) . ']';
+            $arrayCode = '[' . implode(', ', $processedElements) . ']';
+            $placeholder = '___ARRAY_' . count($arrayLiterals) . '___';
+            $arrayLiterals[$placeholder] = $arrayCode;
+            return $placeholder;
         }, $expression);
+        
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
+        
+        // Обрабатываем доступ к свойствам (user.name, items[0])
+        $result = $this->processPropertyAccess($expression);
+        $expression = $result['expression'];
+        $protected = $result['protected'];
         
         // Обрабатываем простые переменные (которые еще не обработаны)
         $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
@@ -1282,6 +1286,11 @@ class TemplateEngine
         
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
+        
+        // Восстанавливаем массивы-литералы
+        foreach ($arrayLiterals as $placeholder => $value) {
             $expression = str_replace($placeholder, $value, $expression);
         }
         

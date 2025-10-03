@@ -264,3 +264,80 @@ test('loop variable works with destructuring', function () {
 
     expect($result)->toBe('1:a=1,2:b=2,3:c=3,');
 });
+
+test('can set simple variable', function () {
+    $templateContent = '{% set name = "John" %}Hello {{ name }}!';
+    $templateFile = $this->testTemplateDir . '/set_simple.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_simple.twig');
+
+    expect($result)->toBe('Hello John!');
+});
+
+test('can set variable with number', function () {
+    $templateContent = '{% set price = 100 %}Price: {{ price }}';
+    $templateFile = $this->testTemplateDir . '/set_number.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_number.twig');
+
+    expect($result)->toBe('Price: 100');
+});
+
+test('can set variable with calculation', function () {
+    $templateContent = '{% set total = price * quantity %}Total: {{ total }}';
+    $templateFile = $this->testTemplateDir . '/set_calculation.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_calculation.twig', ['price' => 10, 'quantity' => 5]);
+
+    expect($result)->toBe('Total: 50');
+});
+
+test('can set variable with concatenation', function () {
+    $templateContent = '{% set fullName = firstName ~ " " ~ lastName %}Name: {{ fullName }}';
+    $templateFile = $this->testTemplateDir . '/set_concat.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_concat.twig', ['firstName' => 'John', 'lastName' => 'Doe']);
+
+    expect($result)->toBe('Name: John Doe');
+});
+
+test('can set variable with array', function () {
+    $templateContent = '{% set items = ["apple", "banana", "orange"] %}{% for item in items %}{{ item }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/set_array.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_array.twig');
+
+    expect($result)->toBe('apple,banana,orange,');
+});
+
+test('can set variable from object property', function () {
+    $templateContent = '{% set name = user.name %}User: {{ name }}';
+    $templateFile = $this->testTemplateDir . '/set_property.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_property.twig', ['user' => ['name' => 'Alice']]);
+
+    expect($result)->toBe('User: Alice');
+});
+
+test('can use set variable in conditions', function () {
+    $templateContent = '{% set isAdmin = true %}{% if isAdmin %}Admin Panel{% endif %}';
+    $templateFile = $this->testTemplateDir . '/set_condition.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('set_condition.twig');
+
+    expect($result)->toBe('Admin Panel');
+});
