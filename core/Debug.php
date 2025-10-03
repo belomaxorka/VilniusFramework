@@ -122,11 +122,25 @@ class Debug
      */
     public static function trace(?string $label = null): void
     {
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        
         if (!Environment::isDebug()) {
+            // В продакшене логируем в файл
+            $output = $label ? "[{$label}] " : '';
+            $output .= "Backtrace:\n";
+            
+            foreach ($backtrace as $index => $trace) {
+                $file = $trace['file'] ?? 'unknown';
+                $line = $trace['line'] ?? 0;
+                $function = $trace['function'] ?? 'unknown';
+                $class = $trace['class'] ?? '';
+                $type = $trace['type'] ?? '';
+                $output .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
+            }
+            
+            Logger::debug($output);
             return;
         }
-
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         
         // Убираем первый элемент (сам вызов trace)
         array_shift($backtrace);

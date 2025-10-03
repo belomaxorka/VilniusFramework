@@ -45,7 +45,7 @@ Debug::trace($label);                 // Вывести backtrace
 **Добавленные методы:**
 - `public static function dd(mixed $var, ?string $label = null): never`
 - `public static function ddPretty(mixed $var, ?string $label = null): never`
-- `public static function trace(?string $label = null): void`
+- `public static function trace(?string $label = null): void` - с красивым форматированием в стиле VSCode + логирование в продакшене
 
 ---
 

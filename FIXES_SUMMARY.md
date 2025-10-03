@@ -34,16 +34,16 @@ $content = \Core\TemplateEngine::getInstance()->render($template, $data);
 ```php
 Debug::dd($var, $label);              // Dump and die
 Debug::ddPretty($var, $label);        // Pretty dump and die
-Debug::trace($label);                 // Stack trace с красивым форматированием
+Debug::trace($label);                 // Stack trace (backtrace)
 ```
 
 **Файл:** `core/Debug.php`
 
 **Особенности реализации:**
-- `trace()` выводит backtrace с красивым форматированием в стиле VSCode
+- `trace()` - красивое форматирование в стиле VSCode (темная тема)
 - Показывает номера в стеке, классы, методы, файлы и строки
-- Темная тема с цветовым кодированием
-- Прокручиваемый контейнер для больших трейсов
+- Цветовое кодирование элементов
+- В продакшене автоматически логируется в файл через Logger::debug()
 
 ---
 
