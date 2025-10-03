@@ -148,9 +148,9 @@ class DumpServer
             echo "📝 {$label} ";
         }
 
-        // Показываем относительный путь (убираем корень проекта)
+        // Показываем относительный путь (убираем корень проекта) и нормализуем
         $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
-        $relativePath = str_replace('\\', '/', $relativePath); // Нормализуем слеши
+        $relativePath = normalize_path($relativePath);
         echo "📍 {$relativePath}:{$line}\n";
         echo str_repeat('─', 80) . "\n";
 
