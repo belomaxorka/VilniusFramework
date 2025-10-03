@@ -130,11 +130,14 @@ php vilnius make:controller UserController
 # Create a model with migration
 php vilnius make:model Post -m
 
-# List all routes
-php vilnius route:list
+# Routes & Cache
+php vilnius route:list      # List all routes
+php vilnius route:cache     # Cache routes (production)
+php vilnius route:clear     # Clear route cache
+php vilnius cache:clear     # Clear all cache
 
-# Clear cache
-php vilnius cache:clear
+# Debug
+php vilnius dump-server     # Start dump server
 
 # View all commands
 php vilnius list
