@@ -12,7 +12,7 @@ class DumpsCollector extends AbstractCollector
 {
     public function __construct()
     {
-        $this->priority = 90;
+        $this->priority = 87; // После Request (90) и Response (89)
     }
 
     public function getName(): string

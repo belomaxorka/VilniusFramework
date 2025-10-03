@@ -37,7 +37,32 @@ class CacheCollector extends AbstractCollector
         $this->data = [
             'operations' => self::$operations,
             'stats' => $this->calculateStats(),
+            'driver' => $this->getCurrentDriver(),
         ];
+    }
+
+    /**
+     * Получить текущий используемый драйвер
+     */
+    private function getCurrentDriver(): array
+    {
+        if (!class_exists('\Core\Cache')) {
+            return ['name' => 'N/A', 'type' => 'unknown'];
+        }
+
+        try {
+            $manager = \Core\Cache::getManager();
+            $defaultDriver = $manager->getDefaultDriver();
+            $config = $manager->getDriverConfig($defaultDriver);
+            
+            return [
+                'name' => $defaultDriver,
+                'type' => $config['driver'] ?? 'unknown',
+                'config' => $config,
+            ];
+        } catch (\Exception $e) {
+            return ['name' => 'N/A', 'type' => 'error', 'error' => $e->getMessage()];
+        }
     }
 
     public function getBadge(): ?string
@@ -48,13 +73,23 @@ class CacheCollector extends AbstractCollector
 
     public function render(): string
     {
-        if (empty(self::$operations)) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No cache operations</div>';
-        }
-
         $stats = $this->data['stats'];
+        $driver = $this->data['driver'];
 
         $html = '<div style="padding: 10px;">';
+
+        // Информация о драйвере
+        $html .= '<div style="background: #e3f2fd; padding: 10px; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #2196f3;">';
+        $html .= '<div style="font-size: 12px;">';
+        $html .= '<strong>Driver:</strong> ' . htmlspecialchars($driver['name']) . ' (' . htmlspecialchars($driver['type']) . ')';
+        $html .= '</div>';
+        $html .= '</div>';
+
+        if (empty(self::$operations)) {
+            $html .= '<div style="padding: 20px; text-align: center; color: #757575;">No cache operations</div>';
+            $html .= '</div>';
+            return $html;
+        }
 
         // Статистика
         $html .= '<div style="background: #f5f5f5; padding: 10px; margin-bottom: 10px; border-radius: 4px;">';
@@ -66,7 +101,8 @@ class CacheCollector extends AbstractCollector
         $html .= '<div><strong>Deletes:</strong> ' . $stats['deletes'] . '</div>';
         if (($stats['hits'] + $stats['misses']) > 0) {
             $hitRate = ($stats['hits'] / ($stats['hits'] + $stats['misses'])) * 100;
-            $html .= '<div><strong>Hit Rate:</strong> ' . number_format($hitRate, 1) . '%</div>';
+            $hitRateColor = $hitRate >= 80 ? '#66bb6a' : ($hitRate >= 50 ? '#ffa726' : '#ef5350');
+            $html .= '<div><strong>Hit Rate:</strong> <span style="color: ' . $hitRateColor . ';">' . number_format($hitRate, 1) . '%</span></div>';
         }
         $html .= '</div>';
         $html .= '</div>';
@@ -107,11 +143,19 @@ class CacheCollector extends AbstractCollector
         }
 
         $stats = $this->data['stats'] ?? $this->calculateStats();
+        
+        // Вычисляем hit rate для цвета
+        $hitRate = 100;
+        if (($stats['hits'] + $stats['misses']) > 0) {
+            $hitRate = ($stats['hits'] / ($stats['hits'] + $stats['misses'])) * 100;
+        }
+        
+        $color = $hitRate >= 80 ? '#66bb6a' : ($hitRate >= 50 ? '#ffa726' : '#ef5350');
 
         return [[
             'icon' => '🗃️',
-            'value' => $count . ' cache ops (' . $stats['hits'] . ' hits)',
-            'color' => '#66bb6a',
+            'value' => $count . ' ops (' . $stats['hits'] . 'H/' . $stats['misses'] . 'M)',
+            'color' => $color,
         ]];
     }
 

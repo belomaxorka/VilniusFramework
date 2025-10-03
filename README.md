@@ -8,6 +8,7 @@ A modern, lightweight PHP framework built for speed and developer experience.
 - 🎨 **Modern UI** - Built-in Tailwind CSS support
 - 🛠️ **Developer Tools** - Comprehensive debug toolbar and profiling
 - 🗄️ **Database Ready** - Powerful query builder with multiple driver support
+- 💾 **Advanced Caching** - Multiple drivers (File, APCu, Redis, Memcached, Array)
 - 📦 **Dependency Injection** - Clean, testable code with DI container
 - 🔒 **Secure** - CSRF protection, validation, and security best practices
 - 📚 **Well Documented** - Extensive documentation and examples
@@ -93,6 +94,25 @@ $users = Database::table('users')
     ->get();
 ```
 
+### Caching
+
+```php
+use Core\Cache;
+
+// Simple cache
+Cache::set('key', 'value', 3600);
+$value = Cache::get('key');
+
+// Remember pattern
+$users = Cache::remember('users', 3600, function () {
+    return Database::table('users')->get();
+});
+
+// Using helpers
+$value = cache('key', 'default');
+cache_remember('key', 3600, fn() => 'value');
+```
+
 ## Development
 
 Start the development server:
@@ -156,9 +176,14 @@ Full documentation is available in the `docs/` directory:
 
 - [Router](docs/Router.md) - Routing and URL generation
 - [Database](docs/Database.md) - Query builder and connections
+- [Cache](docs/Cache.md) - Caching system with multiple drivers
 - [Templates](docs/TemplateEngine.md) - Template system
 - [Debug](docs/README_DEBUG.md) - Debug toolbar and profiling
 - [Request/Response](docs/RequestResponse.md) - HTTP handling
+
+### Quick Start Guides
+
+- [Cache Quick Start](docs/CacheQuickStart.md) - Get started with caching in 5 minutes
 
 ## Testing
 

@@ -27,4 +27,5 @@ ini_set('error_log', LOG_DIR . '/php_errors.log');
     'profiler',     // Performance profiling (timer, memory, benchmark)
     'database',     // Database debugging (query_log, query_stats)
     'context',      // Debug contexts (context_start, context_run)
+    'cache',        // Cache functions (cache, cache_remember, cache_forget)
 ]);
