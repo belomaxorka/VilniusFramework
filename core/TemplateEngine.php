@@ -273,6 +273,44 @@ class TemplateEngine
     }
 
     /**
+     * Обрабатывает неопределённую переменную
+     * Используется в скомпилированных шаблонах
+     */
+    public function handleUndefinedVar(string $varName): mixed
+    {
+        // В строгом режиме выбрасываем исключение
+        if ($this->strictVariables) {
+            throw new \RuntimeException(
+                "Undefined variable '{$varName}' in template."
+            );
+        }
+        
+        // В обычном режиме возвращаем пустую строку
+        return '';
+    }
+
+    /**
+     * Рендерит отладочную информацию
+     */
+    public function renderDebug(mixed $value, string $label = 'debug'): string
+    {
+        ob_start();
+        echo '<div style="background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 4px; padding: 16px; margin: 16px 0; font-family: monospace; font-size: 14px;">';
+        echo '<strong style="color: #495057; display: block; margin-bottom: 8px;">🐛 Debug: ' . htmlspecialchars($label) . '</strong>';
+        echo '<pre style="margin: 0; overflow-x: auto; background: #fff; padding: 12px; border-radius: 4px;">';
+        
+        if (is_array($value) || is_object($value)) {
+            echo htmlspecialchars(print_r($value, true));
+        } else {
+            var_dump($value);
+        }
+        
+        echo '</pre>';
+        echo '</div>';
+        return ob_get_clean();
+    }
+
+    /**
      * Применяет spaceless обработку к HTML
      * Удаляет пробелы между тегами, но сохраняет внутри <pre>, <textarea>, <script>, <style>
      */
@@ -625,6 +663,23 @@ class TemplateEngine
             $content
         );
         
+        // Обрабатываем {% autoescape %} блоки
+        // По умолчанию autoescape включен, но можно явно отключить через {% autoescape false %}
+        $content = preg_replace_callback(
+            '/\{\%\s*autoescape\s+(false|off|no)\s*\%\}(.*?)\{\%\s*endautoescape\s*\%\}/si',
+            function ($matches) {
+                // В этом блоке отключаем автоэкранирование - заменяем {{ }} на {! !}
+                $innerContent = $matches[2];
+                $innerContent = preg_replace('/\{\{(.*?)\}\}/', '{!$1!}', $innerContent);
+                return $innerContent;
+            },
+            $content
+        );
+        
+        // Удаляем теги autoescape для включенного режима (поведение по умолчанию)
+        $content = preg_replace('/\{\%\s*autoescape(?:\s+(?:true|on|yes|html))?\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endautoescape\s*\%\}/', '', $content);
+        
         // Удаляем комментарии {# comment #}
         $content = preg_replace('/\{#.*?#\}/s', '', $content);
 
@@ -704,11 +759,29 @@ class TemplateEngine
             $content
         );
 
+        // Обрабатываем {% debug %} и {% debug variable %}
+        $content = preg_replace_callback(
+            '/\{\%\s*debug(?:\s+([^%]+))?\s*\%\}/',
+            function ($matches) {
+                if (isset($matches[1]) && trim($matches[1])) {
+                    // Debug конкретной переменной
+                    $varName = trim($matches[1]);
+                    $processedVar = $this->processVariable($varName);
+                    return '<?php echo $__tpl->renderDebug(' . $processedVar . ', \'' . addslashes($varName) . '\'); ?>';
+                } else {
+                    // Debug всех переменных
+                    return '<?php echo $__tpl->renderDebug(get_defined_vars(), \'all variables\'); ?>';
+                }
+            },
+            $content
+        );
+
         // Обрабатываем переменные {{ variable }} с поддержкой фильтров
         $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
+            $variableExpr = trim(array_shift($parts));
+            $variable = $this->processVariable($variableExpr);
 
             // Применяем фильтры
             $compiled = $variable;
@@ -723,14 +796,25 @@ class TemplateEngine
                 }
             }
 
-            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
+            // Для строгого режима добавляем проверку существования переменной
+            // Проверяем, простая ли это переменная (вида $name)
+            if (preg_match('/^\$(\w+)$/', $variable, $varMatch)) {
+                $varName = $varMatch[1];
+                $valueExpr = '(isset(' . $variable . ') ? ' . $compiled . ' : $__tpl->handleUndefinedVar(\'' . addslashes($variableExpr) . '\'))';
+            } else {
+                // Для сложных выражений используем ?? ''
+                $valueExpr = '(' . $compiled . ' ?? \'\')';
+            }
+
+            return '<?= htmlspecialchars((string)(' . $valueExpr . '), ENT_QUOTES, \'UTF-8\') ?>';
         }, $content);
 
         // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
         $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
+            $variableExpr = trim(array_shift($parts));
+            $variable = $this->processVariable($variableExpr);
 
             // Применяем фильтры
             $compiled = $variable;
@@ -745,7 +829,15 @@ class TemplateEngine
                 }
             }
 
-            return '<?= ' . $compiled . ' ?? \'\' ?>';
+            // Для строгого режима добавляем проверку существования переменной
+            if (preg_match('/^\$(\w+)$/', $variable, $varMatch)) {
+                $varName = $varMatch[1];
+                $valueExpr = '(isset(' . $variable . ') ? ' . $compiled . ' : $__tpl->handleUndefinedVar(\'' . addslashes($variableExpr) . '\'))';
+            } else {
+                $valueExpr = '(' . $compiled . ' ?? \'\')';
+            }
+
+            return '<?= ' . $valueExpr . ' ?>';
         }, $content);
 
         // Обрабатываем включения {% include 'template.twig' %}
@@ -1663,7 +1755,23 @@ class TemplateEngine
     {
         $var1 = $loopVars[0];
         $var2 = $loopVars[1];
-        $iterable = $this->processVariable($loopVars[2]);
+        
+        // Обрабатываем фильтры в выражении (например, items|batch(3))
+        $iterableExpr = trim($loopVars[2]);
+        $parts = $this->splitByPipe($iterableExpr);
+        $iterable = $this->processVariable(array_shift($parts));
+        
+        // Применяем фильтры
+        foreach ($parts as $filter) {
+            $filter = trim($filter);
+            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                $filterName = $filterMatches[1];
+                $args = $filterMatches[2];
+                $iterable = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $iterable . ($args ? ', ' . $args : '') . ')';
+            } else {
+                $iterable = '$__tpl->applyFilter(\'' . $filter . '\', ' . $iterable . ')';
+            }
+        }
         
         // Генерируем уникальный ID для переменных цикла
         $loopId = uniqid('loop_');
@@ -1727,7 +1835,22 @@ class TemplateEngine
      */
     private function compileForLoop(array $matches): string
     {
-        $iterable = $this->processVariable($matches[3]);
+        // Обрабатываем фильтры в выражении (например, items|batch(3))
+        $iterableExpr = trim($matches[3]);
+        $parts = $this->splitByPipe($iterableExpr);
+        $iterable = $this->processVariable(array_shift($parts));
+        
+        // Применяем фильтры
+        foreach ($parts as $filter) {
+            $filter = trim($filter);
+            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                $filterName = $filterMatches[1];
+                $args = $filterMatches[2];
+                $iterable = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $iterable . ($args ? ', ' . $args : '') . ')';
+            } else {
+                $iterable = '$__tpl->applyFilter(\'' . $filter . '\', ' . $iterable . ')';
+            }
+        }
         
         // Генерируем уникальный ID для переменных цикла
         $loopId = uniqid('loop_');

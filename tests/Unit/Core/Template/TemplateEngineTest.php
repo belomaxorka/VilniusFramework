@@ -829,6 +829,31 @@ test('non-strict mode allows undefined variables', function () {
     expect($result)->toBeString();
 });
 
+test('loop variable is accessible', function () {
+    $templateContent = '{% for item in items %}{! loop.index !}-{! loop.last !};{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/loop_debug.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setCacheEnabled(false);
+    $result = $engine->render('loop_debug.twig', ['items' => ['a', 'b', 'c']]);
+
+    // Должно быть: 1-;2-;3-1; (или 1-false;2-false;3-true;)
+    expect($result)->toContain('1-');
+    expect($result)->toContain('2-');
+    expect($result)->toContain('3-');
+});
+
+test('loop.last works correctly', function () {
+    $templateContent = '{% for item in items %}{{ item }}{% if not loop.last %},{% endif %}{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/loop_last.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setCacheEnabled(false);
+    $result = $engine->render('loop_last.twig', ['items' => [1, 2, 3]]);
+
+    expect(trim($result))->toBe('1,2,3');
+});
+
 test('batch filter splits array into chunks', function () {
     $templateContent = '{% for row in items|batch(3) %}
 {% for item in row %}{{ item }}{% if not loop.last %},{% endif %}{% endfor %}
@@ -836,8 +861,12 @@ test('batch filter splits array into chunks', function () {
     file_put_contents($this->testTemplateDir . '/batch.twig', $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setCacheEnabled(false); // Отключаем кэш для отладки
     $result = $engine->render('batch.twig', ['items' => [1, 2, 3, 4, 5, 6, 7]]);
 
+    // Временно выводим результат для отладки
+    // dump($result);
+    
     expect($result)->toContain('1,2,3');
     expect($result)->toContain('4,5,6');
     expect($result)->toContain('7');
@@ -884,4 +913,145 @@ test('slice filter with negative offset', function () {
     $result = $engine->render('slice_negative.twig', ['text' => 'Hello World']);
 
     expect(trim($result))->toBe('World');
+});
+
+test('spaceless preserves whitespace in pre tags', function () {
+    $templateContent = '{% spaceless %}
+    <div>
+        <pre>
+            Line 1
+            Line 2
+        </pre>
+    </div>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_pre.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_pre.twig');
+
+    expect($result)->toContain('<pre>
+            Line 1
+            Line 2
+        </pre>');
+    expect($result)->toContain('<div><pre>'); // Пробелы между div и pre удалены
+});
+
+test('spaceless preserves whitespace in textarea', function () {
+    $templateContent = '{% spaceless %}
+    <form>
+        <textarea>
+    Some text
+    with    spaces
+        </textarea>
+    </form>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_textarea.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_textarea.twig');
+
+    expect($result)->toContain('<textarea>
+    Some text
+    with    spaces
+        </textarea>');
+});
+
+test('spaceless preserves whitespace in script tags', function () {
+    $templateContent = '{% spaceless %}
+    <div>
+        <script>
+            var x = 1;
+            var y = 2;
+        </script>
+    </div>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_script.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_script.twig');
+
+    expect($result)->toContain('var x = 1;
+            var y = 2;');
+    expect($result)->toContain('<div><script>'); // Пробелы между div и script удалены
+});
+
+test('autoescape escapes HTML by default', function () {
+    $templateContent = '{% autoescape %}
+<div>{{ html }}</div>
+{% endautoescape %}';
+    file_put_contents($this->testTemplateDir . '/autoescape_on.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('autoescape_on.twig', ['html' => '<script>alert("XSS")</script>']);
+
+    expect($result)->toContain('&lt;script&gt;');
+    expect($result)->not->toContain('<script>alert');
+});
+
+test('autoescape can be disabled', function () {
+    $templateContent = '{% autoescape false %}
+<div>{{ html }}</div>
+{% endautoescape %}';
+    file_put_contents($this->testTemplateDir . '/autoescape_off.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('autoescape_off.twig', ['html' => '<strong>Bold</strong>']);
+
+    expect($result)->toContain('<strong>Bold</strong>');
+    expect($result)->not->toContain('&lt;strong&gt;');
+});
+
+test('autoescape works with mixed content', function () {
+    $templateContent = '{{ html }}
+{% autoescape false %}
+{{ html }}
+{% endautoescape %}
+{{ html }}';
+    file_put_contents($this->testTemplateDir . '/autoescape_mixed.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('autoescape_mixed.twig', ['html' => '<b>test</b>']);
+
+    // Первое и последнее вхождение должны быть экранированы
+    $lines = explode("\n", $result);
+    expect($lines[0])->toContain('&lt;b&gt;test&lt;/b&gt;');
+    // Среднее - нет
+    expect($lines[1])->toContain('<b>test</b>');
+    // Последнее - экранировано
+    expect($lines[2])->toContain('&lt;b&gt;test&lt;/b&gt;');
+});
+
+test('debug tag shows variable info', function () {
+    $templateContent = '{% debug user %}';
+    file_put_contents($this->testTemplateDir . '/debug.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('debug.twig', ['user' => ['name' => 'John', 'age' => 30]]);
+
+    expect($result)->toContain('🐛 Debug: user');
+    expect($result)->toContain('John');
+    expect($result)->toContain('30');
+});
+
+test('debug tag without variable shows all variables', function () {
+    $templateContent = '{% debug %}';
+    file_put_contents($this->testTemplateDir . '/debug_all.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('debug_all.twig', ['name' => 'Alice', 'age' => 25]);
+
+    expect($result)->toContain('🐛 Debug: all variables');
+    expect($result)->toContain('Alice');
+    expect($result)->toContain('25');
+});
+
+test('debug tag works with scalars', function () {
+    $templateContent = '{% debug name %}';
+    file_put_contents($this->testTemplateDir . '/debug_scalar.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('debug_scalar.twig', ['name' => 'Test']);
+
+    expect($result)->toContain('🐛 Debug: name');
+    expect($result)->toContain('Test');
 });
