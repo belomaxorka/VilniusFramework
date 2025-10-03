@@ -27,6 +27,14 @@ $app->registerCommands([
     \Core\Console\Commands\MigrateRefreshCommand::class,
     \Core\Console\Commands\MigrateStatusCommand::class,
     \Core\Console\Commands\MakeMigrationCommand::class,
+    
+    // Make commands
+    \Core\Console\Commands\MakeControllerCommand::class,
+    \Core\Console\Commands\MakeModelCommand::class,
+    
+    // Utility commands
+    \Core\Console\Commands\RouteListCommand::class,
+    \Core\Console\Commands\CacheClearCommand::class,
 ]);
 
 // Run application

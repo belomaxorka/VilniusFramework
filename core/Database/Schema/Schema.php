@@ -189,7 +189,8 @@ class Schema
         foreach ($blueprint->getColumns() as $column) {
             $columns[] = self::compileColumn($column);
             
-            if ($column->isPrimary()) {
+            // В SQLite PRIMARY KEY с AUTOINCREMENT добавляется в определение колонки
+            if ($column->isPrimary() && !($driver === 'sqlite' && $column->isAutoIncrement())) {
                 $primaryKeys[] = $column->getName();
             }
         }
@@ -197,6 +198,8 @@ class Schema
         $sql = "CREATE TABLE `{$table}` (\n";
         $sql .= "  " . implode(",\n  ", $columns);
 
+        // Добавляем PRIMARY KEY constraint только если есть ключи
+        // и это не SQLite с auto-increment (там PRIMARY KEY уже в колонке)
         if (!empty($primaryKeys)) {
             $sql .= ",\n  PRIMARY KEY (`" . implode('`, `', $primaryKeys) . "`)";
         }
@@ -267,16 +270,21 @@ class Schema
             $sql .= ' UNSIGNED';
         }
 
-        // Nullable
-        if ($column->isNullable()) {
-            $sql .= ' NULL';
+        // Primary Key (для SQLite с AUTOINCREMENT должен быть ДО AUTOINCREMENT)
+        if ($driver === 'sqlite' && $column->isPrimary() && $column->isAutoIncrement()) {
+            $sql .= ' PRIMARY KEY AUTOINCREMENT';
         } else {
-            $sql .= ' NOT NULL';
-        }
+            // Nullable
+            if ($column->isNullable()) {
+                $sql .= ' NULL';
+            } else {
+                $sql .= ' NOT NULL';
+            }
 
-        // Auto increment
-        if ($column->isAutoIncrement()) {
-            $sql .= $driver === 'sqlite' ? ' AUTOINCREMENT' : ' AUTO_INCREMENT';
+            // Auto increment (для других драйверов)
+            if ($column->isAutoIncrement() && $driver !== 'sqlite') {
+                $sql .= ' AUTO_INCREMENT';
+            }
         }
 
         // Default
