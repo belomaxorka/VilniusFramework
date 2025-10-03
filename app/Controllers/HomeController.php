@@ -3,16 +3,16 @@
 namespace App\Controllers;
 
 use Core\Response;
+use Core\Cache;
 
 class HomeController extends Controller
 {
     public function index(): Response
     {
-        \Core\Cache::set('key', 'value', 3600);
-        $get = \Core\Cache::get('key');
+        Cache::add('title', 'Welcome to Vilnius!', 3600);
 
         $data = [
-            'title' => $get,
+            'title' => Cache::get('title'),
             'message' => 'A modern, lightweight PHP framework',
             'description' => 'Vilnius Framework - A modern, lightweight PHP framework'
         ];
