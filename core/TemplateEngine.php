@@ -91,7 +91,7 @@ class TemplateEngine
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        // Проверяем безопасность пути
+        // Проверяем безопасность пути (быстрая проверка без realpath для производительности)
         $template = $this->sanitizeTemplatePath($template);
         
         $templatePath = $this->templateDir . '/' . $template;
@@ -99,9 +99,6 @@ class TemplateEngine
         if (!file_exists($templatePath)) {
             throw new \InvalidArgumentException("Template not found: {$template}");
         }
-
-        // Проверяем размер файла
-        $this->validateTemplateSize($templatePath);
 
         // Сбрасываем блоки для нового рендеринга
         $this->blocks = [];
@@ -123,6 +120,9 @@ class TemplateEngine
         }
 
         if (!$fromCache) {
+            // Проверяем размер файла только при компиляции (не при взятии из кэша)
+            $this->validateTemplateSize($templatePath);
+            
             // Читаем и компилируем шаблон
             $templateContent = file_get_contents($templatePath);
             $compiledContent = $this->compileTemplate($templateContent, $template);
@@ -139,12 +139,6 @@ class TemplateEngine
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
 
-        // Автоочистка истории при превышении лимита для защиты от утечки памяти
-        if (count(self::$renderedTemplates) >= self::MAX_RENDERED_TEMPLATES) {
-            // Удаляем первую половину массива (FIFO)
-            self::$renderedTemplates = array_slice(self::$renderedTemplates, self::MAX_RENDERED_TEMPLATES / 2);
-        }
-
         self::$renderedTemplates[] = [
             'template' => $template,
             'path' => $templatePath,
@@ -156,6 +150,11 @@ class TemplateEngine
             'from_cache' => $fromCache,
             'timestamp' => microtime(true),
         ];
+
+        // Автоочистка после добавления (проверяем только если превышен лимит)
+        if (count(self::$renderedTemplates) > self::MAX_RENDERED_TEMPLATES) {
+            self::$renderedTemplates = array_slice(self::$renderedTemplates, -self::MAX_RENDERED_TEMPLATES);
+        }
 
         return $output;
     }
@@ -379,8 +378,8 @@ class TemplateEngine
      */
     public function addFilter(string $name, callable $callback, bool $allowOverride = false): self
     {
-        // Защищаем встроенные фильтры от перезаписи
-        if (!$allowOverride && in_array($name, self::PROTECTED_FILTERS, true)) {
+        // Защищаем встроенные фильтры от перезаписи (только если фильтр уже существует)
+        if (!$allowOverride && isset($this->filters[$name]) && in_array($name, self::PROTECTED_FILTERS, true)) {
             throw new \RuntimeException("Cannot override protected filter: {$name}");
         }
         
@@ -471,19 +470,32 @@ class TemplateEngine
      */
     private function executeTemplate(string $compiledContent, array $variables, string $templateName = ''): string
     {
-        // Фильтруем переменные - удаляем зарезервированные имена для защиты от перезаписи
-        $filteredVariables = [];
-        foreach ($variables as $key => $value) {
-            // Проверяем, что имя переменной не зарезервировано
-            if (!in_array($key, self::RESERVED_VARIABLES, true) && !str_starts_with($key, '__')) {
-                $filteredVariables[$key] = $value;
-            } else {
-                // Логируем попытку использования зарезервированного имени
-                Logger::warning("Attempt to use reserved variable name in template: {$key}");
+        // Оптимизация: фильтруем только если есть подозрительные ключи
+        // В большинстве случаев переменные безопасны и фильтрация не нужна
+        $needsFiltering = false;
+        foreach (array_keys($variables) as $key) {
+            if (in_array($key, self::RESERVED_VARIABLES, true) || str_starts_with($key, '__')) {
+                $needsFiltering = true;
+                break;
             }
         }
 
-        extract($filteredVariables, EXTR_SKIP); // EXTR_SKIP - не перезаписывать существующие переменные
+        if ($needsFiltering) {
+            // Фильтруем переменные - удаляем зарезервированные имена
+            $filteredVariables = [];
+            foreach ($variables as $key => $value) {
+                if (!in_array($key, self::RESERVED_VARIABLES, true) && !str_starts_with($key, '__')) {
+                    $filteredVariables[$key] = $value;
+                } else {
+                    // Логируем попытку использования зарезервированного имени
+                    Logger::warning("Attempt to use reserved variable name in template: {$key}");
+                }
+            }
+            extract($filteredVariables, EXTR_SKIP);
+        } else {
+            // Быстрый путь - переменные безопасны
+            extract($variables, EXTR_SKIP);
+        }
 
         // Передаем ссылку на движок шаблонов для доступа к helper-методам
         $__tpl = $this;
@@ -504,18 +516,18 @@ class TemplateEngine
 
                     // Собираем для статистики
                     if (!isset(self::$undefinedVars[$varName])) {
-                        // Автоочистка при превышении лимита для защиты от утечки памяти
-                        if (count(self::$undefinedVars) >= self::MAX_UNDEFINED_VARS) {
-                            // Удаляем первую половину массива (FIFO)
-                            self::$undefinedVars = array_slice(self::$undefinedVars, self::MAX_UNDEFINED_VARS / 2, null, true);
-                        }
-                        
                         self::$undefinedVars[$varName] = [
                             'count' => 0,
                             'message' => $message,
                             'file' => $file,
                             'line' => $line
                         ];
+                        
+                        // Автоочистка после добавления (оптимизация: проверяем только после добавления нового элемента)
+                        if (count(self::$undefinedVars) > self::MAX_UNDEFINED_VARS) {
+                            // Удаляем старые записи, оставляем последние MAX_UNDEFINED_VARS
+                            self::$undefinedVars = array_slice(self::$undefinedVars, -self::MAX_UNDEFINED_VARS, null, true);
+                        }
                     }
                     self::$undefinedVars[$varName]['count']++;
 
@@ -696,7 +708,7 @@ class TemplateEngine
             throw new \InvalidArgumentException("Absolute paths are not allowed in templates: {$path}");
         }
 
-        // Запрещаем path traversal (..)
+        // Запрещаем path traversal (..) - самая важная проверка
         if (str_contains($path, '..')) {
             throw new \InvalidArgumentException("Path traversal is not allowed in templates: {$path}");
         }
@@ -708,19 +720,6 @@ class TemplateEngine
 
         // Нормализуем путь
         $path = str_replace('\\', '/', $path);
-        
-        // Получаем реальный путь и проверяем, что он находится внутри templateDir
-        $fullPath = $this->templateDir . '/' . $path;
-        $realTemplatePath = realpath($fullPath);
-        $realTemplateDir = realpath($this->templateDir);
-
-        // Если файл не существует, realpath вернёт false - это нормально для новых файлов
-        // Но если существует, проверяем что он внутри templateDir
-        if ($realTemplatePath !== false && $realTemplateDir !== false) {
-            if (!str_starts_with($realTemplatePath, $realTemplateDir)) {
-                throw new \InvalidArgumentException("Template path is outside of template directory: {$path}");
-            }
-        }
 
         return $path;
     }
