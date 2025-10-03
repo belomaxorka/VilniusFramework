@@ -1390,15 +1390,20 @@ class TemplateEngine
         // ========================================
         // ОБРАБАТЫВАЕМ ФИЛЬТРЫ (пайпы) В УСЛОВИЯХ
         // ========================================
-        // Разбиваем выражения вида "variable|filter > value" на части и обрабатываем фильтры
+        // Ищем все выражения вида "variable|filter" или "variable|filter(args)|filter2"
+        // Используем более точную регулярку, которая останавливается перед операторами
         $filterProtected = [];
+        
+        // Ищем все переменные с фильтрами (variable|filter или variable|filter|filter2 и т.д.)
+        // Останавливаемся перед: пробелом, операторами сравнения, концом строки, закрывающей скобкой
+        // НЕ захватываем логическое OR (|), только фильтры (|filter_name)
         $condition = preg_replace_callback(
-            '/([a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])*)\s*(\|[^<>=!&|]+)(?=\s*(?:[<>=!&|]|$))/',
+            '/([a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])*)((?:\|[a-zA-Z_][a-zA-Z0-9_]*(?:\([^)]*\))?)+)(?=\s*(?:[<>=!+\-*\/]|\band\b|\bor\b)|$|%|\))/i',
             function ($matches) use (&$filterProtected) {
                 $variable = $matches[1];
                 $filterPart = $matches[2];
                 
-                // Разбираем фильтры
+                // Разбираем фильтры используя splitByPipe
                 $parts = $this->splitByPipe($variable . $filterPart);
                 $varExpr = $this->processVariable(array_shift($parts));
                 
@@ -1959,6 +1964,32 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
 
+        // ========================================
+        // ОБРАБАТЫВАЕМ ФИЛЬТРЫ (как в processCondition)
+        // ========================================
+        $filterProtected = [];
+        $expression = preg_replace_callback(
+            '/([a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])*)((?:\|[a-zA-Z_][a-zA-Z0-9_]*(?:\([^)]*\))?)+)(?=\s*(?:[<>=!+\-*\/~]|\band\b|\bor\b)|$|%|\)|,)/i',
+            function ($matches) use (&$filterProtected) {
+                $variable = $matches[1];
+                $filterPart = $matches[2];
+                
+                // Разбираем фильтры используя splitByPipe
+                $parts = $this->splitByPipe($variable . $filterPart);
+                $varExpr = $this->processVariable(array_shift($parts));
+                
+                // Применяем фильтры
+                $compiled = $this->compileFilters($varExpr, $parts);
+                
+                // Сохраняем скомпилированное выражение
+                $placeholder = '___FILTER_' . count($filterProtected) . '___';
+                $filterProtected[$placeholder] = $compiled;
+                
+                return $placeholder;
+            },
+            $expression
+        );
+
         // Обрабатываем тернарный оператор (condition ? true_value : false_value)
         $ternaryProtected = [];
         $expression = $this->processTernary($expression, $strings, $ternaryProtected);
@@ -2028,7 +2059,7 @@ class TemplateEngine
         }, $expression);
 
         // Оптимизация: объединяем все восстановления в одну операцию strtr()
-        $replacements = $functionProtected + $protected + $arrayLiterals + $ternaryProtected;
+        $replacements = $functionProtected + $protected + $arrayLiterals + $ternaryProtected + $filterProtected;
 
         // Добавляем строки
         foreach ($strings as $index => $string) {

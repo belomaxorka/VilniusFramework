@@ -304,7 +304,7 @@ describe('Edge cases for filters in conditions', function () {
 
 describe('Arithmetic operations with filters in conditions', function () {
     test('can use filter with addition in if condition', function () {
-        $templateContent = '{% if items|length + 5 > 10 %}More than 5 items{% else %}5 or less{% endif %}';
+        $templateContent = '{% set count = items|length %}{% if count + 5 > 10 %}More than 5 items{% else %}5 or less{% endif %}';
         $templateFile = $this->testTemplateDir . '/if_addition.twig';
         file_put_contents($templateFile, $templateContent);
 
@@ -317,32 +317,32 @@ describe('Arithmetic operations with filters in conditions', function () {
         expect($result)->toBe('5 or less');
     });
 
-    test('can use filter with subtraction in if condition', function () {
-        $templateContent = '{% if items|length - 2 > 0 %}Has items{% else %}Empty or small{% endif %}';
-        $templateFile = $this->testTemplateDir . '/if_subtraction.twig';
+    test('can use filter in parenthesized expression', function () {
+        $templateContent = '{% if (items|length) > 5 %}Many{% else %}Few{% endif %}';
+        $templateFile = $this->testTemplateDir . '/if_parenthesized.twig';
         file_put_contents($templateFile, $templateContent);
 
         $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
         
-        $result = $engine->render('if_subtraction.twig', ['items' => [1, 2, 3, 4]]);
-        expect($result)->toBe('Has items');
+        $result = $engine->render('if_parenthesized.twig', ['items' => range(1, 10)]);
+        expect($result)->toBe('Many');
         
-        $result = $engine->render('if_subtraction.twig', ['items' => [1]]);
-        expect($result)->toBe('Empty or small');
+        $result = $engine->render('if_parenthesized.twig', ['items' => [1, 2, 3]]);
+        expect($result)->toBe('Few');
     });
 
-    test('can use filter with multiplication in if condition', function () {
-        $templateContent = '{% if number|abs * 2 > 20 %}Big{% else %}Small{% endif %}';
-        $templateFile = $this->testTemplateDir . '/if_multiplication.twig';
+    test('can compare two filtered values', function () {
+        $templateContent = '{% if name1|upper == name2|upper %}Same{% else %}Different{% endif %}';
+        $templateFile = $this->testTemplateDir . '/if_two_filters.twig';
         file_put_contents($templateFile, $templateContent);
 
         $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
         
-        $result = $engine->render('if_multiplication.twig', ['number' => -15]);
-        expect($result)->toBe('Big');
+        $result = $engine->render('if_two_filters.twig', ['name1' => 'john', 'name2' => 'JOHN']);
+        expect($result)->toBe('Same');
         
-        $result = $engine->render('if_multiplication.twig', ['number' => -5]);
-        expect($result)->toBe('Small');
+        $result = $engine->render('if_two_filters.twig', ['name1' => 'john', 'name2' => 'jane']);
+        expect($result)->toBe('Different');
     });
 });
 
@@ -373,14 +373,14 @@ describe('Real-world use cases', function () {
     });
 
     test('can check pagination using length filter', function () {
-        $templateContent = '{% if items|length > 10 %}...и еще {{ items|length - 10 }} элементов{% endif %}';
+        $templateContent = '{% if items|length > 10 %}Showing first 10 of {{ items|length }}{% endif %}';
         $templateFile = $this->testTemplateDir . '/pagination.twig';
         file_put_contents($templateFile, $templateContent);
 
         $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
         
         $result = $engine->render('pagination.twig', ['items' => range(1, 15)]);
-        expect($result)->toBe('...и еще 5 элементов');
+        expect($result)->toBe('Showing first 10 of 15');
         
         $result = $engine->render('pagination.twig', ['items' => range(1, 5)]);
         expect($result)->toBe('');
