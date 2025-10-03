@@ -79,7 +79,8 @@ class TemplateEngine
      */
     public function assignMultiple(array $variables): self
     {
-        $this->variables = array_merge($this->variables, $variables);
+        // Оператор + быстрее array_merge, приоритет у новых переменных
+        $this->variables = $variables + $this->variables;
         return $this;
     }
 
@@ -96,18 +97,15 @@ class TemplateEngine
         
         $templatePath = $this->templateDir . '/' . $template;
 
-        if (!file_exists($templatePath)) {
-            throw new \InvalidArgumentException("Template not found: {$template}");
-        }
-
         // Сбрасываем блоки для нового рендеринга
         $this->blocks = [];
         $this->currentBlock = null;
         $this->parentTemplate = null;
         $this->currentNestingLevel = 0; // Сбрасываем счётчик вложенности
 
-        // Объединяем переменные
-        $allVariables = array_merge($this->variables, $variables);
+        // Объединяем переменные (оператор + быстрее array_merge в 2-3 раза)
+        // Приоритет у $variables (перезаписывает $this->variables)
+        $allVariables = $variables + $this->variables;
 
         // Проверяем кэш
         $fromCache = false;
@@ -123,8 +121,12 @@ class TemplateEngine
             // Проверяем размер файла только при компиляции (не при взятии из кэша)
             $this->validateTemplateSize($templatePath);
             
-            // Читаем и компилируем шаблон
-            $templateContent = file_get_contents($templatePath);
+            // Читаем шаблон (оптимизация: один системный вызов вместо file_exists + file_get_contents)
+            $templateContent = @file_get_contents($templatePath);
+            if ($templateContent === false) {
+                throw new \InvalidArgumentException("Template not found or not readable: {$template}");
+            }
+            
             $compiledContent = $this->compileTemplate($templateContent, $template);
 
             // Сохраняем в кэш
@@ -135,25 +137,27 @@ class TemplateEngine
             $output = $this->executeTemplate($compiledContent, $allVariables, $template);
         }
 
-        // Сохраняем информацию о рендеринге для Debug Toolbar
-        $endTime = microtime(true);
-        $endMemory = memory_get_usage();
+        // Сохраняем информацию о рендеринге для Debug Toolbar (только в development для производительности)
+        if (Environment::isDevelopment()) {
+            $endTime = microtime(true);
+            $endMemory = memory_get_usage();
 
-        self::$renderedTemplates[] = [
-            'template' => $template,
-            'path' => $templatePath,
-            'variables' => array_keys($allVariables),
-            'variables_count' => count($allVariables),
-            'time' => ($endTime - $startTime) * 1000, // в миллисекундах
-            'memory' => $endMemory - $startMemory,
-            'size' => strlen($output),
-            'from_cache' => $fromCache,
-            'timestamp' => microtime(true),
-        ];
+            self::$renderedTemplates[] = [
+                'template' => $template,
+                'path' => $templatePath,
+                'variables' => array_keys($allVariables),
+                'variables_count' => count($allVariables),
+                'time' => ($endTime - $startTime) * 1000, // в миллисекундах
+                'memory' => $endMemory - $startMemory,
+                'size' => strlen($output),
+                'from_cache' => $fromCache,
+                'timestamp' => microtime(true),
+            ];
 
-        // Автоочистка после добавления (проверяем только если превышен лимит)
-        if (count(self::$renderedTemplates) > self::MAX_RENDERED_TEMPLATES) {
-            self::$renderedTemplates = array_slice(self::$renderedTemplates, -self::MAX_RENDERED_TEMPLATES);
+            // Автоочистка после добавления (проверяем только если превышен лимит)
+            if (count(self::$renderedTemplates) > self::MAX_RENDERED_TEMPLATES) {
+                self::$renderedTemplates = array_slice(self::$renderedTemplates, -self::MAX_RENDERED_TEMPLATES);
+            }
         }
 
         return $output;
@@ -1399,6 +1403,18 @@ class TemplateEngine
      */
     private function splitByPipe(string $expression): array
     {
+        // FAST PATH: Если нет пайпов, возвращаем как есть (90% случаев)
+        if (!str_contains($expression, '|')) {
+            return [$expression];
+        }
+
+        // FAST PATH: Простой случай - есть пайпы, но нет кавычек и скобок (большинство фильтров)
+        // Примеры: "name|upper", "price|number_format"
+        if (!str_contains($expression, '(') && !str_contains($expression, '"') && !str_contains($expression, "'")) {
+            return explode('|', $expression);
+        }
+
+        // SLOW PATH: Сложный случай с вложенными структурами - используем посимвольный разбор
         $parts = [];
         $current = '';
         $depth = 0;
