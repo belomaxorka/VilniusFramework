@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import fs from 'fs';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   root: '.',
@@ -26,6 +27,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    vue(),
     {
       name: 'vite-plugin-hot-file',
       configureServer(server) {

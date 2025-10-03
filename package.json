@@ -6,7 +6,12 @@
     "build": "vite build",
     "watch": "vite build --watch"
   },
+  "dependencies": {
+    "vue": "^3.4.15"
+  },
   "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/compiler-sfc": "^3.4.15",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
