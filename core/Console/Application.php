@@ -152,11 +152,11 @@ class Application
         // Сортируем группы
         ksort($groupedCommands);
 
-        // Сначала выводим команды без группы (general) - без отступа
+        // Сначала выводим команды без группы (general) - отступ в 1 пробел (на уровне заголовков групп)
         if (isset($groupedCommands['general'])) {
             foreach ($groupedCommands['general'] as $commandInfo) {
-                $signature = str_pad($commandInfo['signature'], 25);
-                $this->output->line($this->colorize($signature, 'green') . $commandInfo['description']);
+                $signature = str_pad($commandInfo['signature'], 24);
+                $this->output->line(" " . $this->colorize($signature, 'green') . $commandInfo['description']);
             }
         }
 
