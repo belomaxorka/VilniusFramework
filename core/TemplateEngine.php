@@ -810,8 +810,8 @@ class TemplateEngine
      */
     private function processInOperator(string $condition, array &$inProtected): string
     {
-        // Обрабатываем "not in"
-        $condition = preg_replace_callback('/(\S+)\s+not\s+in\s+(\S+)/', function ($matches) use (&$inProtected) {
+        // Обрабатываем "not in" - поддержка массивов с квадратными скобками
+        $condition = preg_replace_callback('/([^\s]+)\s+not\s+in\s+(\[[^\]]+\]|[^\s]+)/', function ($matches) use (&$inProtected) {
             $needle = trim($matches[1]);
             $haystack = trim($matches[2]);
             
@@ -834,8 +834,8 @@ class TemplateEngine
             return $placeholder;
         }, $condition);
         
-        // Обрабатываем обычный "in"
-        $condition = preg_replace_callback('/(\S+)\s+in\s+(\S+)/', function ($matches) use (&$inProtected) {
+        // Обрабатываем обычный "in" - поддержка массивов с квадратными скобками
+        $condition = preg_replace_callback('/([^\s]+)\s+in\s+(\[[^\]]+\]|[^\s]+)/', function ($matches) use (&$inProtected) {
             $needle = trim($matches[1]);
             $haystack = trim($matches[2]);
             
