@@ -135,20 +135,21 @@ class Logger
             return;
         }
 
-        // Сохраняем в памяти для Debug Toolbar (до интерполяции, чтобы сохранить контекст)
+        // Интерполируем контекст в сообщение
+        $interpolatedMessage = self::interpolate($message, $context);
+
+        // Сохраняем в памяти для Debug Toolbar (с интерполированным сообщением)
         self::$logs[] = [
             'level' => $level,
-            'message' => $message,
+            'message' => $interpolatedMessage,
             'context' => $context,
             'time' => microtime(true),
             'timestamp' => date('Y-m-d H:i:s'),
         ];
 
-        // Добавляем контекст к сообщению
-        $message = self::interpolate($message, $context);
-
+        // Отправляем в handlers
         foreach (self::$handlers as $handler) {
-            $handler->handle($level, $message);
+            $handler->handle($level, $interpolatedMessage);
         }
     }
 

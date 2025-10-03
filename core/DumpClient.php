@@ -206,13 +206,16 @@ class DumpClient
             
             // Логируем через Logger для Debug Toolbar
             if (class_exists('\Core\Logger')) {
-                \Core\Logger::warning('Dump Server unavailable, data logged to file', [
-                    'label' => $label,
-                    'type' => $dataType,
-                    'file' => $relativePath,
-                    'line' => $line,
-                    'log_file' => $logFile,
-                ]);
+                \Core\Logger::warning(
+                    'Dump Server unavailable, data logged to file: label={label}, type={type}, file={file}:{line}, log={log_file}',
+                    [
+                        'label' => $label,
+                        'type' => $dataType,
+                        'file' => $relativePath,
+                        'line' => $line,
+                        'log_file' => $logFile,
+                    ]
+                );
             }
             
             // Опционально: вывод в stderr для CLI
