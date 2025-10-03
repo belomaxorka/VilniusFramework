@@ -748,6 +748,107 @@ class TemplateEngine
     }
 
     /**
+     * Обрабатывает тесты (is defined, is null, is empty, etc.)
+     */
+    private function processTests(string $condition): string
+    {
+        // Обрабатываем "is not" тесты (отрицание)
+        $condition = preg_replace_callback('/(\w+)\s+is\s+not\s+(\w+)/', function ($matches) {
+            $variable = '$' . $matches[1];
+            $test = strtolower($matches[2]);
+            
+            return $this->compileTest($variable, $test, true);
+        }, $condition);
+        
+        // Обрабатываем обычные "is" тесты
+        $condition = preg_replace_callback('/(\w+)\s+is\s+(\w+)/', function ($matches) {
+            $variable = '$' . $matches[1];
+            $test = strtolower($matches[2]);
+            
+            return $this->compileTest($variable, $test, false);
+        }, $condition);
+        
+        return $condition;
+    }
+    
+    /**
+     * Компилирует тест в PHP код
+     */
+    private function compileTest(string $variable, string $test, bool $negate): string
+    {
+        $result = '';
+        
+        switch ($test) {
+            case 'defined':
+                $result = "isset($variable)";
+                break;
+                
+            case 'null':
+                $result = "($variable === null)";
+                break;
+                
+            case 'empty':
+                $result = "empty($variable)";
+                break;
+                
+            case 'even':
+                $result = "($variable % 2 === 0)";
+                break;
+                
+            case 'odd':
+                $result = "($variable % 2 !== 0)";
+                break;
+                
+            case 'iterable':
+                $result = "(is_array($variable) || $variable instanceof \\Traversable)";
+                break;
+                
+            case 'string':
+                $result = "is_string($variable)";
+                break;
+                
+            case 'number':
+            case 'numeric':
+                $result = "is_numeric($variable)";
+                break;
+                
+            case 'integer':
+            case 'int':
+                $result = "is_int($variable)";
+                break;
+                
+            case 'float':
+                $result = "is_float($variable)";
+                break;
+                
+            case 'bool':
+            case 'boolean':
+                $result = "is_bool($variable)";
+                break;
+                
+            case 'array':
+                $result = "is_array($variable)";
+                break;
+                
+            case 'object':
+                $result = "is_object($variable)";
+                break;
+                
+            default:
+                // Неизвестный тест - оставляем как есть
+                $result = "$variable is $test";
+                break;
+        }
+        
+        // Если нужно отрицание
+        if ($negate) {
+            $result = "!($result)";
+        }
+        
+        return $result;
+    }
+
+    /**
      * Обрабатывает условия (для if, elseif, while)
      */
     private function processCondition(string $condition): string
@@ -760,6 +861,9 @@ class TemplateEngine
             $strings[] = $matches[0];
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
+
+        // Обрабатываем тесты (is defined, is null, is empty, etc.) ПЕРЕД обработкой логических операторов
+        $condition = $this->processTests($condition);
 
         // Защищаем логические операторы ДО обработки функций
         $logicalOperators = [];

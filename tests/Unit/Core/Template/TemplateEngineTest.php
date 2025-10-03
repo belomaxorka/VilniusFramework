@@ -341,3 +341,102 @@ test('can use set variable in conditions', function () {
 
     expect($result)->toBe('Admin Panel');
 });
+
+test('test is defined works', function () {
+    $templateContent = '{% if user is defined %}User exists{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_defined.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_defined.twig', ['user' => 'John']);
+
+    expect($result)->toBe('User exists');
+});
+
+test('test is not defined works', function () {
+    $templateContent = '{% if user is not defined %}No user{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_not_defined.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_not_defined.twig', []);
+
+    expect($result)->toBe('No user');
+});
+
+test('test is null works', function () {
+    $templateContent = '{% if value is null %}Value is null{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_null.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_null.twig', ['value' => null]);
+
+    expect($result)->toBe('Value is null');
+});
+
+test('test is empty works', function () {
+    $templateContent = '{% if items is empty %}No items{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_empty.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_empty.twig', ['items' => []]);
+
+    expect($result)->toBe('No items');
+});
+
+test('test is even works', function () {
+    $templateContent = '{% if number is even %}Even{% else %}Odd{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_even.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_even.twig', ['number' => 4]);
+
+    expect($result)->toBe('Even');
+});
+
+test('test is odd works', function () {
+    $templateContent = '{% if number is odd %}Odd{% else %}Even{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_odd.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_odd.twig', ['number' => 5]);
+
+    expect($result)->toBe('Odd');
+});
+
+test('test is string works', function () {
+    $templateContent = '{% if value is string %}String{% else %}Not string{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_string.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_string.twig', ['value' => 'hello']);
+
+    expect($result)->toBe('String');
+});
+
+test('test is number works', function () {
+    $templateContent = '{% if value is number %}Number{% else %}Not number{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_number.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_number.twig', ['value' => 42]);
+
+    expect($result)->toBe('Number');
+});
+
+test('test is array works', function () {
+    $templateContent = '{% if value is array %}Array{% else %}Not array{% endif %}';
+    $templateFile = $this->testTemplateDir . '/test_array.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('test_array.twig', ['value' => [1, 2, 3]]);
+
+    expect($result)->toBe('Array');
+});
