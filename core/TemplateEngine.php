@@ -806,6 +806,60 @@ class TemplateEngine
     }
 
     /**
+     * Обрабатывает операторы starts with / ends with
+     */
+    private function processStartsEndsWith(string $condition, array &$startsEndsProtected): string
+    {
+        // Обрабатываем "starts with"
+        $condition = preg_replace_callback('/(\S+)\s+starts\s+with\s+(\S+)/', function ($matches) use (&$startsEndsProtected) {
+            $haystack = trim($matches[1]);
+            $needle = trim($matches[2]);
+            
+            // Обрабатываем переменные (не трогаем плейсхолдеры ___STRING_N___)
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack) && strpos($haystack, '___') !== 0) {
+                $haystack = '$' . $haystack;
+            }
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle) && strpos($needle, '___') !== 0) {
+                $needle = '$' . $needle;
+            }
+            
+            // Генерируем PHP код (str_starts_with для PHP 8+, substr для совместимости)
+            $code = "(function_exists('str_starts_with') ? str_starts_with($haystack, $needle) : substr($haystack, 0, strlen($needle)) === $needle)";
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___STARTS_' . count($startsEndsProtected) . '___';
+            $startsEndsProtected[$placeholder] = $code;
+            
+            return $placeholder;
+        }, $condition);
+        
+        // Обрабатываем "ends with"
+        $condition = preg_replace_callback('/(\S+)\s+ends\s+with\s+(\S+)/', function ($matches) use (&$startsEndsProtected) {
+            $haystack = trim($matches[1]);
+            $needle = trim($matches[2]);
+            
+            // Обрабатываем переменные (не трогаем плейсхолдеры ___STRING_N___)
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack) && strpos($haystack, '___') !== 0) {
+                $haystack = '$' . $haystack;
+            }
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle) && strpos($needle, '___') !== 0) {
+                $needle = '$' . $needle;
+            }
+            
+            // Генерируем PHP код (str_ends_with для PHP 8+, substr для совместимости)
+            $code = "(function_exists('str_ends_with') ? str_ends_with($haystack, $needle) : substr($haystack, -strlen($needle)) === $needle)";
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___ENDS_' . count($startsEndsProtected) . '___';
+            $startsEndsProtected[$placeholder] = $code;
+            
+            return $placeholder;
+        }, $condition);
+        
+        return $condition;
+    }
+
+    /**
      * Обрабатывает операторы in / not in
      */
     private function processInOperator(string $condition, array &$inProtected): string
@@ -993,6 +1047,10 @@ class TemplateEngine
         // Обрабатываем операторы in / not in
         $inProtected = [];
         $condition = $this->processInOperator($condition, $inProtected);
+        
+        // Обрабатываем операторы starts with / ends with
+        $startsEndsProtected = [];
+        $condition = $this->processStartsEndsWith($condition, $startsEndsProtected);
 
         // Защищаем логические операторы ДО обработки функций
         $logicalOperators = [];
@@ -1084,6 +1142,11 @@ class TemplateEngine
         
         // Восстанавливаем операторы in
         foreach ($inProtected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
+        
+        // Восстанавливаем операторы starts with / ends with
+        foreach ($startsEndsProtected as $placeholder => $value) {
             $condition = str_replace($placeholder, $value, $condition);
         }
 

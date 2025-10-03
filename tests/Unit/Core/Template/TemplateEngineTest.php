@@ -637,3 +637,53 @@ test('range in set works', function () {
 
     expect($result)->toBe('123');
 });
+
+test('starts with operator works', function () {
+    $templateContent = '{% if filename starts with prefix %}Match{% else %}No match{% endif %}';
+    $templateFile = $this->testTemplateDir . '/starts_with.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('starts_with.twig', ['filename' => 'prefix_test.txt', 'prefix' => 'prefix_']);
+    expect($result1)->toBe('Match');
+    
+    $result2 = $engine->render('starts_with.twig', ['filename' => 'test_prefix.txt', 'prefix' => 'prefix_']);
+    expect($result2)->toBe('No match');
+});
+
+test('ends with operator works', function () {
+    $templateContent = '{% if email ends with domain %}Match{% else %}No match{% endif %}';
+    $templateFile = $this->testTemplateDir . '/ends_with.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('ends_with.twig', ['email' => 'user@gmail.com', 'domain' => '@gmail.com']);
+    expect($result1)->toBe('Match');
+    
+    $result2 = $engine->render('ends_with.twig', ['email' => 'user@yahoo.com', 'domain' => '@gmail.com']);
+    expect($result2)->toBe('No match');
+});
+
+test('starts with works with literal strings', function () {
+    $templateContent = '{% set path = "/admin/users" %}{% if path starts with "/admin/" %}Admin area{% endif %}';
+    $templateFile = $this->testTemplateDir . '/starts_with_literal.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('starts_with_literal.twig');
+
+    expect($result)->toBe('Admin area');
+});
+
+test('ends with works with literal strings', function () {
+    $templateContent = '{% set file = "document.pdf" %}{% if file ends with ".pdf" %}PDF file{% endif %}';
+    $templateFile = $this->testTemplateDir . '/ends_with_literal.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('ends_with_literal.twig');
+
+    expect($result)->toBe('PDF file');
+});
