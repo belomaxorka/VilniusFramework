@@ -15,6 +15,7 @@ class TemplateEngine
     private array $filters = [];
     private array $functions = []; // Зарегистрированные функции для использования в шаблонах
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
+    private bool $strictVariables = false; // Строгий режим - ошибка при undefined переменной
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
 
@@ -164,6 +165,16 @@ class TemplateEngine
     }
 
     /**
+     * Включает/выключает строгий режим для переменных
+     * В строгом режиме выбрасывается исключение при обращении к неопределённой переменной
+     */
+    public function setStrictVariables(bool $enabled): self
+    {
+        $this->strictVariables = $enabled;
+        return $this;
+    }
+
+    /**
      * Получить список неопределенных переменных
      */
     public static function getUndefinedVars(): array
@@ -259,6 +270,41 @@ class TemplateEngine
         );
 
         Logger::warning($logMessage);
+    }
+
+    /**
+     * Применяет spaceless обработку к HTML
+     * Удаляет пробелы между тегами, но сохраняет внутри <pre>, <textarea>, <script>, <style>
+     */
+    public function applySpaceless(string $html): string
+    {
+        // Защищаем теги где пробелы важны
+        $preserveTags = ['pre', 'textarea', 'script', 'style'];
+        $protected = [];
+        
+        foreach ($preserveTags as $tag) {
+            $html = preg_replace_callback(
+                '/<' . $tag . '(?:\s[^>]*)?>(.*?)<\/' . $tag . '>/si',
+                function ($matches) use (&$protected) {
+                    $placeholder = '___PRESERVE_' . count($protected) . '___';
+                    $protected[$placeholder] = $matches[0];
+                    return $placeholder;
+                },
+                $html
+            );
+        }
+        
+        // Удаляем пробелы между тегами
+        $html = preg_replace('/>\s+/', '>', $html);
+        $html = preg_replace('/\s+</', '<', $html);
+        $html = trim($html);
+        
+        // Восстанавливаем защищённые теги
+        foreach ($protected as $placeholder => $content) {
+            $html = str_replace($placeholder, $content, $html);
+        }
+        
+        return $html;
     }
 
     /**
@@ -379,6 +425,15 @@ class TemplateEngine
                         ];
                     }
                     self::$undefinedVars[$varName]['count']++;
+
+                    // В строгом режиме выбрасываем исключение
+                    if ($this->strictVariables) {
+                        restore_error_handler();
+                        throw new \RuntimeException(
+                            "Undefined variable '\${$varName}' in template. Available variables: " . 
+                            implode(', ', array_keys($variables))
+                        );
+                    }
 
                     // В development показываем ошибку через ErrorHandler
                     if (Environment::isDevelopment() && error_reporting() & $severity) {
@@ -643,8 +698,8 @@ class TemplateEngine
             '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
             function ($matches) {
                 $innerContent = $matches[1];
-                // Удаляем пробелы между HTML-тегами, после открывающих и перед закрывающими тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php $__spaceless = ob_get_clean(); $__spaceless = preg_replace(\'/>\s+/\', \'>\', $__spaceless); $__spaceless = preg_replace(\'/\s+</\', \'<\', $__spaceless); echo trim($__spaceless); ?>';
+                // Удаляем пробелы между HTML-тегами, но сохраняем внутри <pre>, <textarea>, <script>, <style>
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo $__tpl->applySpaceless(ob_get_clean()); ?>';
             },
             $content
         );
@@ -1815,6 +1870,44 @@ class TemplateEngine
         $this->addFilter('replace', fn($value, $search, $replace) => str_replace($search, $replace, (string)$value));
         $this->addFilter('split', fn($value, $delimiter = ',') => explode($delimiter, (string)$value));
         $this->addFilter('reverse', fn($value) => is_array($value) ? array_reverse($value) : strrev((string)$value));
+        
+        // Фильтр batch - разбивает массив на части (chunks)
+        $this->addFilter('batch', function ($value, $size, $fill = null) {
+            if (!is_array($value)) {
+                return $value;
+            }
+            
+            $size = max(1, (int)$size);
+            $result = array_chunk($value, $size, true);
+            
+            // Если задан fill и последняя группа неполная - дополняем её
+            if ($fill !== null && !empty($result)) {
+                $lastIndex = count($result) - 1;
+                $lastChunk = $result[$lastIndex];
+                
+                if (count($lastChunk) < $size) {
+                    while (count($lastChunk) < $size) {
+                        $lastChunk[] = $fill;
+                    }
+                    $result[$lastIndex] = $lastChunk;
+                }
+            }
+            
+            return $result;
+        });
+        
+        // Фильтр slice - извлекает срез массива или строки
+        $this->addFilter('slice', function ($value, $start, $length = null, $preserveKeys = false) {
+            if (is_array($value)) {
+                return array_slice($value, (int)$start, $length, $preserveKeys);
+            }
+            
+            if (is_string($value)) {
+                return mb_substr($value, (int)$start, $length, 'UTF-8');
+            }
+            
+            return $value;
+        });
 
         // Фильтры для форматирования
         $this->addFilter('date', function ($value, $format = 'Y-m-d H:i:s') {

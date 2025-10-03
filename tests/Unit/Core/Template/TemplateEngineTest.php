@@ -794,3 +794,94 @@ test('multiple verbatim blocks work correctly', function () {
     expect($result)->toContain('{{ block2 }}');
     expect($result)->toContain('<div>WORKS</div>');
 });
+
+test('strict variables mode throws exception on undefined variable', function () {
+    $templateContent = '<div>{{ undefined_var }}</div>';
+    file_put_contents($this->testTemplateDir . '/strict_test.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setStrictVariables(true);
+
+    expect(fn() => $engine->render('strict_test.twig'))
+        ->toThrow(\RuntimeException::class, 'Undefined variable');
+});
+
+test('strict variables mode works with defined variables', function () {
+    $templateContent = '<div>{{ name }}</div>';
+    file_put_contents($this->testTemplateDir . '/strict_defined.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setStrictVariables(true);
+    $result = $engine->render('strict_defined.twig', ['name' => 'John']);
+
+    expect($result)->toContain('<div>John</div>');
+});
+
+test('non-strict mode allows undefined variables', function () {
+    $templateContent = '<div>{{ undefined_var }}</div>';
+    file_put_contents($this->testTemplateDir . '/non_strict.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setStrictVariables(false);
+    
+    // Не должно быть исключения
+    $result = $engine->render('non_strict.twig');
+    expect($result)->toBeString();
+});
+
+test('batch filter splits array into chunks', function () {
+    $templateContent = '{% for row in items|batch(3) %}
+{% for item in row %}{{ item }}{% if not loop.last %},{% endif %}{% endfor %}
+{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/batch.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('batch.twig', ['items' => [1, 2, 3, 4, 5, 6, 7]]);
+
+    expect($result)->toContain('1,2,3');
+    expect($result)->toContain('4,5,6');
+    expect($result)->toContain('7');
+});
+
+test('batch filter with fill parameter', function () {
+    $templateContent = '{% for row in items|batch(3, "X") %}
+{% for item in row %}{{ item }}{% endfor %}|
+{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/batch_fill.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('batch_fill.twig', ['items' => ['A', 'B', 'C', 'D']]);
+
+    expect($result)->toContain('ABC|');
+    expect($result)->toContain('DXX|'); // Дополнено X до размера 3
+});
+
+test('slice filter extracts array slice', function () {
+    $templateContent = '{{ items|slice(1, 3)|join(",") }}';
+    file_put_contents($this->testTemplateDir . '/slice_array.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('slice_array.twig', ['items' => [0, 1, 2, 3, 4, 5]]);
+
+    expect(trim($result))->toBe('1,2,3');
+});
+
+test('slice filter extracts string slice', function () {
+    $templateContent = '{{ text|slice(0, 5) }}';
+    file_put_contents($this->testTemplateDir . '/slice_string.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('slice_string.twig', ['text' => 'Hello World']);
+
+    expect(trim($result))->toBe('Hello');
+});
+
+test('slice filter with negative offset', function () {
+    $templateContent = '{{ text|slice(-5) }}';
+    file_put_contents($this->testTemplateDir . '/slice_negative.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('slice_negative.twig', ['text' => 'Hello World']);
+
+    expect(trim($result))->toBe('World');
+});
