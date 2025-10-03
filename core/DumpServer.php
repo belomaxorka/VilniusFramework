@@ -136,6 +136,7 @@ class DumpServer
         $type = $data['type'] ?? 'dump';
         $label = $data['label'] ?? null;
         $content = $data['content'] ?? '';
+        $dataType = $data['data_type'] ?? 'unknown';
         $file = $data['file'] ?? 'unknown';
         $line = $data['line'] ?? 0;
 
@@ -147,10 +148,16 @@ class DumpServer
             echo "📝 {$label} ";
         }
 
-        echo "📍 " . basename($file) . ":{$line}\n";
+        // Показываем относительный путь (убираем корень проекта)
+        $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
+        $relativePath = str_replace('\\', '/', $relativePath); // Нормализуем слеши
+        echo "📍 {$relativePath}:{$line}\n";
         echo str_repeat('─', 80) . "\n";
 
-        // Контент
+        // Показываем ОРИГИНАЛЬНЫЙ тип данных
+        echo "🔍 Type: {$dataType}\n";
+        echo str_repeat('─', 80) . "\n";
+        
         if (is_string($content)) {
             echo $content . "\n";
         } else {
@@ -158,5 +165,8 @@ class DumpServer
         }
 
         echo "\n";
+        
+        // Принудительный flush для немедленного вывода
+        flush();
     }
 }

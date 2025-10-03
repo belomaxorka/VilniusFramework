@@ -9,6 +9,22 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
+        $user = [
+            'id' => 1,
+            'name' => 'John Doe',
+            'email' => 'john@example.com'
+        ];
+
+        // Отправляет данные на Dump Server!
+        server_dump($user, 'User Data');
+
+        $config = [
+            'app' => 'Vilnius',
+            'version' => '1.0'
+        ];
+
+        server_dump($config, 'Config');
+
         Cache::add('title', 'Welcome to Vilnius!', 3600);
 
         $data = [

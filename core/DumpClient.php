@@ -36,13 +36,39 @@ class DumpClient
             return false;
         }
 
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-        $caller = $backtrace[1] ?? $backtrace[0] ?? [];
+        // Получаем полный backtrace для определения реального caller
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+        
+        // Ищем первый вызов НЕ из helpers и НЕ из DumpClient
+        $caller = null;
+        foreach ($backtrace as $trace) {
+            $file = $trace['file'] ?? '';
+            
+            // Нормализуем путь для сравнения (Windows/Unix)
+            $normalizedFile = str_replace('\\', '/', $file);
+            
+            // Пропускаем DumpClient и все helper файлы
+            if (str_contains($normalizedFile, 'DumpClient.php') || 
+                str_contains($normalizedFile, 'helpers/debug/') ||
+                str_contains($normalizedFile, 'helpers\\debug\\')) {
+                continue;
+            }
+            
+            $caller = $trace;
+            break;
+        }
+        
+        // Fallback на первый элемент если ничего не найдено
+        if (!$caller) {
+            $caller = $backtrace[0] ?? [];
+        }
 
         $payload = [
             'type' => $type,
             'label' => $label,
+            'data_type' => gettype($data), // Сохраняем оригинальный тип
             'content' => self::formatData($data),
+            'raw_data' => is_scalar($data) ? $data : null, // Сохраняем скалярные значения
             'file' => $caller['file'] ?? 'unknown',
             'line' => $caller['line'] ?? 0,
             'timestamp' => microtime(true),
