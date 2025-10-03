@@ -264,6 +264,33 @@ class QueryBuilder
     }
 
     /**
+     * WHERE RAW условие
+     */
+    public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND'): self
+    {
+        $this->wheres[] = [
+            'type' => 'raw',
+            'sql' => $sql,
+            'boolean' => $boolean
+        ];
+
+        $this->bindings['where'] = array_merge(
+            $this->bindings['where'],
+            $bindings
+        );
+
+        return $this;
+    }
+
+    /**
+     * OR WHERE RAW условие
+     */
+    public function orWhereRaw(string $sql, array $bindings = []): self
+    {
+        return $this->whereRaw($sql, $bindings, 'OR');
+    }
+
+    /**
      * Массив WHERE условий
      */
     protected function whereMultiple(array $columns, string $boolean = 'AND'): self
@@ -843,6 +870,10 @@ class QueryBuilder
                 case 'nested':
                     $nestedSql = $this->compileNestedWhere($where['query']);
                     $conditions[] = $boolean . "({$nestedSql})";
+                    break;
+
+                case 'raw':
+                    $conditions[] = $boolean . $where['sql'];
                     break;
             }
         }

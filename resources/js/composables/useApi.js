@@ -47,6 +47,8 @@ export function useApi(baseUrl = '/api') {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', url, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -54,6 +56,7 @@ export function useApi(baseUrl = '/api') {
       data.value = result;
       return result;
     } catch (e) {
+      console.error('💥 API Exception:', url, e);
       error.value = e.message;
       throw e;
     } finally {
@@ -86,6 +89,10 @@ export function useApi(baseUrl = '/api') {
     return request(endpoint, {
       ...options,
       method: 'PUT',
+      headers: {
+        ...options.headers,
+        'X-HTTP-Method-Override': 'PUT',
+      },
       body: JSON.stringify(body),
     });
   };
@@ -94,7 +101,14 @@ export function useApi(baseUrl = '/api') {
    * DELETE request
    */
   const del = (endpoint, options = {}) => {
-    return request(endpoint, { ...options, method: 'DELETE' });
+    return request(endpoint, {
+      ...options,
+      method: 'DELETE',
+      headers: {
+        ...options.headers,
+        'X-HTTP-Method-Override': 'DELETE',
+      },
+    });
   };
 
   /**
@@ -119,7 +133,8 @@ export function useApi(baseUrl = '/api') {
     get,
     post,
     put,
-    delete: del,
+    del,           // Добавляем del
+    delete: del,   // И delete для совместимости
     clearError,
   };
 }

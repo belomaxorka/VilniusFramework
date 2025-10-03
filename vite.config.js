@@ -6,6 +6,11 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   root: '.',
   publicDir: false,
+  resolve: {
+    alias: {
+      vue: 'vue/dist/vue.esm-bundler.js',
+    },
+  },
   build: {
     outDir: 'public/build',
     manifest: true,

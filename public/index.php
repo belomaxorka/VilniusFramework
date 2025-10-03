@@ -57,4 +57,4 @@ if (!$routesLoaded) {
 
 // Let the Magic begin!
 \Core\DebugToolbar::setRouter($router);
-$router->dispatch(Http::getMethod(), Http::getUri());
+$router->dispatch(Http::getActualMethod(), Http::getUri());

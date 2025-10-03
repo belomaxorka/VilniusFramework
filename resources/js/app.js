@@ -5,16 +5,13 @@ import '../css/app.css';
 import { createApp } from 'vue';
 
 // Import components
-import ExampleComponent from './components/ExampleComponent.vue';
-import Counter from './components/Counter.vue';
+import UserDashboard from './components/UserDashboard.vue';
 
 // Create Vue app
-const app = createApp({
-  components: {
-    ExampleComponent,
-    Counter,
-  },
-});
+const app = createApp({});
+
+// Register components globally
+app.component('UserDashboard', UserDashboard);
 
 // Global configuration
 app.config.errorHandler = (err, instance, info) => {
@@ -26,4 +23,4 @@ app.config.errorHandler = (err, instance, info) => {
 // Mount Vue app to #app element
 app.mount('#app');
 
-console.log('Vilnius Framework with Vue 3 Loaded');
+console.log('✅ Vilnius Framework with Vue 3 Loaded');

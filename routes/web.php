@@ -8,13 +8,11 @@
  * будут иметь middleware группу "web".
  */
 
-// Home page
+// Home page - Dashboard
 $router->get('', [\App\Controllers\HomeController::class, 'index'])->name('home');
 
-// Vue example page
-$router->get('/vue-example', function() {
-    return \Core\Response::view('vue-example', [
-        'title' => 'Vue 3 Example',
-        'description' => 'Vue 3 Integration Example',
-    ]);
-})->name('vue.example');
+// API endpoints
+$router->get('/api/users', [\App\Controllers\HomeController::class, 'getUsers'])->name('api.users.index');
+$router->post('/api/users', [\App\Controllers\HomeController::class, 'createUser'])->name('api.users.create');
+$router->put('/api/users/{id}', [\App\Controllers\HomeController::class, 'updateUser'])->name('api.users.update');
+$router->delete('/api/users/{id}', [\App\Controllers\HomeController::class, 'deleteUser'])->name('api.users.delete');

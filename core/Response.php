@@ -334,5 +334,13 @@ class Response
         $content = \Core\TemplateEngine::getInstance()->render($template, $data);
         return $this->html($content, $status, $headers);
     }
+
+    /**
+     * Static view helper
+     */
+    public static function viewResponse(string $template, array $data = [], ?int $status = null, array $headers = []): self
+    {
+        return (new self())->view($template, $data, $status, $headers);
+    }
 }
 

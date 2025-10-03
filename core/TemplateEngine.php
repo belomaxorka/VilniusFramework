@@ -2309,8 +2309,12 @@ class TemplateEngine
         // Фильтры для значений по умолчанию
         $this->addFilter('default', fn($value, $default = '') => empty($value) ? $default : $value);
 
+        // Фильтр raw - отключает экранирование HTML (как в Twig)
+        $this->addFilter('raw', fn($value) => $value);
+        
         // Фильтры для JSON
         $this->addFilter('json', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $this->addFilter('json_encode', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); // Alias
         $this->addFilter('json_decode', fn($value) => json_decode((string)$value, true));
 
         // Фильтры для URL
