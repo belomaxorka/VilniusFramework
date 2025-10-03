@@ -152,15 +152,15 @@ class Application
         // Сортируем группы
         ksort($groupedCommands);
 
-        // Сначала выводим команды без группы (general)
+        // Сначала выводим команды без группы (general) - без отступа
         if (isset($groupedCommands['general'])) {
             foreach ($groupedCommands['general'] as $commandInfo) {
                 $signature = str_pad($commandInfo['signature'], 25);
-                $this->output->line($this->colorize("  {$signature}", 'green') . $commandInfo['description']);
+                $this->output->line($this->colorize($signature, 'green') . $commandInfo['description']);
             }
         }
 
-        // Затем выводим остальные группы
+        // Затем выводим остальные группы с заголовками
         foreach ($groupedCommands as $group => $commands) {
             if ($group === 'general') {
                 continue; // Уже вывели выше
@@ -171,7 +171,7 @@ class Application
 
             foreach ($commands as $commandInfo) {
                 $signature = str_pad($commandInfo['signature'], 25);
-                $this->output->line($this->colorize("  {$signature}", 'green') . $commandInfo['description']);
+                $this->output->line("  " . $this->colorize($commandInfo['signature'], 'green') . str_repeat(' ', 25 - strlen($commandInfo['signature'])) . $commandInfo['description']);
             }
         }
 
