@@ -687,3 +687,64 @@ test('ends with works with literal strings', function () {
 
     expect($result)->toBe('PDF file');
 });
+
+// ===== SPACELESS TESTS =====
+
+test('spaceless removes whitespace between tags', function () {
+    $templateContent = '{% spaceless %}
+    <div>
+        <strong>Hello</strong>
+    </div>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless.twig');
+
+    expect($result)->toBe('<div><strong>Hello</strong></div>');
+});
+
+test('spaceless works with multiple elements', function () {
+    $templateContent = '{% spaceless %}
+    <ul>
+        <li>Item 1</li>
+        <li>Item 2</li>
+        <li>Item 3</li>
+    </ul>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_multi.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_multi.twig');
+
+    expect($result)->toBe('<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>');
+});
+
+test('spaceless preserves text content', function () {
+    $templateContent = '{% spaceless %}
+    <p>
+        This is some text with    spaces
+    </p>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_text.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_text.twig');
+
+    // Внутри тегов пробелы сохраняются, но между тегами - нет
+    expect(trim($result))->toBe('<p>This is some text with    spaces</p>');
+});
+
+test('spaceless works with variables', function () {
+    $templateContent = '{% spaceless %}
+    <div>
+        <span>{{ name }}</span>
+    </div>
+{% endspaceless %}';
+    file_put_contents($this->testTemplateDir . '/spaceless_var.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('spaceless_var.twig', ['name' => 'John']);
+
+    expect($result)->toBe('<div><span>John</span></div>');
+});
