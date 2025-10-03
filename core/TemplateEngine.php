@@ -631,6 +631,7 @@ class TemplateEngine
     {
         $cacheFile = $this->getCacheFilePath($templatePath);
 
+        // Быстрая проверка существования без stat (избегаем warnings)
         if (!file_exists($cacheFile)) {
             return null;
         }
