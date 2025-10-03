@@ -2440,6 +2440,11 @@ class TemplateEngine
             return '<input type="hidden" name="_csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
         });
 
+        // Регистрируем функцию __ для переводов
+        $this->addFunction('__', function (string $key, array $replacements = []) {
+            return \Core\Lang::get($key, $replacements);
+        });
+
         // Регистрируем функцию old (если она существует)
         if (function_exists('old')) {
             $this->addFunction('old', function (string $key, mixed $default = null) {
