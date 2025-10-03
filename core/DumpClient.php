@@ -69,7 +69,7 @@ class DumpClient
             'data_type' => gettype($data), // Сохраняем оригинальный тип
             'content' => self::formatData($data),
             'raw_data' => is_scalar($data) ? $data : null, // Сохраняем скалярные значения
-            'file' => $caller['file'] ?? 'unknown',
+            'file' => normalize_path($caller['file'] ?? 'unknown'),
             'line' => $caller['line'] ?? 0,
             'timestamp' => microtime(true),
         ];
@@ -142,7 +142,7 @@ class DumpClient
             return false;
         }
 
-        $json = json_encode($payload);
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         fwrite($connection, $json);
         fclose($connection);
 
@@ -192,9 +192,12 @@ class DumpClient
             $line = $payload['line'] ?? 0;
             $content = $payload['content'] ?? '';
             
-            // Относительный путь
+            // Относительный путь с нормализацией
             $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
-            $relativePath = str_replace('\\', '/', $relativePath);
+            $relativePath = normalize_path($relativePath);
+            
+            // Нормализуем путь к лог-файлу
+            $normalizedLogFile = normalize_path($logFile);
             
             $logEntry = str_repeat('─', 80) . "\n";
             $logEntry .= "[{$timestamp}] 📝 {$label} | 🔍 Type: {$dataType} | 📍 {$relativePath}:{$line}\n";
@@ -213,7 +216,7 @@ class DumpClient
                         'type' => $dataType,
                         'file' => $relativePath,
                         'line' => $line,
-                        'log_file' => $logFile,
+                        'log_file' => $normalizedLogFile,
                         '_toolbar_message' => 'Dump Server unavailable, data logged to file', // Короткое для toolbar
                     ]
                 );

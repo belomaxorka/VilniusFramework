@@ -174,7 +174,7 @@ class Logger
         foreach ($context as $key => $val) {
             // Преобразуем массивы и объекты в JSON
             if (is_array($val) || is_object($val)) {
-                $val = json_encode($val);
+                $val = json_encode($val, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
             $replace['{' . $key . '}'] = $val;
         }

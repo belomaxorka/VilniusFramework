@@ -117,7 +117,7 @@ class LogsCollector extends AbstractCollector
             // Context
             $html .= '<td style="padding: 10px; text-align: center;">';
             if (!empty($log['context'])) {
-                $contextJson = json_encode($log['context'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                $contextJson = json_encode($log['context'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 $html .= '<details style="cursor: pointer;">';
                 $html .= '<summary style="color: #1976d2; cursor: pointer;">View</summary>';
                 $html .= '<pre style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; text-align: left; font-size: 11px; max-height: 200px; overflow: auto;">';
