@@ -476,3 +476,56 @@ test('for else works with destructuring', function () {
     $result2 = $engine->render('for_else_destruct.twig', ['items' => ['a' => '1', 'b' => '2']]);
     expect($result2)->toBe('a:1,b:2,');
 });
+
+test('ternary operator works with simple values', function () {
+    $templateContent = '{{ isAdmin ? "Admin" : "User" }}';
+    $templateFile = $this->testTemplateDir . '/ternary_simple.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('ternary_simple.twig', ['isAdmin' => true]);
+    expect($result1)->toBe('Admin');
+    
+    $result2 = $engine->render('ternary_simple.twig', ['isAdmin' => false]);
+    expect($result2)->toBe('User');
+});
+
+test('ternary operator works with variables', function () {
+    $templateContent = '{{ user ? user : "Guest" }}';
+    $templateFile = $this->testTemplateDir . '/ternary_var.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('ternary_var.twig', ['user' => 'John']);
+    expect($result1)->toBe('John');
+    
+    $result2 = $engine->render('ternary_var.twig', ['user' => null]);
+    expect($result2)->toBe('Guest');
+});
+
+test('ternary operator works with numbers', function () {
+    $templateContent = '{{ count ? count : 0 }}';
+    $templateFile = $this->testTemplateDir . '/ternary_number.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('ternary_number.twig', ['count' => 5]);
+    expect($result1)->toBe('5');
+    
+    $result2 = $engine->render('ternary_number.twig', ['count' => 0]);
+    expect($result2)->toBe('0');
+});
+
+test('ternary operator works in set', function () {
+    $templateContent = '{% set greeting = isAdmin ? "Welcome Admin" : "Welcome User" %}{{ greeting }}';
+    $templateFile = $this->testTemplateDir . '/ternary_set.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result = $engine->render('ternary_set.twig', ['isAdmin' => true]);
+    expect($result)->toBe('Welcome Admin');
+});

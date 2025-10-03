@@ -1377,6 +1377,79 @@ class TemplateEngine
     }
 
     /**
+     * Обрабатывает тернарный оператор (condition ? true_val : false_val)
+     */
+    private function processTernary(string $expression, array &$strings, array &$ternaryProtected): string
+    {
+        // Ищем тернарные операторы (condition ? true_value : false_value)
+        // Используем нежадный поиск для правильной обработки вложенных тернарников
+        $expression = preg_replace_callback(
+            '/([^?:]+)\s*\?\s*([^:]+)\s*:\s*(.+?)(?=\s*[\),\]]|$)/s',
+            function ($matches) use (&$strings, &$ternaryProtected) {
+                $condition = trim($matches[1]);
+                $trueValue = trim($matches[2]);
+                $falseValue = trim($matches[3]);
+                
+                // Обрабатываем каждую часть
+                $processedCondition = $this->processExpressionPart($condition, $strings);
+                $processedTrue = $this->processExpressionPart($trueValue, $strings);
+                $processedFalse = $this->processExpressionPart($falseValue, $strings);
+                
+                // Создаем PHP тернарник
+                $ternary = '(' . $processedCondition . ' ? ' . $processedTrue . ' : ' . $processedFalse . ')';
+                
+                // Защищаем от дальнейшей обработки
+                $placeholder = '___TERNARY_' . count($ternaryProtected) . '___';
+                $ternaryProtected[$placeholder] = $ternary;
+                
+                return $placeholder;
+            },
+            $expression
+        );
+        
+        return $expression;
+    }
+    
+    /**
+     * Обрабатывает часть выражения для тернарного оператора
+     */
+    private function processExpressionPart(string $part, array &$strings): string
+    {
+        $part = trim($part);
+        
+        // Если это placeholder строки
+        if (preg_match('/^___STRING_(\d+)___$/', $part, $match)) {
+            return $strings[(int)$match[1]];
+        }
+        
+        // Если это число
+        if (is_numeric($part)) {
+            return $part;
+        }
+        
+        // Если это boolean или null
+        if (in_array(strtolower($part), ['true', 'false', 'null'])) {
+            return strtolower($part);
+        }
+        
+        // Если это простая переменная
+        if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $part)) {
+            return '$' . $part;
+        }
+        
+        // Для сложных выражений (с точками, скобками и т.д.)
+        // просто добавляем $ перед переменными
+        $part = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($m) {
+            if (in_array(strtolower($m[1]), ['true', 'false', 'null'])) {
+                return $m[1];
+            }
+            return '$' . $m[1];
+        }, $part);
+        
+        return $part;
+    }
+
+    /**
      * Обрабатывает выражения (для set, условий, вычислений)
      */
     private function processExpression(string $expression): string
@@ -1389,6 +1462,10 @@ class TemplateEngine
             $strings[] = $matches[0];
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
+        
+        // Обрабатываем тернарный оператор (condition ? true_value : false_value)
+        $ternaryProtected = [];
+        $expression = $this->processTernary($expression, $strings, $ternaryProtected);
         
         // Обрабатываем оператор конкатенации ~ (как в Twig)
         $expression = str_replace('~', '.', $expression);
@@ -1469,6 +1546,11 @@ class TemplateEngine
         
         // Восстанавливаем массивы-литералы
         foreach ($arrayLiterals as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
+        
+        // Восстанавливаем тернарные операторы
+        foreach ($ternaryProtected as $placeholder => $value) {
             $expression = str_replace($placeholder, $value, $expression);
         }
         
