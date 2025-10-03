@@ -5,7 +5,6 @@
 npm-debug.log
 yarn-error.log
 *.phar
-*.sqlite
 *.lock
 package-lock.json
 Thumbs.db
@@ -13,6 +12,7 @@ Thumbs.db
 .env
 vendor/
 node_modules/
+storage/database.sqlite
 storage/cache/templates
 storage/cache/*.php
 storage/cache/data/
