@@ -135,17 +135,24 @@ class Logger
             return;
         }
 
-        // Интерполируем контекст в сообщение
-        $interpolatedMessage = self::interpolate($message, $context);
+        // Для Debug Toolbar используем короткое сообщение если указано
+        $toolbarMessage = $context['_toolbar_message'] ?? $message;
+        
+        // Убираем служебное поле из контекста
+        $cleanContext = $context;
+        unset($cleanContext['_toolbar_message']);
 
-        // Сохраняем в памяти для Debug Toolbar (с интерполированным сообщением)
+        // Сохраняем в памяти для Debug Toolbar
         self::$logs[] = [
             'level' => $level,
-            'message' => $interpolatedMessage,
-            'context' => $context,
+            'message' => $toolbarMessage, // Короткое сообщение без плейсхолдеров
+            'context' => $cleanContext,
             'time' => microtime(true),
             'timestamp' => date('Y-m-d H:i:s'),
         ];
+
+        // Интерполируем для файловых handlers (полное сообщение)
+        $interpolatedMessage = self::interpolate($message, $cleanContext);
 
         // Отправляем в handlers
         foreach (self::$handlers as $handler) {

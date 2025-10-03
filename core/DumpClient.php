@@ -201,10 +201,10 @@ class DumpClient
             $logEntry .= str_repeat('─', 80) . "\n";
             $logEntry .= $content . "\n\n";
             
-            // Записываем в файл
+            // Записываем в файл dumps.log
             file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
             
-            // Логируем через Logger для Debug Toolbar
+            // Логируем через Logger для Debug Toolbar и app.log
             if (class_exists('\Core\Logger')) {
                 \Core\Logger::warning(
                     'Dump Server unavailable, data logged to file: label={label}, type={type}, file={file}:{line}, log={log_file}',
@@ -214,6 +214,7 @@ class DumpClient
                         'file' => $relativePath,
                         'line' => $line,
                         'log_file' => $logFile,
+                        '_toolbar_message' => 'Dump Server unavailable, data logged to file', // Короткое для toolbar
                     ]
                 );
             }

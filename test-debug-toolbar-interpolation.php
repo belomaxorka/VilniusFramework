@@ -147,39 +147,44 @@ require_once __DIR__ . '/core/bootstrap.php';
             <strong>Шаг 3:</strong> Найдите записи уровня <code>[WARNING]</code>
         </div>
 
-        <h2>✅ Правильный вывод (должен быть так):</h2>
+        <h2>✅ В Debug Toolbar (должно быть так):</h2>
         
         <div class="check-item">
-            <code>[WARNING] Dump Server unavailable, data logged to file: label=<strong>User Data</strong>, type=<strong>array</strong>, file=<strong>test-debug-toolbar-interpolation.php:68</strong>, log=storage/logs/dumps.log</code>
+            <strong>Сообщение:</strong><br>
+            <code>[WARNING] Dump Server unavailable, data logged to file</code>
         </div>
         
         <div class="check-item">
-            <code>[WARNING] Dump Server unavailable, data logged to file: label=<strong>App Config</strong>, type=<strong>array</strong>, file=<strong>test-debug-toolbar-interpolation.php:76</strong>, log=storage/logs/dumps.log</code>
-        </div>
-        
-        <div class="check-item">
-            <code>[WARNING] Dump Server unavailable, data logged to file: label=<strong>Posts Array</strong>, type=<strong>array</strong>, file=<strong>test-debug-toolbar-interpolation.php:84</strong>, log=storage/logs/dumps.log</code>
+            <strong>Контекст (развернуть запись):</strong><br>
+            <code>
+            label: User Data<br>
+            type: array<br>
+            file: test-debug-toolbar-interpolation.php<br>
+            line: 68<br>
+            log_file: storage/logs/dumps.log
+            </code>
         </div>
 
-        <h2>❌ Неправильный вывод (НЕ должно быть так):</h2>
+        <h2>✅ В app.log (должно быть так):</h2>
         
-        <div class="wrong-item">
-            <code>[WARNING] Dump Server unavailable, data logged to file: label=<strong>{label}</strong>, type=<strong>{type}</strong>, file=<strong>{file}:{line}</strong>, log=<strong>{log_file}</strong></code>
+        <div class="check-item">
+            <code>[2025-10-03 13:30:00] [WARNING] Dump Server unavailable, data logged to file: label=<strong>User Data</strong>, type=<strong>array</strong>, file=<strong>test-debug-toolbar-interpolation.php:68</strong>, log=storage/logs/dumps.log</code>
         </div>
-        
+
         <div class="info-box">
-            <strong>💡 Подсказка:</strong><br>
-            Если вы видите <code>{label}</code>, <code>{type}</code> и т.д. - значит интерполяция не работает.<br>
-            Должны быть <strong>реальные значения</strong>: <code>User Data</code>, <code>array</code>, <code>test-debug-toolbar-interpolation.php:68</code>
+            <strong>💡 Итого:</strong><br>
+            • <strong>Debug Toolbar</strong>: короткое сообщение + контекст отдельно (без плейсхолдеров)<br>
+            • <strong>Файловый лог</strong>: полное сообщение с интерполированными значениями<br>
+            • Лучшее из двух миров! 🎉
         </div>
 
         <h2>🎯 Что проверяем</h2>
         
         <ul>
-            <li>✅ Плейсхолдеры <code>{label}</code>, <code>{type}</code> заменены на реальные значения</li>
-            <li>✅ Каждая запись имеет уникальные данные (User Data, App Config, Posts Array)</li>
-            <li>✅ Номера строк правильные и разные</li>
-            <li>✅ Контекст также доступен отдельно (развернуть запись)</li>
+            <li>✅ Debug Toolbar: сообщение <strong>БЕЗ</strong> <code>{label}</code>, <code>{type}</code></li>
+            <li>✅ Debug Toolbar: контекст отдельно с реальными значениями</li>
+            <li>✅ app.log: полное интерполированное сообщение в одной строке</li>
+            <li>✅ Каждая запись имеет уникальные данные</li>
         </ul>
 
         <div class="success-box">
