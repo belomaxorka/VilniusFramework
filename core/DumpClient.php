@@ -74,7 +74,15 @@ class DumpClient
             'timestamp' => microtime(true),
         ];
 
-        return self::sendToServer($payload);
+        // Пытаемся отправить на сервер
+        $sent = self::sendToServer($payload);
+        
+        // Если не удалось - логируем в файл
+        if (!$sent) {
+            self::logToFile($payload);
+        }
+        
+        return $sent;
     }
 
     /**
@@ -160,5 +168,51 @@ class DumpClient
         }
 
         return print_r($data, true);
+    }
+
+    /**
+     * Логировать в файл (fallback если сервер недоступен)
+     */
+    private static function logToFile(array $payload): void
+    {
+        try {
+            $logDir = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs' : __DIR__ . '/../../storage/logs';
+            $logFile = $logDir . '/dumps.log';
+            
+            // Создаём директорию если её нет
+            if (!is_dir($logDir)) {
+                mkdir($logDir, 0755, true);
+            }
+            
+            // Форматируем вывод
+            $timestamp = date('Y-m-d H:i:s');
+            $label = $payload['label'] ?? 'No label';
+            $dataType = $payload['data_type'] ?? 'unknown';
+            $file = $payload['file'] ?? 'unknown';
+            $line = $payload['line'] ?? 0;
+            $content = $payload['content'] ?? '';
+            
+            // Относительный путь
+            $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
+            $relativePath = str_replace('\\', '/', $relativePath);
+            
+            $logEntry = str_repeat('─', 80) . "\n";
+            $logEntry .= "[{$timestamp}] 📝 {$label} | 🔍 Type: {$dataType} | 📍 {$relativePath}:{$line}\n";
+            $logEntry .= str_repeat('─', 80) . "\n";
+            $logEntry .= $content . "\n\n";
+            
+            // Записываем в файл
+            file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+            
+            // Опционально: вывод в stderr для CLI
+            if (php_sapi_name() === 'cli') {
+                fwrite(STDERR, "⚠️  Dump Server unavailable, logged to: {$logFile}\n");
+            }
+            
+        } catch (\Throwable $e) {
+            // Тихо игнорируем ошибки логирования
+            // Можно раскомментировать для отладки:
+            // error_log("DumpClient::logToFile failed: " . $e->getMessage());
+        }
     }
 }

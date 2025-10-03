@@ -38,6 +38,7 @@ $app->registerCommands([
     \Core\Console\Commands\RouteClearCommand::class,
     \Core\Console\Commands\CacheClearCommand::class,
     \Core\Console\Commands\DumpServerCommand::class,
+    \Core\Console\Commands\DumpLogCommand::class,
 ]);
 
 // Run application

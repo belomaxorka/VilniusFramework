@@ -138,10 +138,13 @@ php vilnius cache:clear     # Clear all cache
 
 # Debug
 php vilnius dump-server     # Start dump server
+php vilnius dump:log        # View fallback logs
 
 # View all commands
 php vilnius list
 ```
+
+**💡 Tip:** If dump server is unavailable, data is automatically logged to `storage/logs/dumps.log`
 
 Migration example:
 ```php

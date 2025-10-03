@@ -125,7 +125,23 @@ php vilnius dump-server
 php vilnius dump-server --host=127.0.0.1 --port=9912
 ```
 
-Запускает сервер для приема debug dumps (из `dd()`, `dump()`).
+Запускает сервер для приема debug dumps (из `server_dump()`).
+
+**⚠️ Fallback:** Если сервер недоступен, данные логируются в `storage/logs/dumps.log`
+
+### Dump Logs
+```bash
+# Просмотреть логи
+php vilnius dump:log
+
+# Последние 10 записей
+php vilnius dump:log --tail=10
+
+# Очистить логи
+php vilnius dump:log --clear
+```
+
+Просмотр fallback логов когда dump server был недоступен.
 
 ---
 
@@ -282,6 +298,7 @@ alias vrl='php vilnius route:list'
 │                                                      │
 │ DEBUG & OTHER                                       │
 │  dump-server         Start dump server              │
+│  dump:log            View dump fallback logs        │
 │  list                Show all commands              │
 └─────────────────────────────────────────────────────┘
 ```
