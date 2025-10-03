@@ -5,13 +5,13 @@ import '../css/app.css';
 import { createApp } from 'vue';
 
 // Import components
-import UserDashboard from './components/UserDashboard.vue';
+import WelcomeCounter from './components/WelcomeCounter.vue';
 
 // Create Vue app
 const app = createApp({});
 
 // Register components globally
-app.component('UserDashboard', UserDashboard);
+app.component('WelcomeCounter', WelcomeCounter);
 
 // Global configuration
 app.config.errorHandler = (err, instance, info) => {
