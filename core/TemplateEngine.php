@@ -483,9 +483,11 @@ class TemplateEngine
             // Читаем родительский шаблон
             $parentPath = $this->templateDir . '/' . $parentTemplate;
             if (file_exists($parentPath)) {
-                $parentContent = file_get_contents($parentPath);
-                // Компилируем родительский шаблон с заменой блоков
-                return $this->compileWithBlocks($parentContent, $childBlocks, $parentTemplate);
+                $parentContent = @file_get_contents($parentPath);
+                if ($parentContent !== false) {
+                    // Компилируем родительский шаблон с заменой блоков
+                    return $this->compileWithBlocks($parentContent, $childBlocks, $parentTemplate);
+                }
             }
         }
 
@@ -917,8 +919,10 @@ class TemplateEngine
             // Читаем прародительский шаблон
             $grandparentPath = $this->templateDir . '/' . $grandparentTemplate;
             if (file_exists($grandparentPath)) {
-                $grandparentContent = file_get_contents($grandparentPath);
-                return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
+                $grandparentContent = @file_get_contents($grandparentPath);
+                if ($grandparentContent !== false) {
+                    return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
+                }
             }
         }
 
