@@ -8,8 +8,10 @@ A modern, lightweight PHP framework built for speed and developer experience.
 - 🎨 **Modern UI** - Built-in Tailwind CSS support
 - 🛠️ **Developer Tools** - Comprehensive debug toolbar and profiling
 - 🗄️ **Database Ready** - Powerful query builder with multiple driver support
+- 🔄 **Database Migrations** - Version control for your database schema
 - 💾 **Advanced Caching** - Multiple drivers (File, APCu, Redis, Memcached, Array)
 - 📦 **Dependency Injection** - Clean, testable code with DI container
+- ⚙️ **Console (CLI)** - Powerful command-line interface for common tasks
 - 🔒 **Secure** - CSRF protection, validation, and security best practices
 - 📚 **Well Documented** - Extensive documentation and examples
 
@@ -113,6 +115,34 @@ $value = cache('key', 'default');
 cache_remember('key', 3600, fn() => 'value');
 ```
 
+### Migrations
+
+```bash
+# Create a migration
+php vilnius make:migration create_users_table
+
+# Run migrations
+php vilnius migrate
+
+# Rollback migrations
+php vilnius migrate:rollback
+
+# Check migration status
+php vilnius migrate:status
+```
+
+Migration example:
+```php
+use Core\Database\Schema\Schema;
+
+Schema::create('users', function ($table) {
+    $table->id();
+    $table->string('email')->unique();
+    $table->string('password');
+    $table->timestamps();
+});
+```
+
 ## Development
 
 Start the development server:
@@ -176,6 +206,7 @@ Full documentation is available in the `docs/` directory:
 
 - [Router](docs/Router.md) - Routing and URL generation
 - [Database](docs/Database.md) - Query builder and connections
+- [Migrations & Console](docs/Console.md) - Database migrations and CLI commands
 - [Cache](docs/Cache.md) - Caching system with multiple drivers
 - [Templates](docs/TemplateEngine.md) - Template system
 - [Debug](docs/README_DEBUG.md) - Debug toolbar and profiling
@@ -184,6 +215,7 @@ Full documentation is available in the `docs/` directory:
 ### Quick Start Guides
 
 - [Cache Quick Start](docs/CacheQuickStart.md) - Get started with caching in 5 minutes
+- [Migrations Quick Start](docs/MigrationsQuickStart.md) - Database migrations in 5 minutes
 
 ## Testing
 
