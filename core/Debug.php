@@ -100,6 +100,89 @@ class Debug
     }
 
     /**
+     * Dump and die - дебаг переменной с остановкой выполнения
+     */
+    public static function dd(mixed $var, ?string $label = null): never
+    {
+        self::dump($var, $label, true);
+        exit(1);
+    }
+
+    /**
+     * Pretty dump and die - красивый дебаг с остановкой выполнения
+     */
+    public static function ddPretty(mixed $var, ?string $label = null): never
+    {
+        self::dumpPretty($var, $label, true);
+        exit(1);
+    }
+
+    /**
+     * Вывести backtrace (стек вызовов)
+     */
+    public static function trace(?string $label = null): void
+    {
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        
+        // Убираем первый элемент (сам вызов trace)
+        array_shift($backtrace);
+        
+        // Формируем текстовую версию для логов
+        $rawText = "Backtrace:\n";
+        foreach ($backtrace as $index => $trace) {
+            $file = $trace['file'] ?? 'unknown';
+            $line = $trace['line'] ?? 0;
+            $function = $trace['function'] ?? 'unknown';
+            $class = $trace['class'] ?? '';
+            $type = $trace['type'] ?? '';
+            $rawText .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
+        }
+        
+        // Формируем HTML для браузера
+        
+        $output = '<div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; margin: 10px; border-radius: 5px; font-family: monospace; font-size: 13px;">';
+        
+        if ($label) {
+            $output .= '<div style="color: #4ec9b0; font-weight: bold; margin-bottom: 10px;">📍 ' . htmlspecialchars($label) . '</div>';
+        } else {
+            $output .= '<div style="color: #4ec9b0; font-weight: bold; margin-bottom: 10px;">📍 Stack Trace</div>';
+        }
+        
+        $output .= '<div style="background: #252526; padding: 10px; border-radius: 3px; max-height: 400px; overflow-y: auto;">';
+        
+        foreach ($backtrace as $index => $trace) {
+            $file = $trace['file'] ?? 'unknown';
+            $line = $trace['line'] ?? 0;
+            $function = $trace['function'] ?? 'unknown';
+            $class = $trace['class'] ?? '';
+            $type = $trace['type'] ?? '';
+            
+            $output .= '<div style="margin-bottom: 8px; padding: 8px; background: #2d2d30; border-left: 3px solid #007acc; border-radius: 3px;">';
+            $output .= '<div style="color: #ce9178;">#' . $index . '</div>';
+            
+            if ($class) {
+                $output .= '<div style="color: #4ec9b0; margin-top: 4px;">';
+                $output .= htmlspecialchars($class) . '<span style="color: #d4d4d4;">' . htmlspecialchars($type) . '</span>';
+                $output .= '<span style="color: #dcdcaa;">' . htmlspecialchars($function) . '</span><span style="color: #d4d4d4;">()</span>';
+                $output .= '</div>';
+            } else {
+                $output .= '<div style="color: #dcdcaa; margin-top: 4px;">' . htmlspecialchars($function) . '<span style="color: #d4d4d4;">()</span></div>';
+            }
+            
+            $output .= '<div style="color: #808080; font-size: 11px; margin-top: 4px;">';
+            $output .= htmlspecialchars($file) . '<span style="color: #569cd6;">:' . $line . '</span>';
+            $output .= '</div>';
+            $output .= '</div>';
+        }
+        
+        $output .= '</div>';
+        $output .= '</div>';
+        
+        // Используем универсальный addOutput - он сам решит, куда отправить
+        self::addOutput($output, 'trace', $label, $rawText);
+    }
+
+    /**
      * Собрать данные для дебага без вывода
      */
     public static function collect(mixed $var, ?string $label = null): void
@@ -147,13 +230,20 @@ class Debug
         }
 
         $output .= '</div>';
-
-        // Когда debug включен - отправляем в toolbar, иначе в логи
-        if (Environment::isDebug()) {
-            self::addOutput($output);
-        } else {
-            Logger::debug($output);
+        
+        // Формируем текстовую версию для логов
+        $rawText = "Debug Collection:\n";
+        foreach (self::$debugData as $index => $item) {
+            $rawText .= "#" . ($index + 1);
+            if ($item['label']) {
+                $rawText .= " [{$item['label']}]";
+            }
+            $rawText .= " ({$item['file']}:{$item['line']})\n";
+            $rawText .= self::varToString($item['data']) . "\n\n";
         }
+
+        // Используем универсальный addOutput
+        self::addOutput($output, 'dump_all', 'Debug Collection', $rawText);
 
         if ($die) {
             self::flush();
@@ -178,16 +268,27 @@ class Debug
     }
 
     /**
-     * Добавить вывод в буфер напрямую
+     * Добавить вывод в буфер или залогировать
+     * 
+     * @param string $output HTML вывод для браузера
+     * @param string $type Тип вывода (dump, trace, collect, etc.)
+     * @param string|null $label Метка для логирования
+     * @param string|null $rawText Текстовая версия для логов
      */
-    public static function addOutput(string $output): void
+    public static function addOutput(string $output, string $type = 'custom', ?string $label = null, ?string $rawText = null): void
     {
         if (!Environment::isDebug()) {
+            // В продакшене логируем
+            if ($rawText !== null) {
+                $logOutput = $label ? "[{$label}] {$rawText}" : $rawText;
+                Logger::debug($logOutput);
+            }
             return;
         }
 
+        // В debug режиме добавляем в буфер для вывода
         self::$debugOutput[] = [
-            'type' => 'custom',
+            'type' => $type,
             'output' => $output,
             'die' => false
         ];

@@ -149,8 +149,7 @@ class DumpServer
         }
 
         // Показываем относительный путь (убираем корень проекта) и нормализуем
-        $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
-        $relativePath = normalize_path($relativePath);
+        $relativePath = \Core\Path::relative($file);
         echo "📍 {$relativePath}:{$line}\n";
         echo str_repeat('─', 80) . "\n";
 

@@ -2,6 +2,7 @@
 
 namespace Core\Cache;
 
+use Core\Environment;
 use DateInterval;
 
 abstract class AbstractCacheDriver implements CacheDriverInterface
@@ -27,20 +28,10 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
         'operations' => [],
     ];
 
-    /**
-     * Включено ли логирование для debug toolbar
-     */
-    protected bool $debugEnabled = false;
-
     public function __construct(array $config = [])
     {
         $this->prefix = $config['prefix'] ?? '';
         $this->defaultTtl = $config['ttl'] ?? null;
-        
-        // Включаем debug только если установлен APP_DEBUG
-        if (defined('ROOT') && function_exists('env')) {
-            $this->debugEnabled = env('APP_DEBUG', false);
-        }
     }
 
     /**
@@ -211,7 +202,7 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
      */
     protected function logGet(string $key, bool $hit, mixed $value = null, float $startTime = 0.0): void
     {
-        if (!$this->debugEnabled) {
+        if (!Environment::isDebug()) {
             return;
         }
 
@@ -251,7 +242,7 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
      */
     protected function logSet(string $key, mixed $value = null, float $startTime = 0.0): void
     {
-        if (!$this->debugEnabled) {
+        if (!Environment::isDebug()) {
             return;
         }
 
@@ -276,7 +267,7 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
      */
     protected function logDelete(string $key, float $startTime = 0.0): void
     {
-        if (!$this->debugEnabled) {
+        if (!Environment::isDebug()) {
             return;
         }
 

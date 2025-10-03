@@ -9,6 +9,8 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
+        \Core\Debug::dump('test', 'test');
+        \Core\Debug::trace('Test');
         Cache::add('title', 'Welcome to Vilnius!', 3600);
 
         $data = [

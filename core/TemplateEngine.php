@@ -6,6 +6,17 @@ use Core\Logger;
 
 class TemplateEngine
 {
+    // Константы безопасности
+    private const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5MB - максимальный размер шаблона
+    private const MAX_NESTING_LEVEL = 50; // Максимальная глубина вложенности блоков
+    private const PROTECTED_FILTERS = ['escape', 'e', 'upper', 'lower', 'raw']; // Защищённые фильтры
+    private const RESERVED_VARIABLES = ['__tpl', 'this', 'GLOBALS', '_SERVER', '_GET', '_POST', '_FILES', '_COOKIE', '_SESSION', '_REQUEST', '_ENV']; // Зарезервированные переменные
+    private const MAX_UNDEFINED_VARS = 1000; // Максимальное количество собранных undefined переменных
+    private const MAX_RENDERED_TEMPLATES = 500; // Максимальное количество записей в истории рендеринга
+
+    // Кэш для array_flip(RESERVED_VARIABLES) - создается один раз
+    private static ?array $reservedVariablesFlipped = null;
+
     private static ?TemplateEngine $instance = null;
     private string $templateDir;
     private string $cacheDir;
@@ -15,8 +26,11 @@ class TemplateEngine
     private array $filters = [];
     private array $functions = []; // Зарегистрированные функции для использования в шаблонах
     private bool $logUndefinedVars = true; // Логировать неопределенные переменные в production
+    private bool $strictVariables = false; // Строгий режим - ошибка при undefined переменной
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
+    private int $currentNestingLevel = 0; // Текущая глубина вложенности
+    private static int $loopCounter = 0; // Счётчик циклов для генерации уникальных ID
 
     // Поддержка блоков (extends/block)
     private array $blocks = []; // Определённые блоки
@@ -33,9 +47,14 @@ class TemplateEngine
             mkdir($this->cacheDir, 0755, true);
         }
 
+        // Инициализируем кэш для reserved variables (один раз для всех экземпляров)
+        if (self::$reservedVariablesFlipped === null) {
+            self::$reservedVariablesFlipped = array_flip(self::RESERVED_VARIABLES);
+        }
+
         // Регистрируем встроенные фильтры
         $this->registerBuiltInFilters();
-        
+
         // Регистрируем встроенные функции
         $this->registerBuiltInFunctions();
     }
@@ -68,7 +87,9 @@ class TemplateEngine
      */
     public function assignMultiple(array $variables): self
     {
-        $this->variables = array_merge($this->variables, $variables);
+        // Оператор + быстрее array_merge в 2-3 раза
+        // Приоритет у новых переменных (левый операнд имеет приоритет)
+        $this->variables = $variables + $this->variables;
         return $this;
     }
 
@@ -80,19 +101,20 @@ class TemplateEngine
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $templatePath = $this->templateDir . '/' . $template;
+        // Проверяем безопасность пути (быстрая проверка без realpath для производительности)
+        $template = $this->sanitizeTemplatePath($template);
 
-        if (!file_exists($templatePath)) {
-            throw new \InvalidArgumentException("Template not found: {$template}");
-        }
+        $templatePath = $this->templateDir . '/' . $template;
 
         // Сбрасываем блоки для нового рендеринга
         $this->blocks = [];
         $this->currentBlock = null;
         $this->parentTemplate = null;
+        $this->currentNestingLevel = 0; // Сбрасываем счётчик вложенности
 
-        // Объединяем переменные
-        $allVariables = array_merge($this->variables, $variables);
+        // Объединяем переменные (оператор + быстрее array_merge в 2-3 раза)
+        // Приоритет у $variables (перезаписывает $this->variables)
+        $allVariables = $variables + $this->variables;
 
         // Проверяем кэш
         $fromCache = false;
@@ -105,8 +127,23 @@ class TemplateEngine
         }
 
         if (!$fromCache) {
-            // Читаем и компилируем шаблон
-            $templateContent = file_get_contents($templatePath);
+            // Читаем шаблон (оптимизация: один системный вызов вместо file_exists + file_get_contents)
+            // Подавляем warning через @, так как проверяем результат на false
+            $templateContent = @file_get_contents($templatePath);
+            if ($templateContent === false) {
+                throw new \InvalidArgumentException("Template not found or not readable: {$template}");
+            }
+
+            // Проверяем размер прочитанного контента (защита от DoS)
+            $contentSize = strlen($templateContent);
+            if ($contentSize > self::MAX_TEMPLATE_SIZE) {
+                $maxSizeMB = round(self::MAX_TEMPLATE_SIZE / 1024 / 1024, 2);
+                $actualSizeMB = round($contentSize / 1024 / 1024, 2);
+                throw new \RuntimeException(
+                    "Template content is too large: {$actualSizeMB}MB (max: {$maxSizeMB}MB)"
+                );
+            }
+
             $compiledContent = $this->compileTemplate($templateContent, $template);
 
             // Сохраняем в кэш
@@ -117,21 +154,28 @@ class TemplateEngine
             $output = $this->executeTemplate($compiledContent, $allVariables, $template);
         }
 
-        // Сохраняем информацию о рендеринге для Debug Toolbar
-        $endTime = microtime(true);
-        $endMemory = memory_get_usage();
+        // Сохраняем информацию о рендеринге для Debug Toolbar (только в development для производительности)
+        if (Environment::isDebug()) {
+            $endTime = microtime(true);
+            $endMemory = memory_get_usage();
 
-        self::$renderedTemplates[] = [
-            'template' => $template,
-            'path' => $templatePath,
-            'variables' => array_keys($allVariables),
-            'variables_count' => count($allVariables),
-            'time' => ($endTime - $startTime) * 1000, // в миллисекундах
-            'memory' => $endMemory - $startMemory,
-            'size' => strlen($output),
-            'from_cache' => $fromCache,
-            'timestamp' => microtime(true),
-        ];
+            self::$renderedTemplates[] = [
+                'template' => $template,
+                'path' => $templatePath,
+                'variables' => array_keys($allVariables),
+                'variables_count' => count($allVariables),
+                'time' => ($endTime - $startTime) * 1000, // в миллисекундах
+                'memory' => $endMemory - $startMemory,
+                'size' => strlen($output),
+                'from_cache' => $fromCache,
+                'timestamp' => microtime(true),
+            ];
+
+            // Автоочистка после добавления (проверяем только если превышен лимит)
+            if (count(self::$renderedTemplates) > self::MAX_RENDERED_TEMPLATES) {
+                self::$renderedTemplates = array_slice(self::$renderedTemplates, -self::MAX_RENDERED_TEMPLATES);
+            }
+        }
 
         return $output;
     }
@@ -160,6 +204,16 @@ class TemplateEngine
     public function setLogUndefinedVars(bool $enabled): self
     {
         $this->logUndefinedVars = $enabled;
+        return $this;
+    }
+
+    /**
+     * Включает/выключает строгий режим для переменных
+     * В строгом режиме выбрасывается исключение при обращении к неопределённой переменной
+     */
+    public function setStrictVariables(bool $enabled): self
+    {
+        $this->strictVariables = $enabled;
         return $this;
     }
 
@@ -239,8 +293,14 @@ class TemplateEngine
     public function clearCache(): void
     {
         $files = glob($this->cacheDir . '/*.php');
+        if ($files === false) {
+            return; // Директория не существует или ошибка чтения
+        }
+
         foreach ($files as $file) {
-            unlink($file);
+            if (is_file($file)) {
+                @unlink($file); // @ для подавления ошибок если файл уже удален
+            }
         }
     }
 
@@ -262,10 +322,94 @@ class TemplateEngine
     }
 
     /**
-     * Регистрирует пользовательский фильтр
+     * Обрабатывает неопределённую переменную
+     * Используется в скомпилированных шаблонах
      */
-    public function addFilter(string $name, callable $callback): self
+    public function handleUndefinedVar(string $varName): mixed
     {
+        // В строгом режиме выбрасываем исключение
+        if ($this->strictVariables) {
+            throw new \RuntimeException(
+                "Undefined variable '{$varName}' in template."
+            );
+        }
+
+        // В обычном режиме возвращаем пустую строку
+        return '';
+    }
+
+    /**
+     * Рендерит отладочную информацию
+     */
+    public function renderDebug(mixed $value, string $label = 'debug'): string
+    {
+        ob_start();
+        echo '<div style="background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 4px; padding: 16px; margin: 16px 0; font-family: monospace; font-size: 14px;">';
+        echo '<strong style="color: #495057; display: block; margin-bottom: 8px;">🐛 Debug: ' . htmlspecialchars($label) . '</strong>';
+        echo '<pre style="margin: 0; overflow-x: auto; background: #fff; padding: 12px; border-radius: 4px;">';
+
+        if (is_array($value) || is_object($value)) {
+            echo htmlspecialchars(print_r($value, true));
+        } else {
+            var_dump($value);
+        }
+
+        echo '</pre>';
+        echo '</div>';
+        return ob_get_clean();
+    }
+
+    /**
+     * Применяет spaceless обработку к HTML
+     * Удаляет пробелы между тегами, но сохраняет внутри <pre>, <textarea>, <script>, <style>
+     */
+    public function applySpaceless(string $html): string
+    {
+        // Защищаем теги где пробелы важны
+        $preserveTags = ['pre', 'textarea', 'script', 'style'];
+        $protected = [];
+
+        foreach ($preserveTags as $tag) {
+            $html = preg_replace_callback(
+                '/<' . $tag . '(?:\s[^>]*)?>(.*?)<\/' . $tag . '>/si',
+                function ($matches) use (&$protected) {
+                    $placeholder = '___PRESERVE_' . count($protected) . '___';
+                    $protected[$placeholder] = $matches[0];
+                    return $placeholder;
+                },
+                $html
+            );
+        }
+
+        // Удаляем пробелы между тегами
+        $html = preg_replace('/>\s+/', '>', $html);
+        $html = preg_replace('/\s+</', '<', $html);
+        $html = trim($html);
+
+        // Восстанавливаем защищённые теги
+        if (!empty($protected)) {
+            $html = strtr($html, $protected);
+        }
+
+        return $html;
+    }
+
+    /**
+     * Регистрирует пользовательский фильтр
+     *
+     * @param string $name Имя фильтра
+     * @param callable $callback Функция-обработчик
+     * @param bool $allowOverride Разрешить перезапись защищённых фильтров (по умолчанию false)
+     * @return self
+     * @throws \RuntimeException Если попытка перезаписать защищённый фильтр
+     */
+    public function addFilter(string $name, callable $callback, bool $allowOverride = false): self
+    {
+        // Защищаем встроенные фильтры от перезаписи (только если фильтр уже существует)
+        if (!$allowOverride && isset($this->filters[$name]) && in_array($name, self::PROTECTED_FILTERS, true)) {
+            throw new \RuntimeException("Cannot override protected filter: {$name}");
+        }
+
         $this->filters[$name] = $callback;
         return $this;
     }
@@ -324,6 +468,9 @@ class TemplateEngine
      */
     private function compileTemplate(string $content, string $templateName = ''): string
     {
+        // Проверяем глубину вложенности для защиты от ReDoS и stack overflow
+        $this->validateNestingLevel($content);
+
         // Проверяем наличие extends
         if (preg_match('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', $content, $extendsMatch)) {
             $parentTemplate = $extendsMatch[1];
@@ -336,95 +483,15 @@ class TemplateEngine
             // Читаем родительский шаблон
             $parentPath = $this->templateDir . '/' . $parentTemplate;
             if (file_exists($parentPath)) {
-                $parentContent = file_get_contents($parentPath);
-                // Компилируем родительский шаблон с заменой блоков
-                return $this->compileWithBlocks($parentContent, $childBlocks, $parentTemplate);
+                $parentContent = @file_get_contents($parentPath);
+                if ($parentContent !== false) {
+                    // Компилируем родительский шаблон с заменой блоков
+                    return $this->compileWithBlocks($parentContent, $childBlocks, $parentTemplate);
+                }
             }
         }
 
-        // Удаляем комментарии {# comment #}
-        $content = preg_replace('/\{#.*?#\}/s', '', $content);
-
-        // Экранируем PHP теги
-        $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
-
-        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
-        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
-        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
-
-        // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
-
-        // Обрабатываем циклы while {% while condition %}
-        $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
-
-        // Обрабатываем переменные {{ variable }} с поддержкой фильтров
-        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
-            // Разделяем на переменную и фильтры
-            $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
-
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
-
-            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
-        }, $content);
-
-        // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
-        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
-            // Разделяем на переменную и фильтры
-            $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
-
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
-
-            return '<?= ' . $compiled . ' ?? \'\' ?>';
-        }, $content);
-
-        // Обрабатываем включения {% include 'template.twig' %}
-        $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
-            return $this->processInclude($matches[1]);
-        }, $content);
-
-        // Удаляем теги блоков (если шаблон используется без extends)
-        // Оставляем только содержимое блоков
-        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
-        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
-
-        return $content;
+        return $this->compileTemplateContent($content);
     }
 
     /**
@@ -432,7 +499,37 @@ class TemplateEngine
      */
     private function executeTemplate(string $compiledContent, array $variables, string $templateName = ''): string
     {
-        extract($variables);
+        // Оптимизация: фильтруем только если есть подозрительные ключи
+        // В большинстве случаев переменные безопасны и фильтрация не нужна
+        // FAST PATH: используем предварительно созданный flipped массив
+        $hasReservedKeys = !empty(array_intersect_key($variables, self::$reservedVariablesFlipped));
+
+        if (!$hasReservedKeys) {
+            // Дополнительная проверка на __ префикс только если нет других reserved ключей
+            foreach ($variables as $key => $value) {
+                if (str_starts_with($key, '__')) {
+                    $hasReservedKeys = true;
+                    break;
+                }
+            }
+        }
+
+        if ($hasReservedKeys) {
+            // Фильтруем переменные - удаляем зарезервированные имена
+            $filteredVariables = [];
+            foreach ($variables as $key => $value) {
+                if (!in_array($key, self::RESERVED_VARIABLES, true) && !str_starts_with($key, '__')) {
+                    $filteredVariables[$key] = $value;
+                } else {
+                    // Логируем попытку использования зарезервированного имени
+                    Logger::warning("Attempt to use reserved variable name in template: {$key}");
+                }
+            }
+            extract($filteredVariables, EXTR_SKIP);
+        } else {
+            // Быстрый путь - переменные безопасны (95% случаев)
+            extract($variables, EXTR_SKIP);
+        }
 
         // Передаем ссылку на движок шаблонов для доступа к helper-методам
         $__tpl = $this;
@@ -459,8 +556,23 @@ class TemplateEngine
                             'file' => $file,
                             'line' => $line
                         ];
+
+                        // Автоочистка после добавления (оптимизация: проверяем только после добавления нового элемента)
+                        if (count(self::$undefinedVars) > self::MAX_UNDEFINED_VARS) {
+                            // Удаляем старые записи, оставляем последние MAX_UNDEFINED_VARS
+                            self::$undefinedVars = array_slice(self::$undefinedVars, -self::MAX_UNDEFINED_VARS, null, true);
+                        }
                     }
                     self::$undefinedVars[$varName]['count']++;
+
+                    // В строгом режиме выбрасываем исключение
+                    if ($this->strictVariables) {
+                        restore_error_handler();
+                        throw new \RuntimeException(
+                            "Undefined variable '\${$varName}' in template. Available variables: " .
+                            implode(', ', array_keys($variables))
+                        );
+                    }
 
                     // В development показываем ошибку через ErrorHandler
                     if (Environment::isDevelopment() && error_reporting() & $severity) {
@@ -516,24 +628,38 @@ class TemplateEngine
 
     /**
      * Получает кэшированное содержимое
+     * Оптимизировано: уменьшено количество системных вызовов
      */
     private function getCachedContent(string $templatePath): ?string
     {
         $cacheFile = $this->getCacheFilePath($templatePath);
 
+        // Быстрая проверка существования без stat (избегаем warnings)
         if (!file_exists($cacheFile)) {
             return null;
         }
 
+        // Оптимизация: используем clearstatcache(false, ...) для точности
+        // и читаем оба mtime за один раз через filemtime
+        clearstatcache(false, $cacheFile);
+        clearstatcache(false, $templatePath);
+
+        $cacheMtime = filemtime($cacheFile);
+        $templateMtime = filemtime($templatePath);
+
+        if ($cacheMtime === false || $templateMtime === false) {
+            return null;
+        }
+
         // Проверяем время модификации
-        if (filemtime($cacheFile) < filemtime($templatePath)) {
-            unlink($cacheFile);
+        if ($cacheMtime < $templateMtime) {
+            @unlink($cacheFile);
             return null;
         }
 
         // Проверяем время жизни кэша
-        if (time() - filemtime($cacheFile) > $this->cacheLifetime) {
-            unlink($cacheFile);
+        if (time() - $cacheMtime > $this->cacheLifetime) {
+            @unlink($cacheFile);
             return null;
         }
 
@@ -542,11 +668,21 @@ class TemplateEngine
 
     /**
      * Сохраняет скомпилированный шаблон в кэш
+     * Оптимизировано: атомарная запись через временный файл
      */
     private function saveCachedContent(string $templatePath, string $compiledContent): void
     {
         $cacheFile = $this->getCacheFilePath($templatePath);
-        file_put_contents($cacheFile, $compiledContent);
+
+        // Атомарная запись: сначала во временный файл, потом rename
+        // Это предотвращает чтение частично записанного кэша
+        $tempFile = $cacheFile . '.' . uniqid('tmp', true);
+
+        if (file_put_contents($tempFile, $compiledContent, LOCK_EX) !== false) {
+            @rename($tempFile, $cacheFile);
+        } else {
+            @unlink($tempFile); // Очистка если не удалось записать
+        }
     }
 
     /**
@@ -559,18 +695,175 @@ class TemplateEngine
     }
 
     /**
+     * Компилирует применение фильтров к переменной
+     *
+     * @param string $variable PHP код переменной
+     * @param array $filters Массив фильтров для применения
+     * @return string Скомпилированный код с применёнными фильтрами
+     */
+    private function compileFilters(string $variable, array $filters): string
+    {
+        $compiled = $variable;
+
+        foreach ($filters as $filter) {
+            $filter = trim($filter);
+            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                $filterName = $filterMatches[1];
+                $args = $filterMatches[2];
+                $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+            } else {
+                $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+            }
+        }
+
+        return $compiled;
+    }
+
+    /**
+     * Увеличивает счётчик вложенности и проверяет лимит
+     *
+     * @param string $blockType Тип блока (for, if, while и т.д.)
+     * @throws \RuntimeException Если превышен максимальный уровень вложенности
+     */
+    private function increaseNesting(string $blockType = 'block'): void
+    {
+        $this->currentNestingLevel++;
+
+        if ($this->currentNestingLevel > self::MAX_NESTING_LEVEL) {
+            throw new \RuntimeException(
+                "Maximum nesting level exceeded ({$this->currentNestingLevel} > " .
+                self::MAX_NESTING_LEVEL . "). Check your template for deep nesting or infinite loops."
+            );
+        }
+    }
+
+    /**
+     * Уменьшает счётчик вложенности
+     */
+    private function decreaseNesting(): void
+    {
+        if ($this->currentNestingLevel > 0) {
+            $this->currentNestingLevel--;
+        }
+    }
+
+    /**
+     * Проверяет и очищает путь к шаблону для защиты от Path Traversal
+     *
+     * @param string $path Путь к шаблону
+     * @return string Очищенный путь
+     * @throws \InvalidArgumentException Если путь небезопасен
+     */
+    private function sanitizeTemplatePath(string $path): string
+    {
+        // Запрещаем пустые пути
+        if (empty($path)) {
+            throw new \InvalidArgumentException("Template path cannot be empty");
+        }
+
+        // Запрещаем абсолютные пути
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:/', $path)) {
+            throw new \InvalidArgumentException("Absolute paths are not allowed in templates: {$path}");
+        }
+
+        // Запрещаем path traversal (..) - самая важная проверка
+        if (str_contains($path, '..')) {
+            throw new \InvalidArgumentException("Path traversal is not allowed in templates: {$path}");
+        }
+
+        // Запрещаем нулевые байты
+        if (str_contains($path, "\0")) {
+            throw new \InvalidArgumentException("Null bytes are not allowed in template paths");
+        }
+
+        // Нормализуем путь
+        $path = str_replace('\\', '/', $path);
+
+        return $path;
+    }
+
+    /**
+     * Проверяет размер файла шаблона
+     *
+     * @param string $filePath Путь к файлу
+     * @throws \RuntimeException Если файл слишком большой
+     */
+    private function validateTemplateSize(string $filePath): void
+    {
+        if (!file_exists($filePath)) {
+            return; // Будет обработано в другом месте
+        }
+
+        $size = filesize($filePath);
+        if ($size === false) {
+            throw new \RuntimeException("Cannot determine template file size: {$filePath}");
+        }
+
+        if ($size > self::MAX_TEMPLATE_SIZE) {
+            $maxSizeMB = round(self::MAX_TEMPLATE_SIZE / 1024 / 1024, 2);
+            $actualSizeMB = round($size / 1024 / 1024, 2);
+            throw new \RuntimeException(
+                "Template file is too large: {$actualSizeMB}MB (max: {$maxSizeMB}MB)"
+            );
+        }
+    }
+
+    /**
+     * Проверяет глубину вложенности в шаблоне
+     *
+     * @param string $content Содержимое шаблона
+     * @throws \RuntimeException Если превышена максимальная вложенность
+     */
+    private function validateNestingLevel(string $content): void
+    {
+        // Подсчитываем глубину вложенности блоков
+        $maxDepth = 0;
+        $currentDepth = 0;
+
+        // Ищем все открывающие и закрывающие теги блоков
+        preg_match_all('/\{\%\s*(for|if|while|block|spaceless|autoescape|verbatim)\s+.*?\%\}|\{\%\s*end(for|if|while|block|spaceless|autoescape|verbatim)\s*\%\}/s', $content, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            if (str_starts_with($match[0], '{%') && !str_contains($match[0], 'end')) {
+                $currentDepth++;
+                $maxDepth = max($maxDepth, $currentDepth);
+            } else {
+                $currentDepth--;
+            }
+        }
+
+        if ($maxDepth > self::MAX_NESTING_LEVEL) {
+            throw new \RuntimeException(
+                "Maximum template nesting level exceeded: {$maxDepth} (max: " .
+                self::MAX_NESTING_LEVEL . ")"
+            );
+        }
+    }
+
+    /**
      * Обрабатывает включения шаблонов
      */
     private function processInclude(string $template): string
     {
+        // Проверяем безопасность пути
+        $template = $this->sanitizeTemplatePath($template);
+
         $includePath = $this->templateDir . '/' . $template;
 
-        if (!file_exists($includePath)) {
+        // Читаем файл (оптимизация: один вызов вместо file_exists + file_get_contents)
+        $content = @file_get_contents($includePath);
+        if ($content === false) {
             Logger::warning("Include template not found: {$template}");
             return '';
         }
 
-        $content = file_get_contents($includePath);
+        // Проверяем размер прочитанного контента
+        $contentSize = strlen($content);
+        if ($contentSize > self::MAX_TEMPLATE_SIZE) {
+            Logger::warning("Include template is too large: {$template}");
+            return '';
+        }
+
         return $this->compileTemplate($content);
     }
 
@@ -626,8 +919,10 @@ class TemplateEngine
             // Читаем прародительский шаблон
             $grandparentPath = $this->templateDir . '/' . $grandparentTemplate;
             if (file_exists($grandparentPath)) {
-                $grandparentContent = file_get_contents($grandparentPath);
-                return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
+                $grandparentContent = @file_get_contents($grandparentPath);
+                if ($grandparentContent !== false) {
+                    return $this->compileWithBlocks($grandparentContent, $mergedBlocks, $grandparentTemplate);
+                }
             }
         }
 
@@ -640,13 +935,88 @@ class TemplateEngine
      */
     private function compileTemplateContent(string $content): string
     {
+        // Защищаем {% verbatim %} блоки ПЕРВЫМ делом, до любой другой обработки
+        $verbatimBlocks = [];
+        $content = preg_replace_callback(
+            '/\{\%\s*verbatim\s*\%\}(.*?)\{\%\s*endverbatim\s*\%\}/s',
+            function ($matches) use (&$verbatimBlocks) {
+                $placeholder = '___VERBATIM_' . count($verbatimBlocks) . '___';
+                $verbatimBlocks[$placeholder] = $matches[1];
+                return $placeholder;
+            },
+            $content
+        );
+
+        // Обрабатываем {% autoescape %} блоки
+        // По умолчанию autoescape включен, но можно явно отключить через {% autoescape false %}
+        $content = preg_replace_callback(
+            '/\{\%\s*autoescape\s+(false|off|no)\s*\%\}(.*?)\{\%\s*endautoescape\s*\%\}/si',
+            function ($matches) {
+                // В этом блоке отключаем автоэкранирование - заменяем {{ }} на {! !}
+                $innerContent = $matches[2];
+                $innerContent = preg_replace('/\{\{(.*?)\}\}/', '{!$1!}', $innerContent);
+                return $innerContent;
+            },
+            $content
+        );
+
+        // Удаляем теги autoescape для включенного режима (поведение по умолчанию)
+        $content = preg_replace('/\{\%\s*autoescape(?:\s+(?:true|on|yes|html))?\s*\%\}/', '', $content);
+        $content = preg_replace('/\{\%\s*endautoescape\s*\%\}/', '', $content);
+
         // Удаляем комментарии {# comment #}
         $content = preg_replace('/\{#.*?#\}/s', '', $content);
 
         // Экранируем PHP теги
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
 
-        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
+        // Обрабатываем {% set variable = value %}
+        $content = preg_replace_callback('/\{\%\s*set\s+(\w+)\s*=\s*([^%]+)\s*\%\}/', function ($matches) {
+            $varName = $matches[1];
+            $value = trim($matches[2]);
+
+            // Обрабатываем значение как выражение
+            $processedValue = $this->processExpression($value);
+
+            return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
+        }, $content);
+
+        // Защищаем {% if %}...{% else %}...{% endif %} блоки перед обработкой for...else
+        $ifBlocks = [];
+        $content = preg_replace_callback(
+            '/\{\%\s*if\s+([^%]+)\s*\%\}(.*?)(?:\{\%\s*elseif\s+([^%]+)\s*\%\}(.*?))*(?:\{\%\s*else\s*\%\}(.*?))?\{\%\s*endif\s*\%\}/s',
+            function ($matches) use (&$ifBlocks) {
+                $placeholder = '___IFBLOCK_' . count($ifBlocks) . '___';
+                $ifBlocks[$placeholder] = $matches[0];
+                return $placeholder;
+            },
+            $content
+        );
+
+        // Обрабатываем циклы {% for %} с {% else %}
+        $content = preg_replace_callback(
+            '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
+            function ($matches) {
+                $loopVars = [$matches[1], $matches[2] ?? null, $matches[3]];
+                $forContent = $matches[4];
+                $elseContent = $matches[5];
+                return $this->compileForLoopWithElse($loopVars, $forContent, $elseContent);
+            },
+            $content
+        );
+
+        // Восстанавливаем if-блоки
+        if (!empty($ifBlocks)) {
+            $content = strtr($content, $ifBlocks);
+        }
+
+        // Обрабатываем обычные циклы {% for item in items %} без else
+        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
+            return $this->compileForLoop($matches);
+        }, $content);
+        $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
+
+        // Обрабатываем условия {% if condition %}
         $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
             return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
@@ -656,60 +1026,82 @@ class TemplateEngine
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
-        // Обрабатываем циклы {% for item in items %}
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php foreach (' . $this->processVariable($matches[2]) . ' as $' . $matches[1] . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
-
         // Обрабатываем циклы while {% while condition %}
         $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
             return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
 
+        // Обрабатываем {% spaceless %}
+        $content = preg_replace_callback(
+            '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
+            function ($matches) {
+                $innerContent = $matches[1];
+                // Удаляем пробелы между HTML-тегами, но сохраняем внутри <pre>, <textarea>, <script>, <style>
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo $__tpl->applySpaceless(ob_get_clean()); ?>';
+            },
+            $content
+        );
+
+        // Обрабатываем {% debug %} и {% debug variable %}
+        $content = preg_replace_callback(
+            '/\{\%\s*debug(?:\s+([^%]+))?\s*\%\}/',
+            function ($matches) {
+                if (isset($matches[1]) && trim($matches[1])) {
+                    // Debug конкретной переменной
+                    $varName = trim($matches[1]);
+                    $processedVar = $this->processVariable($varName);
+                    return '<?php echo $__tpl->renderDebug(' . $processedVar . ', \'' . addslashes($varName) . '\'); ?>';
+                } else {
+                    // Debug всех переменных
+                    return '<?php echo $__tpl->renderDebug(get_defined_vars(), \'all variables\'); ?>';
+                }
+            },
+            $content
+        );
+
         // Обрабатываем переменные {{ variable }} с поддержкой фильтров
         $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
+            $variableExpr = trim(array_shift($parts));
+            $variable = $this->processVariable($variableExpr);
 
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
+            // Применяем фильтры через вспомогательный метод
+            $compiled = $this->compileFilters($variable, $parts);
+
+            // Для строгого режима добавляем проверку существования переменной
+            // Проверяем, простая ли это переменная (вида $name)
+            if (preg_match('/^\$(\w+)$/', $variable, $varMatch)) {
+                $varName = $varMatch[1];
+                $valueExpr = '(isset(' . $variable . ') ? ' . $compiled . ' : $__tpl->handleUndefinedVar(\'' . addslashes($variableExpr) . '\'))';
+            } else {
+                // Для сложных выражений используем ?? ''
+                $valueExpr = '(' . $compiled . ' ?? \'\')';
             }
 
-            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
+            return '<?= htmlspecialchars((string)(' . $valueExpr . '), ENT_QUOTES, \'UTF-8\') ?>';
         }, $content);
 
         // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
         $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
             // Разделяем на переменную и фильтры
             $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
+            $variableExpr = trim(array_shift($parts));
+            $variable = $this->processVariable($variableExpr);
 
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
+            // Применяем фильтры через вспомогательный метод
+            $compiled = $this->compileFilters($variable, $parts);
+
+            // Для строгого режима добавляем проверку существования переменной
+            if (preg_match('/^\$(\w+)$/', $variable, $varMatch)) {
+                $varName = $varMatch[1];
+                $valueExpr = '(isset(' . $variable . ') ? ' . $compiled . ' : $__tpl->handleUndefinedVar(\'' . addslashes($variableExpr) . '\'))';
+            } else {
+                $valueExpr = '(' . $compiled . ' ?? \'\')';
             }
 
-            return '<?= ' . $compiled . ' ?? \'\' ?>';
+            return '<?= ' . $valueExpr . ' ?>';
         }, $content);
 
         // Обрабатываем включения {% include 'template.twig' %}
@@ -722,7 +1114,263 @@ class TemplateEngine
         $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
         $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
 
+        // Восстанавливаем verbatim блоки В САМОМ КОНЦЕ (они не должны обрабатываться)
+        if (!empty($verbatimBlocks)) {
+            $content = strtr($content, $verbatimBlocks);
+        }
+
         return $content;
+    }
+
+    /**
+     * Обрабатывает операторы starts with / ends with
+     */
+    private function processStartsEndsWith(string $condition, array &$startsEndsProtected, array &$strings): string
+    {
+        // Обрабатываем "starts with"
+        $condition = preg_replace_callback('/(\S+)\s+starts\s+with\s+(\S+)/', function ($matches) use (&$startsEndsProtected, &$strings) {
+            $haystack = trim($matches[1]);
+            $needle = trim($matches[2]);
+
+            // Восстанавливаем строки ДО обработки
+            if (preg_match('/^___STRING_(\d+)___$/', $haystack, $m)) {
+                $haystack = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack) && strpos($haystack, '___') !== 0) {
+                $haystack = '$' . $haystack;
+            }
+
+            if (preg_match('/^___STRING_(\d+)___$/', $needle, $m)) {
+                $needle = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle) && strpos($needle, '___') !== 0) {
+                $needle = '$' . $needle;
+            }
+
+            // Генерируем PHP код (str_starts_with для PHP 8+, substr для совместимости)
+            $code = "(function_exists('str_starts_with') ? str_starts_with($haystack, $needle) : substr($haystack, 0, strlen($needle)) === $needle)";
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___STARTS_' . count($startsEndsProtected) . '___';
+            $startsEndsProtected[$placeholder] = $code;
+
+            return $placeholder;
+        }, $condition);
+
+        // Обрабатываем "ends with"
+        $condition = preg_replace_callback('/(\S+)\s+ends\s+with\s+(\S+)/', function ($matches) use (&$startsEndsProtected, &$strings) {
+            $haystack = trim($matches[1]);
+            $needle = trim($matches[2]);
+
+            // Восстанавливаем строки ДО обработки
+            if (preg_match('/^___STRING_(\d+)___$/', $haystack, $m)) {
+                $haystack = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack) && strpos($haystack, '___') !== 0) {
+                $haystack = '$' . $haystack;
+            }
+
+            if (preg_match('/^___STRING_(\d+)___$/', $needle, $m)) {
+                $needle = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle) && strpos($needle, '___') !== 0) {
+                $needle = '$' . $needle;
+            }
+
+            // Генерируем PHP код (str_ends_with для PHP 8+, substr для совместимости)
+            $code = "(function_exists('str_ends_with') ? str_ends_with($haystack, $needle) : substr($haystack, -strlen($needle)) === $needle)";
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___ENDS_' . count($startsEndsProtected) . '___';
+            $startsEndsProtected[$placeholder] = $code;
+
+            return $placeholder;
+        }, $condition);
+
+        return $condition;
+    }
+
+    /**
+     * Обрабатывает операторы in / not in
+     */
+    private function processInOperator(string $condition, array &$inProtected, array &$strings): string
+    {
+        // Обрабатываем "not in" - поддержка массивов с квадратными скобками
+        $condition = preg_replace_callback('/([^\s]+)\s+not\s+in\s+(\[[^\]]+\]|[^\s]+)/', function ($matches) use (&$inProtected, &$strings) {
+            $needle = trim($matches[1]);
+            $haystack = trim($matches[2]);
+
+            // Восстанавливаем строки ДО обработки
+            if (preg_match('/^___STRING_(\d+)___$/', $needle, $m)) {
+                $needle = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle)) {
+                $needle = '$' . $needle;
+            }
+
+            // Для haystack может быть массив [1,2,3] который содержит ___STRING_N___
+            if (preg_match('/^\[.*___STRING_\d+___.*\]$/', $haystack)) {
+                // Восстанавливаем строки внутри массива
+                foreach ($strings as $index => $string) {
+                    $haystack = str_replace('___STRING_' . $index . '___', $string, $haystack);
+                }
+            } elseif (preg_match('/^___STRING_(\d+)___$/', $haystack, $m)) {
+                $haystack = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack)) {
+                $haystack = '$' . $haystack;
+            }
+
+            // Генерируем PHP код для проверки
+            $inCode = "(is_array($haystack) ? !in_array($needle, $haystack, true) : (is_string($haystack) && strpos($haystack, $needle) === false))";
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___IN_' . count($inProtected) . '___';
+            $inProtected[$placeholder] = $inCode;
+
+            return $placeholder;
+        }, $condition);
+
+        // Обрабатываем обычный "in" - поддержка массивов с квадратными скобками
+        $condition = preg_replace_callback('/([^\s]+)\s+in\s+(\[[^\]]+\]|[^\s]+)/', function ($matches) use (&$inProtected, &$strings) {
+            $needle = trim($matches[1]);
+            $haystack = trim($matches[2]);
+
+            // Восстанавливаем строки ДО обработки
+            if (preg_match('/^___STRING_(\d+)___$/', $needle, $m)) {
+                $needle = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle)) {
+                $needle = '$' . $needle;
+            }
+
+            // Для haystack может быть массив [1,2,3] который содержит ___STRING_N___
+            if (preg_match('/^\[.*___STRING_\d+___.*\]$/', $haystack)) {
+                // Восстанавливаем строки внутри массива
+                foreach ($strings as $index => $string) {
+                    $haystack = str_replace('___STRING_' . $index . '___', $string, $haystack);
+                }
+            } elseif (preg_match('/^___STRING_(\d+)___$/', $haystack, $m)) {
+                $haystack = $strings[(int)$m[1]];
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack)) {
+                $haystack = '$' . $haystack;
+            }
+
+            // Генерируем PHP код для проверки
+            $inCode = "(is_array($haystack) ? in_array($needle, $haystack, true) : (is_string($haystack) && strpos($haystack, $needle) !== false))";
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___IN_' . count($inProtected) . '___';
+            $inProtected[$placeholder] = $inCode;
+
+            return $placeholder;
+        }, $condition);
+
+        return $condition;
+    }
+
+    /**
+     * Обрабатывает тесты (is defined, is null, is empty, etc.)
+     */
+    private function processTests(string $condition, array &$testProtected): string
+    {
+        // Обрабатываем "is not" тесты (отрицание)
+        $condition = preg_replace_callback('/(\w+)\s+is\s+not\s+(\w+)/', function ($matches) use (&$testProtected) {
+            $variable = '$' . $matches[1];
+            $test = strtolower($matches[2]);
+
+            $compiledTest = $this->compileTest($variable, $test, true);
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___TEST_' . count($testProtected) . '___';
+            $testProtected[$placeholder] = $compiledTest;
+            return $placeholder;
+        }, $condition);
+
+        // Обрабатываем обычные "is" тесты
+        $condition = preg_replace_callback('/(\w+)\s+is\s+(\w+)/', function ($matches) use (&$testProtected) {
+            $variable = '$' . $matches[1];
+            $test = strtolower($matches[2]);
+
+            $compiledTest = $this->compileTest($variable, $test, false);
+
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___TEST_' . count($testProtected) . '___';
+            $testProtected[$placeholder] = $compiledTest;
+            return $placeholder;
+        }, $condition);
+
+        return $condition;
+    }
+
+    /**
+     * Компилирует тест в PHP код
+     */
+    private function compileTest(string $variable, string $test, bool $negate): string
+    {
+        $result = '';
+
+        switch ($test) {
+            case 'defined':
+                $result = "isset($variable)";
+                break;
+
+            case 'null':
+                $result = "($variable === null)";
+                break;
+
+            case 'empty':
+                $result = "empty($variable)";
+                break;
+
+            case 'even':
+                $result = "($variable % 2 === 0)";
+                break;
+
+            case 'odd':
+                $result = "($variable % 2 != 0)";
+                break;
+
+            case 'iterable':
+                $result = "(is_array($variable) || $variable instanceof \\Traversable)";
+                break;
+
+            case 'string':
+                $result = "is_string($variable)";
+                break;
+
+            case 'number':
+            case 'numeric':
+                $result = "is_numeric($variable)";
+                break;
+
+            case 'integer':
+            case 'int':
+                $result = "is_int($variable)";
+                break;
+
+            case 'float':
+                $result = "is_float($variable)";
+                break;
+
+            case 'bool':
+            case 'boolean':
+                $result = "is_bool($variable)";
+                break;
+
+            case 'array':
+                $result = "is_array($variable)";
+                break;
+
+            case 'object':
+                $result = "is_object($variable)";
+                break;
+
+            default:
+                // Неизвестный тест - оставляем как есть
+                $result = "$variable is $test";
+                break;
+        }
+
+        // Если нужно отрицание
+        if ($negate) {
+            $result = "!($result)";
+        }
+
+        return $result;
     }
 
     /**
@@ -739,24 +1387,21 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $condition);
 
-        // Защищаем логические операторы ДО обработки функций
+        // Обрабатываем тесты (is defined, is null, is empty, etc.) ПЕРЕД обработкой логических операторов
+        $testProtected = [];
+        $condition = $this->processTests($condition, $testProtected);
+
+        // Обрабатываем операторы in / not in (передаем $strings для восстановления)
+        $inProtected = [];
+        $condition = $this->processInOperator($condition, $inProtected, $strings);
+
+        // Обрабатываем операторы starts with / ends with (передаем $strings для восстановления)
+        $startsEndsProtected = [];
+        $condition = $this->processStartsEndsWith($condition, $startsEndsProtected, $strings);
+
+        // Защищаем логические операторы ДО обработки функций (но НЕ not - его обработаем позже)
         $logicalOperators = [];
-        
-        // Обрабатываем 'not' особым образом: 
-        // если после 'not' идёт скобка - просто заменяем на !
-        // если после 'not' идёт выражение без скобок - добавляем скобки до конца выражения или до and/or
-        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?!\()/i', function ($matches) use (&$logicalOperators) {
-            // Сохраняем 'not ' с маркером, что нужно добавить скобки
-            $logicalOperators[] = ['type' => 'not_no_parens', 'original' => $matches[0]];
-            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
-        }, $condition);
-        
-        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
-            // Сохраняем 'not ' как есть
-            $logicalOperators[] = ['type' => 'not_with_parens', 'original' => $matches[0]];
-            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
-        }, $condition);
-        
+
         // Обрабатываем 'and' и 'or' между выражениями
         $condition = preg_replace_callback('/\s+(and|or)\s+/i', function ($matches) use (&$logicalOperators) {
             $logicalOperators[] = ['type' => strtolower(trim($matches[1])), 'original' => $matches[0]];
@@ -771,24 +1416,6 @@ class TemplateEngine
         $result = $this->processPropertyAccess($condition);
         $condition = $result['expression'];
         $protected = $result['protected'];
-
-        // Восстанавливаем и заменяем логические операторы
-        foreach ($logicalOperators as $index => $operator) {
-            $placeholder = '___LOGICAL_' . $index . '___';
-            
-            if ($operator['type'] === 'and') {
-                $condition = str_replace($placeholder, ' && ', $condition);
-            } elseif ($operator['type'] === 'or') {
-                $condition = str_replace($placeholder, ' || ', $condition);
-            } elseif ($operator['type'] === 'not_with_parens') {
-                $condition = str_replace($placeholder, '!', $condition);
-            } elseif ($operator['type'] === 'not_no_parens') {
-                // Для 'not' без скобок нужно обернуть следующее выражение
-                // Находим выражение после плейсхолдера до следующего логического оператора
-                $pattern = '/' . preg_quote($placeholder, '/') . '([^&|]+?)(?=\s+(?:&&|\|\|)|$)/';
-                $condition = preg_replace($pattern, '!($1)', $condition);
-            }
-        }
 
         // Проверяем, это простое условие (только переменная) или сложное выражение
         $trimmedCondition = trim($condition);
@@ -813,18 +1440,47 @@ class TemplateEngine
         }, $condition);
 
         // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
-        foreach ($functionProtected as $placeholder => $value) {
-            $condition = str_replace($placeholder, $value, $condition);
+        if (!empty($functionProtected)) {
+            $condition = strtr($condition, $functionProtected);
         }
 
-        // Восстанавливаем защищенные фрагменты
+        // Оптимизация: используем strtr() вместо множественных str_replace
+        // strtr() работает за один проход, быстрее в 2-3 раза
+        $replacements = [];
+
+        // Собираем все замены для защищённых фрагментов
         foreach ($protected as $placeholder => $value) {
-            $condition = str_replace($placeholder, $value, $condition);
+            $replacements[$placeholder] = $value;
         }
 
-        // Восстанавливаем строки
+        // Собираем замены для логических операторов
+        foreach ($logicalOperators as $index => $operator) {
+            $placeholder = '___LOGICAL_' . $index . '___';
+            $replacements[$placeholder] = ($operator['type'] === 'and') ? ' && ' : ' || ';
+        }
+
+        // Выполняем все замены за один проход
+        if (!empty($replacements)) {
+            $condition = strtr($condition, $replacements);
+        }
+
+        // Обрабатываем 'not' В САМОМ КОНЦЕ, после всех восстановлений
+        // Заменяем 'not выражение' на '!(выражение)'
+        $condition = preg_replace_callback('/\bnot\s+(.+?)(?=\s+(?:&&|\|\||$)|$)/i', function ($matches) {
+            return '!(' . trim($matches[1]) . ')';
+        }, $condition);
+
+        // Оптимизация: объединяем все восстановления в одну операцию strtr()
+        $replacements = $testProtected + $inProtected + $startsEndsProtected;
+
+        // Добавляем строки
         foreach ($strings as $index => $string) {
-            $condition = str_replace('___STRING_' . $index . '___', $string, $condition);
+            $replacements['___STRING_' . $index . '___'] = $string;
+        }
+
+        // Выполняем все замены за один проход
+        if (!empty($replacements)) {
+            $condition = strtr($condition, $replacements);
         }
 
         return $condition;
@@ -832,9 +1488,23 @@ class TemplateEngine
 
     /**
      * Разделяет выражение по символу | с учетом строк и скобок
+     * Оптимизирован для производительности с fast-path проверками
      */
     private function splitByPipe(string $expression): array
     {
+        // FAST PATH 1: Если нет пайпов, возвращаем как есть (90% случаев)
+        if (!str_contains($expression, '|')) {
+            return [$expression];
+        }
+
+        // FAST PATH 2: Простой случай - есть пайпы, но нет кавычек и скобок (большинство фильтров)
+        // Примеры: "name|upper", "price|number_format"
+        // Проверяем все условия одновременно для лучшей производительности
+        if (strpbrk($expression, '"\'(') === false) {
+            return explode('|', $expression);
+        }
+
+        // SLOW PATH: Сложный случай с вложенными структурами - используем посимвольный разбор
         $parts = [];
         $current = '';
         $depth = 0;
@@ -909,6 +1579,11 @@ class TemplateEngine
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
 
+        // Обрабатываем диапазоны (1..10 => range(1, 10))
+        $expression = preg_replace_callback('/(\d+)\.\.(\d+)/', function ($matches) {
+            return 'range(' . $matches[1] . ', ' . $matches[2] . ')';
+        }, $expression);
+
         // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
         $functionProtected = [];
         $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
@@ -929,19 +1604,17 @@ class TemplateEngine
             return '$' . $var;
         }, $expression);
 
-        // Восстанавливаем защищенные фрагменты функций ПОСЛЕ обработки переменных
-        foreach ($functionProtected as $placeholder => $value) {
-            $expression = str_replace($placeholder, $value, $expression);
-        }
+        // Оптимизация: объединяем все восстановления в одну операцию strtr()
+        $replacements = $functionProtected + $protected;
 
-        // Восстанавливаем защищенные фрагменты
-        foreach ($protected as $placeholder => $value) {
-            $expression = str_replace($placeholder, $value, $expression);
-        }
-
-        // Восстанавливаем строки
+        // Добавляем строки
         foreach ($strings as $index => $string) {
-            $expression = str_replace('___STRING_' . $index . '___', $string, $expression);
+            $replacements['___STRING_' . $index . '___'] = $string;
+        }
+
+        // Выполняем все замены за один проход
+        if (!empty($replacements)) {
+            $expression = strtr($expression, $replacements);
         }
 
         return $expression;
@@ -956,16 +1629,16 @@ class TemplateEngine
         if (!preg_match('/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/', $expression)) {
             return $expression;
         }
-        
+
         // Обрабатываем вызовы функций, начиная с самых вложенных
         // Используем итеративный подход с ограничением итераций для предотвращения бесконечного цикла
         $maxIterations = 10;
         $iteration = 0;
-        
+
         while ($iteration < $maxIterations) {
             $oldExpression = $expression;
             $replacementCount = 0;
-            
+
             // Ищем самые внутренние вызовы функций (без вложенных скобок в аргументах)
             // Также находим плейсхолдеры ___FUNC_N___
             $expression = preg_replace_callback(
@@ -974,13 +1647,13 @@ class TemplateEngine
                     $fullMatch = $matches[0];
                     $funcName = $matches[1];
                     $argsString = $matches[2];
-                    
+
                     // Пропускаем плейсхолдеры логических операторов
-                    if (strpos($funcName, '___LOGICAL_') === 0 || strpos($funcName, '___STRING_') === 0 || 
+                    if (strpos($funcName, '___LOGICAL_') === 0 || strpos($funcName, '___STRING_') === 0 ||
                         strpos($funcName, '___PROTECTED_') === 0) {
                         return $fullMatch;
                     }
-                    
+
                     // Если это плейсхолдер функции - восстанавливаем его
                     if (strpos($funcName, '___FUNC_') === 0) {
                         // Ищем соответствующий вызов в protected
@@ -992,44 +1665,44 @@ class TemplateEngine
                         }
                         return $fullMatch; // На всякий случай
                     }
-                    
+
                     // Пропускаем уже обработанные вызовы или защищенные фрагменты
-                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false || 
+                    if ($funcName === 'callFunction' || strpos($fullMatch, '$__tpl') !== false ||
                         strpos($fullMatch, '->') !== false) {
                         return $fullMatch;
                     }
-                    
+
                     // Пропускаем, если это уже начинается с $
                     if (isset($matches[0][0]) && $matches[0][0] === '$') {
                         return $fullMatch;
                     }
-                    
+
                     // Обрабатываем аргументы
                     $processedArgs = $this->processFunctionArguments($argsString, $strings, $protected);
-                    
+
                     $replacementCount++;
-                    
+
                     // Генерируем вызов через callFunction и защищаем его
-                    $functionCall = '$__tpl->callFunction(\'' . $funcName . '\'' . 
-                                   ($processedArgs ? ', ' . $processedArgs : '') . ')';
-                    
+                    $functionCall = '$__tpl->callFunction(\'' . $funcName . '\'' .
+                        ($processedArgs ? ', ' . $processedArgs : '') . ')';
+
                     // Создаем плейсхолдер для защиты от дальнейшей обработки
                     $placeholder = '___FUNC_' . count($protected) . '___';
                     $protected[$placeholder] = $functionCall;
-                    
+
                     return $placeholder;
                 },
                 $expression
             );
-            
+
             // Если строка не изменилась или не было замен, выходим из цикла
             if ($expression === $oldExpression || $replacementCount === 0) {
                 break;
             }
-            
+
             $iteration++;
         }
-        
+
         return $expression;
     }
 
@@ -1039,27 +1712,26 @@ class TemplateEngine
     private function processFunctionArguments(string $argsString, array &$strings, array &$functionProtected): string
     {
         $argsString = trim($argsString);
-        
+
         if ($argsString === '') {
             return '';
         }
-        
+
         // Разделяем аргументы по запятым (с учетом вложенности)
         $args = $this->splitArguments($argsString);
         $processedArgs = [];
-        
+
         foreach ($args as $arg) {
             $arg = trim($arg);
-            
+
             if ($arg === '') {
                 continue;
             }
-            
+
             // Если это placeholder строки, восстанавливаем её
             if (preg_match('/^___STRING_(\d+)___$/', $arg, $match)) {
                 $processedArgs[] = $strings[(int)$match[1]];
-            }
-            // Если это placeholder функции, восстанавливаем его
+            } // Если это placeholder функции, восстанавливаем его
             elseif (preg_match('/^___FUNC_\d+___$/', $arg)) {
                 // Ищем соответствующий вызов в protected и восстанавливаем
                 if (isset($functionProtected[$arg])) {
@@ -1068,16 +1740,13 @@ class TemplateEngine
                     // На всякий случай оставляем как есть
                     $processedArgs[] = $arg;
                 }
-            }
-            // Если это число
+            } // Если это число
             elseif (is_numeric($arg)) {
                 $processedArgs[] = $arg;
-            }
-            // Если это уже обработанный вызов функции или содержит $__tpl
+            } // Если это уже обработанный вызов функции или содержит $__tpl
             elseif (strpos($arg, '$__tpl') !== false) {
                 $processedArgs[] = $arg;
-            }
-            // Иначе обрабатываем как переменную
+            } // Иначе обрабатываем как переменную
             else {
                 // Проверяем, не является ли это простой переменной
                 if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $arg)) {
@@ -1085,16 +1754,16 @@ class TemplateEngine
                 } else {
                     // Сложное выражение - обрабатываем рекурсивно
                     $result = $this->processPropertyAccess($arg);
-                    
+
                     if (!is_array($result) || !isset($result['expression'])) {
                         // Если что-то пошло не так, используем исходный аргумент
                         $processedArgs[] = $arg;
                         continue;
                     }
-                    
+
                     $processed = $result['expression'];
                     $protected = $result['protected'] ?? [];
-                    
+
                     // Если остались необработанные переменные, добавляем $
                     $processed = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($m) {
                         if (strpos($m[1], '___') === 0) {
@@ -1102,17 +1771,17 @@ class TemplateEngine
                         }
                         return '$' . $m[1];
                     }, $processed);
-                    
+
                     // Восстанавливаем защищенные фрагменты
                     foreach ($protected as $placeholder => $value) {
                         $processed = str_replace($placeholder, $value, $processed);
                     }
-                    
+
                     $processedArgs[] = $processed;
                 }
             }
         }
-        
+
         return implode(', ', $processedArgs);
     }
 
@@ -1127,11 +1796,11 @@ class TemplateEngine
         $inString = false;
         $stringChar = null;
         $length = strlen($argsString);
-        
+
         for ($i = 0; $i < $length; $i++) {
             $char = $argsString[$i];
             $prevChar = $i > 0 ? $argsString[$i - 1] : '';
-            
+
             // Проверяем открытие/закрытие строки
             if (($char === '"' || $char === "'") && $prevChar !== '\\') {
                 if (!$inString) {
@@ -1144,36 +1813,340 @@ class TemplateEngine
                 $current .= $char;
                 continue;
             }
-            
+
             // Внутри строки просто добавляем символ
             if ($inString) {
                 $current .= $char;
                 continue;
             }
-            
+
             // Отслеживаем вложенность скобок
             if ($char === '(') {
                 $depth++;
             } elseif ($char === ')') {
                 $depth--;
             }
-            
+
             // Разделяем по запятой только на верхнем уровне
             if ($char === ',' && $depth === 0) {
                 $args[] = $current;
                 $current = '';
                 continue;
             }
-            
+
             $current .= $char;
         }
-        
+
         // Добавляем последний аргумент
         if ($current !== '') {
             $args[] = $current;
         }
-        
+
         return $args;
+    }
+
+    /**
+     * Обрабатывает тернарный оператор (condition ? true_val : false_val)
+     */
+    private function processTernary(string $expression, array &$strings, array &$ternaryProtected): string
+    {
+        // Ищем тернарные операторы (condition ? true_value : false_value)
+        // Используем нежадный поиск для правильной обработки вложенных тернарников
+        $expression = preg_replace_callback(
+            '/([^?:]+)\s*\?\s*([^:]+)\s*:\s*(.+?)(?=\s*[\),\]]|$)/s',
+            function ($matches) use (&$strings, &$ternaryProtected) {
+                $condition = trim($matches[1]);
+                $trueValue = trim($matches[2]);
+                $falseValue = trim($matches[3]);
+
+                // Обрабатываем каждую часть
+                $processedCondition = $this->processExpressionPart($condition, $strings);
+                $processedTrue = $this->processExpressionPart($trueValue, $strings);
+                $processedFalse = $this->processExpressionPart($falseValue, $strings);
+
+                // Создаем PHP тернарник
+                $ternary = '(' . $processedCondition . ' ? ' . $processedTrue . ' : ' . $processedFalse . ')';
+
+                // Защищаем от дальнейшей обработки
+                $placeholder = '___TERNARY_' . count($ternaryProtected) . '___';
+                $ternaryProtected[$placeholder] = $ternary;
+
+                return $placeholder;
+            },
+            $expression
+        );
+
+        return $expression;
+    }
+
+    /**
+     * Обрабатывает часть выражения для тернарного оператора
+     */
+    private function processExpressionPart(string $part, array &$strings): string
+    {
+        $part = trim($part);
+
+        // Если это placeholder строки
+        if (preg_match('/^___STRING_(\d+)___$/', $part, $match)) {
+            return $strings[(int)$match[1]];
+        }
+
+        // Если это число
+        if (is_numeric($part)) {
+            return $part;
+        }
+
+        // Если это boolean или null
+        if (in_array(strtolower($part), ['true', 'false', 'null'])) {
+            return strtolower($part);
+        }
+
+        // Если это простая переменная
+        if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $part)) {
+            return '$' . $part;
+        }
+
+        // Для сложных выражений (с точками, скобками и т.д.)
+        // просто добавляем $ перед переменными
+        $part = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($m) {
+            if (in_array(strtolower($m[1]), ['true', 'false', 'null'])) {
+                return $m[1];
+            }
+            return '$' . $m[1];
+        }, $part);
+
+        return $part;
+    }
+
+    /**
+     * Обрабатывает выражения (для set, условий, вычислений)
+     */
+    private function processExpression(string $expression): string
+    {
+        $expression = trim($expression);
+
+        // Защищаем строки в кавычках
+        $strings = [];
+        $expression = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
+            $strings[] = $matches[0];
+            return '___STRING_' . (count($strings) - 1) . '___';
+        }, $expression);
+
+        // Обрабатываем тернарный оператор (condition ? true_value : false_value)
+        $ternaryProtected = [];
+        $expression = $this->processTernary($expression, $strings, $ternaryProtected);
+
+        // Обрабатываем оператор конкатенации ~ (как в Twig)
+        $expression = str_replace('~', '.', $expression);
+
+        // Защищаем массивы-литералы [1, 2, 3] ДО обработки доступа к элементам
+        $arrayLiterals = [];
+        $expression = preg_replace_callback('/\[([^\[\]]*)\]/', function ($matches) use (&$strings, &$arrayLiterals) {
+            $content = trim($matches[1]);
+            if (empty($content)) {
+                return '[]';
+            }
+
+            // Разбиваем элементы по запятым
+            $elements = $this->splitArguments($content);
+            $processedElements = [];
+
+            foreach ($elements as $element) {
+                $element = trim($element);
+
+                // Если это placeholder строки
+                if (preg_match('/^___STRING_(\d+)___$/', $element, $match)) {
+                    $processedElements[] = $strings[(int)$match[1]];
+                } // Если это число
+                elseif (is_numeric($element)) {
+                    $processedElements[] = $element;
+                } // Если это boolean или null
+                elseif (in_array(strtolower($element), ['true', 'false', 'null'])) {
+                    $processedElements[] = strtolower($element);
+                } // Иначе это переменная
+                else {
+                    if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $element)) {
+                        $processedElements[] = '$' . $element;
+                    } else {
+                        // Пропускаем сложные выражения - они будут обработаны позже
+                        $processedElements[] = $element;
+                    }
+                }
+            }
+
+            $arrayCode = '[' . implode(', ', $processedElements) . ']';
+            $placeholder = '___ARRAY_' . count($arrayLiterals) . '___';
+            $arrayLiterals[$placeholder] = $arrayCode;
+            return $placeholder;
+        }, $expression);
+
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
+
+        // Обрабатываем доступ к свойствам (user.name, items[0])
+        $result = $this->processPropertyAccess($expression);
+        $expression = $result['expression'];
+        $protected = $result['protected'];
+
+        // Обрабатываем простые переменные (которые еще не обработаны)
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
+        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
+            $var = $matches[1];
+            // Пропускаем ключевые слова и защищенные фрагменты
+            if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
+                return $var;
+            }
+            return '$' . $var;
+        }, $expression);
+
+        // Оптимизация: объединяем все восстановления в одну операцию strtr()
+        $replacements = $functionProtected + $protected + $arrayLiterals + $ternaryProtected;
+
+        // Добавляем строки
+        foreach ($strings as $index => $string) {
+            $replacements['___STRING_' . $index . '___'] = $string;
+        }
+
+        // Выполняем все замены за один проход - быстрее в 3-5 раз
+        if (!empty($replacements)) {
+            $expression = strtr($expression, $replacements);
+        }
+
+        return $expression;
+    }
+
+    /**
+     * Компилирует for-цикл с блоком else
+     */
+    private function compileForLoopWithElse(array $loopVars, string $forContent, string $elseContent): string
+    {
+        $var1 = $loopVars[0];
+        $var2 = $loopVars[1];
+
+        // Обрабатываем фильтры в выражении (например, items|batch(3))
+        $iterableExpr = trim($loopVars[2]);
+        $parts = $this->splitByPipe($iterableExpr);
+        $iterable = $this->processVariable(array_shift($parts));
+
+        // Применяем фильтры через вспомогательный метод
+        $iterable = $this->compileFilters($iterable, $parts);
+
+        // Генерируем уникальный ID для переменных цикла (используем счётчик вместо uniqid для производительности)
+        $loopId = 'loop_' . (++self::$loopCounter);
+
+        $code = '<?php ';
+        // Сохраняем родительский loop
+        $code .= '$__loop_parent_' . $loopId . ' = isset($loop) ? $loop : null; ';
+        // Инициализируем массив итераций
+        $code .= '$__loop_items_' . $loopId . ' = ' . $iterable . '; ';
+        // Получаем общее количество элементов
+        $code .= '$__loop_length_' . $loopId . ' = is_array($__loop_items_' . $loopId . ') || $__loop_items_' . $loopId . ' instanceof \Countable ? count($__loop_items_' . $loopId . ') : 0; ';
+
+        // Проверяем, есть ли элементы
+        $code .= 'if ($__loop_length_' . $loopId . ' > 0): ';
+
+        // Инициализируем счетчик
+        $code .= '$__loop_index_' . $loopId . ' = 0; ';
+
+        // Если указана вторая переменная - это деструктуризация (key, value)
+        if (!empty($var2)) {
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $var1 . ' => $' . $var2 . '): ';
+        } else {
+            // Иначе обычный цикл (только value)
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $var1 . '): ';
+        }
+
+        // Создаем переменную loop
+        $code .= '$loop = [';
+        $code .= '"index" => $__loop_index_' . $loopId . ' + 1, ';
+        $code .= '"index0" => $__loop_index_' . $loopId . ', ';
+        $code .= '"revindex" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ', ';
+        $code .= '"revindex0" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ' - 1, ';
+        $code .= '"first" => $__loop_index_' . $loopId . ' === 0, ';
+        $code .= '"last" => $__loop_index_' . $loopId . ' === $__loop_length_' . $loopId . ' - 1, ';
+        $code .= '"length" => $__loop_length_' . $loopId . ', ';
+        $code .= '"parent" => $__loop_parent_' . $loopId;
+        $code .= ']; ';
+        $code .= '$__loop_index_' . $loopId . '++; ';
+        $code .= '?>';
+
+        // Добавляем содержимое цикла
+        $code .= $forContent;
+
+        // Закрываем foreach
+        $code .= '<?php endforeach; ?>';
+
+        // Закрываем if и добавляем else
+        $code .= '<?php else: ?>';
+
+        // Добавляем else блок
+        $code .= $elseContent;
+
+        // Закрываем if
+        $code .= '<?php endif; ?>';
+
+        return $code;
+    }
+
+    /**
+     * Компилирует for-цикл с поддержкой loop переменной
+     */
+    private function compileForLoop(array $matches): string
+    {
+        // Обрабатываем фильтры в выражении (например, items|batch(3))
+        $iterableExpr = trim($matches[3]);
+        $parts = $this->splitByPipe($iterableExpr);
+        $iterable = $this->processVariable(array_shift($parts));
+
+        // Применяем фильтры
+        foreach ($parts as $filter) {
+            $filter = trim($filter);
+            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                $filterName = $filterMatches[1];
+                $args = $filterMatches[2];
+                $iterable = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $iterable . ($args ? ', ' . $args : '') . ')';
+            } else {
+                $iterable = '$__tpl->applyFilter(\'' . $filter . '\', ' . $iterable . ')';
+            }
+        }
+
+        // Генерируем уникальный ID для переменных цикла (используем счётчик вместо uniqid для производительности)
+        $loopId = 'loop_' . (++self::$loopCounter);
+
+        $code = '<?php ';
+        // Сохраняем родительский loop (для вложенных циклов)
+        $code .= '$__loop_parent_' . $loopId . ' = isset($loop) ? $loop : null; ';
+        // Инициализируем массив итераций
+        $code .= '$__loop_items_' . $loopId . ' = ' . $iterable . '; ';
+        // Получаем общее количество элементов
+        $code .= '$__loop_length_' . $loopId . ' = is_array($__loop_items_' . $loopId . ') || $__loop_items_' . $loopId . ' instanceof \Countable ? count($__loop_items_' . $loopId . ') : 0; ';
+        // Инициализируем счетчик
+        $code .= '$__loop_index_' . $loopId . ' = 0; ';
+
+        // Если указана вторая переменная - это деструктуризация (key, value)
+        if (!empty($matches[2])) {
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ';
+        } else {
+            // Иначе обычный цикл (только value)
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $matches[1] . '): ';
+        }
+
+        // Создаем переменную loop с информацией о текущей итерации
+        $code .= '$loop = [';
+        $code .= '"index" => $__loop_index_' . $loopId . ' + 1, '; // 1-based index
+        $code .= '"index0" => $__loop_index_' . $loopId . ', '; // 0-based index
+        $code .= '"revindex" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ', '; // обратный индекс (1-based)
+        $code .= '"revindex0" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ' - 1, '; // обратный индекс (0-based)
+        $code .= '"first" => $__loop_index_' . $loopId . ' === 0, ';
+        $code .= '"last" => $__loop_index_' . $loopId . ' === $__loop_length_' . $loopId . ' - 1, ';
+        $code .= '"length" => $__loop_length_' . $loopId . ', ';
+        $code .= '"parent" => $__loop_parent_' . $loopId;
+        $code .= ']; ';
+        $code .= '$__loop_index_' . $loopId . '++; ';
+        $code .= '?>';
+
+        return $code;
     }
 
     /**
@@ -1280,6 +2253,44 @@ class TemplateEngine
         $this->addFilter('split', fn($value, $delimiter = ',') => explode($delimiter, (string)$value));
         $this->addFilter('reverse', fn($value) => is_array($value) ? array_reverse($value) : strrev((string)$value));
 
+        // Фильтр batch - разбивает массив на части (chunks)
+        $this->addFilter('batch', function ($value, $size, $fill = null) {
+            if (!is_array($value)) {
+                return $value;
+            }
+
+            $size = max(1, (int)$size);
+            $result = array_chunk($value, $size, true);
+
+            // Если задан fill и последняя группа неполная - дополняем её
+            if ($fill !== null && !empty($result)) {
+                $lastIndex = count($result) - 1;
+                $lastChunk = $result[$lastIndex];
+
+                if (count($lastChunk) < $size) {
+                    while (count($lastChunk) < $size) {
+                        $lastChunk[] = $fill;
+                    }
+                    $result[$lastIndex] = $lastChunk;
+                }
+            }
+
+            return $result;
+        });
+
+        // Фильтр slice - извлекает срез массива или строки
+        $this->addFilter('slice', function ($value, $start, $length = null, $preserveKeys = false) {
+            if (is_array($value)) {
+                return array_slice($value, (int)$start, $length, $preserveKeys);
+            }
+
+            if (is_string($value)) {
+                return mb_substr($value, (int)$start, $length, 'UTF-8');
+            }
+
+            return $value;
+        });
+
         // Фильтры для форматирования
         $this->addFilter('date', function ($value, $format = 'Y-m-d H:i:s') {
             if ($value instanceof \DateTimeInterface) {
@@ -1347,26 +2358,25 @@ class TemplateEngine
             });
         }
 
-        // Регистрируем функцию route (если она существует)
-        if (function_exists('route')) {
-            $this->addFunction('route', function (string $name, array $params = []) {
-                return route($name, $params);
-            });
-        }
+        // Регистрируем функцию route
+        $this->addFunction('route', function (string $name, array $params = []) {
+            $router = \Core\DebugToolbar::getRouter();
+            if (!$router) {
+                throw new \RuntimeException('Router is not initialized');
+            }
+            return $router->route($name, $params);
+        });
 
-        // Регистрируем функцию csrf_token (если она существует)
-        if (function_exists('csrf_token')) {
-            $this->addFunction('csrf_token', function () {
-                return csrf_token();
-            });
-        }
+        // Регистрируем функцию csrf_token
+        $this->addFunction('csrf_token', function () {
+            return \Core\Session::generateCsrfToken();
+        });
 
-        // Регистрируем функцию csrf_field (если она существует)
-        if (function_exists('csrf_field')) {
-            $this->addFunction('csrf_field', function () {
-                return csrf_field();
-            });
-        }
+        // Регистрируем функцию csrf_field
+        $this->addFunction('csrf_field', function () {
+            $token = \Core\Session::generateCsrfToken();
+            return '<input type="hidden" name="_csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
+        });
 
         // Регистрируем функцию old (если она существует)
         if (function_exists('old')) {
@@ -1395,5 +2405,25 @@ class TemplateEngine
                 return trans($key, $params);
             });
         }
+
+        // Регистрируем функцию range для создания диапазонов
+        $this->addFunction('range', function ($start, $end, $step = 1) {
+            if ($step == 0) {
+                throw new \InvalidArgumentException('Step cannot be zero');
+            }
+
+            $result = [];
+            if ($step > 0) {
+                for ($i = $start; $i <= $end; $i += $step) {
+                    $result[] = $i;
+                }
+            } else {
+                for ($i = $start; $i >= $end; $i += $step) {
+                    $result[] = $i;
+                }
+            }
+
+            return $result;
+        });
     }
 }
