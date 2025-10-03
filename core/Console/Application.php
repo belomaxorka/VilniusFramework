@@ -152,11 +152,22 @@ class Application
         // Сортируем группы
         ksort($groupedCommands);
 
-        foreach ($groupedCommands as $group => $commands) {
-            if ($group !== 'general') {
-                $this->output->line('');
-                $this->output->line($this->colorize(" {$group}", 'green'));
+        // Сначала выводим команды без группы (general)
+        if (isset($groupedCommands['general'])) {
+            foreach ($groupedCommands['general'] as $commandInfo) {
+                $signature = str_pad($commandInfo['signature'], 25);
+                $this->output->line($this->colorize("  {$signature}", 'green') . $commandInfo['description']);
             }
+        }
+
+        // Затем выводим остальные группы
+        foreach ($groupedCommands as $group => $commands) {
+            if ($group === 'general') {
+                continue; // Уже вывели выше
+            }
+
+            $this->output->line('');
+            $this->output->line($this->colorize(" {$group}", 'green'));
 
             foreach ($commands as $commandInfo) {
                 $signature = str_pad($commandInfo['signature'], 25);
