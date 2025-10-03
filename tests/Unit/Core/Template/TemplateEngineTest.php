@@ -843,6 +843,31 @@ test('loop variable is accessible', function () {
     expect($result)->toContain('3-');
 });
 
+test('debug compiled template for loop.last', function () {
+    $templateContent = '{% for item in items %}{% if not loop.last %}X{% endif %}{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/debug_compile.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setCacheEnabled(true); // Включаем кэш
+    
+    // Рендерим, чтобы создать скомпилированный файл
+    $engine->render('debug_compile.twig', ['items' => [1, 2, 3]]);
+    
+    // Читаем скомпилированный файл из кэша
+    $cacheFiles = glob($this->testCacheDir . '/*.php');
+    expect($cacheFiles)->toBeArray();
+    expect($cacheFiles)->not->toBeEmpty();
+    
+    if (!empty($cacheFiles)) {
+        $compiled = file_get_contents($cacheFiles[0]);
+        // Выводим для отладки
+        dump('Compiled template:', $compiled);
+    }
+    
+    // Тест всегда проходит, это просто для отладки
+    expect(true)->toBeTrue();
+});
+
 test('loop.last works correctly', function () {
     $templateContent = '{% for item in items %}{{ item }}{% if not loop.last %},{% endif %}{% endfor %}';
     file_put_contents($this->testTemplateDir . '/loop_last.twig', $templateContent);
