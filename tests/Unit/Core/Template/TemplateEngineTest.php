@@ -830,17 +830,17 @@ test('non-strict mode allows undefined variables', function () {
 });
 
 test('loop variable is accessible', function () {
-    $templateContent = '{% for item in items %}{! loop.index !}-{! loop.last !};{% endfor %}';
+    $templateContent = '{% for item in items %}{! loop.index !}-{! loop.last ? "TRUE" : "FALSE" !};{% endfor %}';
     file_put_contents($this->testTemplateDir . '/loop_debug.twig', $templateContent);
 
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
     $engine->setCacheEnabled(false);
     $result = $engine->render('loop_debug.twig', ['items' => ['a', 'b', 'c']]);
 
-    // Должно быть: 1-;2-;3-1; (или 1-false;2-false;3-true;)
-    expect($result)->toContain('1-');
-    expect($result)->toContain('2-');
-    expect($result)->toContain('3-');
+    // Должно быть: 1-FALSE;2-FALSE;3-TRUE;
+    expect($result)->toContain('1-FALSE');
+    expect($result)->toContain('2-FALSE');
+    expect($result)->toContain('3-TRUE');
 });
 
 test('debug compiled template for loop.last', function () {
@@ -866,6 +866,21 @@ test('debug compiled template for loop.last', function () {
     
     // Тест всегда проходит, это просто для отладки
     expect(true)->toBeTrue();
+});
+
+test('loop.last in if without not', function () {
+    // Проверяем прямое условие (без not)
+    $templateContent = '{% for item in items %}{{ item }}{% if loop.last %}LAST{% endif %};{% endfor %}';
+    file_put_contents($this->testTemplateDir . '/loop_if.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $engine->setCacheEnabled(false);
+    $result = $engine->render('loop_if.twig', ['items' => [1, 2, 3]]);
+
+    // Должно быть: 1;2;3LAST;
+    expect($result)->toContain('3LAST');
+    expect($result)->not->toContain('1LAST');
+    expect($result)->not->toContain('2LAST');
 });
 
 test('loop.last works correctly', function () {
