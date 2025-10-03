@@ -582,3 +582,58 @@ test('in operator works with literal arrays', function () {
 
     expect($result)->toBe('Access granted');
 });
+
+test('range with dot dot syntax works', function () {
+    $templateContent = '{% for i in 1..5 %}{{ i }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/range_dotdot.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('range_dotdot.twig');
+
+    expect($result)->toBe('12345');
+});
+
+test('range function works', function () {
+    $templateContent = '{% for i in range(1, 5) %}{{ i }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/range_function.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('range_function.twig');
+
+    expect($result)->toBe('12345');
+});
+
+test('range function with step works', function () {
+    $templateContent = '{% for i in range(0, 10, 2) %}{{ i }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/range_step.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('range_step.twig');
+
+    expect($result)->toBe('0,2,4,6,8,10,');
+});
+
+test('range with negative step works', function () {
+    $templateContent = '{% for i in range(10, 0, -2) %}{{ i }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/range_negative.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('range_negative.twig');
+
+    expect($result)->toBe('10,8,6,4,2,0,');
+});
+
+test('range in set works', function () {
+    $templateContent = '{% set numbers = range(1, 3) %}{% for n in numbers %}{{ n }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/range_set.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('range_set.twig');
+
+    expect($result)->toBe('123');
+});

@@ -1173,6 +1173,11 @@ class TemplateEngine
             $strings[] = $matches[0];
             return '___STRING_' . (count($strings) - 1) . '___';
         }, $expression);
+        
+        // Обрабатываем диапазоны (1..10 => range(1, 10))
+        $expression = preg_replace_callback('/(\d+)\.\.(\d+)/', function ($matches) {
+            return 'range(' . $matches[1] . ', ' . $matches[2] . ')';
+        }, $expression);
 
         // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
         $functionProtected = [];
@@ -1957,5 +1962,25 @@ class TemplateEngine
                 return trans($key, $params);
             });
         }
+        
+        // Регистрируем функцию range для создания диапазонов
+        $this->addFunction('range', function ($start, $end, $step = 1) {
+            if ($step == 0) {
+                throw new \InvalidArgumentException('Step cannot be zero');
+            }
+            
+            $result = [];
+            if ($step > 0) {
+                for ($i = $start; $i <= $end; $i += $step) {
+                    $result[] = $i;
+                }
+            } else {
+                for ($i = $start; $i >= $end; $i += $step) {
+                    $result[] = $i;
+                }
+            }
+            
+            return $result;
+        });
     }
 }
