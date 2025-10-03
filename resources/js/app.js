@@ -6,6 +6,7 @@ import { createApp } from 'vue';
 
 // Import components
 import WelcomeCounter from './components/WelcomeCounter.vue';
+import UsersList from './components/UsersList.vue';
 
 // Create Vue app
 const app = createApp({});

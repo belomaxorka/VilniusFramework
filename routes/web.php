@@ -10,3 +10,6 @@
 
 // Home page
 $router->get('', [\App\Controllers\HomeController::class, 'index'])->name('home');
+
+// API Routes
+$router->delete('api/users/{id}', [\App\Controllers\Api\UserController::class, 'delete'])->name('api.users.delete');
