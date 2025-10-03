@@ -128,6 +128,7 @@ class TemplateEngine
 
         if (!$fromCache) {
             // Читаем шаблон (оптимизация: один системный вызов вместо file_exists + file_get_contents)
+            // Подавляем warning через @, так как проверяем результат на false
             $templateContent = @file_get_contents($templatePath);
             if ($templateContent === false) {
                 throw new \InvalidArgumentException("Template not found or not readable: {$template}");
