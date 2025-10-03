@@ -1393,7 +1393,7 @@ class TemplateEngine
         // Ищем все выражения вида "variable|filter" или "variable|filter(args)|filter2"
         // Используем более точную регулярку, которая останавливается перед операторами
         $filterProtected = [];
-        
+
         // Ищем все переменные с фильтрами (variable|filter или variable|filter|filter2 и т.д.)
         // Останавливаемся перед: пробелом, операторами сравнения, концом строки, закрывающей скобкой
         // НЕ захватываем логическое OR (|), только фильтры (|filter_name)
@@ -1402,18 +1402,18 @@ class TemplateEngine
             function ($matches) use (&$filterProtected) {
                 $variable = $matches[1];
                 $filterPart = $matches[2];
-                
+
                 // Разбираем фильтры используя splitByPipe
                 $parts = $this->splitByPipe($variable . $filterPart);
                 $varExpr = $this->processVariable(array_shift($parts));
-                
+
                 // Применяем фильтры
                 $compiled = $this->compileFilters($varExpr, $parts);
-                
+
                 // Сохраняем скомпилированное выражение
                 $placeholder = '___FILTER_' . count($filterProtected) . '___';
                 $filterProtected[$placeholder] = $compiled;
-                
+
                 return $placeholder;
             },
             $condition
@@ -1973,18 +1973,18 @@ class TemplateEngine
             function ($matches) use (&$filterProtected) {
                 $variable = $matches[1];
                 $filterPart = $matches[2];
-                
+
                 // Разбираем фильтры используя splitByPipe
                 $parts = $this->splitByPipe($variable . $filterPart);
                 $varExpr = $this->processVariable(array_shift($parts));
-                
+
                 // Применяем фильтры
                 $compiled = $this->compileFilters($varExpr, $parts);
-                
+
                 // Сохраняем скомпилированное выражение
                 $placeholder = '___FILTER_' . count($filterProtected) . '___';
                 $filterProtected[$placeholder] = $compiled;
-                
+
                 return $placeholder;
             },
             $expression
@@ -2369,7 +2369,7 @@ class TemplateEngine
 
         // Фильтр raw - отключает экранирование HTML (как в Twig)
         $this->addFilter('raw', fn($value) => $value);
-        
+
         // Фильтры для JSON
         $this->addFilter('json', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $this->addFilter('json_encode', fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); // Alias
@@ -2442,34 +2442,18 @@ class TemplateEngine
 
         // Регистрируем функцию __ для переводов
         $this->addFunction('__', function (string $key, array $replacements = []) {
-            return \Core\Lang::get($key, $replacements);
+            return Lang::get($key, $replacements);
         });
 
-        // Регистрируем функцию old (если она существует)
-        if (function_exists('old')) {
-            $this->addFunction('old', function (string $key, mixed $default = null) {
-                return old($key, $default);
-            });
-        }
+        // Регистрируем функцию config
+        $this->addFunction('config', function (string $key, mixed $default = null) {
+            return Config::get($key, $default);
+        });
 
-        // Регистрируем функцию config (если она существует)
-        if (function_exists('config')) {
-            $this->addFunction('config', function (string $key, mixed $default = null) {
-                return config($key, $default);
-            });
-        }
-
-        // Регистрируем функцию env (если она существует)
+        // Регистрируем функцию env
         if (function_exists('env')) {
             $this->addFunction('env', function (string $key, mixed $default = null) {
                 return env($key, $default);
-            });
-        }
-
-        // Регистрируем функцию trans (если она существует)
-        if (function_exists('trans')) {
-            $this->addFunction('trans', function (string $key, array $params = []) {
-                return trans($key, $params);
             });
         }
 
