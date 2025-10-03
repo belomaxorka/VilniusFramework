@@ -75,27 +75,44 @@ Debug::dumpPretty($data);
 
 ### Решение
 
-Заменена на прямой вызов `str_replace()` (функция очень простая, не требует обертки):
+Создан класс-утилита `Core\Path` с методами для работы с путями:
 
 ```php
 // Было
 $path = normalize_path($filePath);
 
 // Стало
-$path = str_replace('\\', '/', $filePath);
+use Core\Path;
+
+$path = Path::normalize($filePath);
+$relative = Path::relative($absolutePath);
+$joined = Path::join('app', 'Controllers', 'HomeController.php');
 ```
 
-**Файлы:** `core/DumpClient.php`, `core/DumpServer.php`
+**Новый класс:** `core/Path.php`  
+**Обновлены файлы:** `core/DumpClient.php`, `core/DumpServer.php`
+
+**Преимущества:**
+- ✅ Больше методов (normalize, relative, join, extension, и др.)
+- ✅ Явный класс вместо глобальной функции
+- ✅ IDE автодополнение
+- ✅ Соответствует философии фреймворка
 
 ---
 
 ## Файлы изменены
 
-1. ✅ `core/Response.php` - исправлен вызов view()
-2. ✅ `core/Debug.php` - добавлены методы dd(), ddPretty(), trace()
-3. ✅ `core/DumpClient.php` - заменен normalize_path() на str_replace()
-4. ✅ `core/DumpServer.php` - заменен normalize_path() на str_replace()
-5. ✅ `docs/DeprecatedHelpers.md` - обновлена документация
+### Созданы новые
+1. ✅ `core/Path.php` - новый класс-утилита для работы с путями
+2. ✅ `docs/Path.md` - документация класса Path
+3. ✅ `docs/DebugAPI.md` - полная документация Debug API
+
+### Обновлены
+4. ✅ `core/Response.php` - исправлен вызов view()
+5. ✅ `core/Debug.php` - добавлены методы dd(), ddPretty(), trace()
+6. ✅ `core/DumpClient.php` - использует Path::normalize() и Path::relative()
+7. ✅ `core/DumpServer.php` - использует Path::relative()
+8. ✅ `docs/DeprecatedHelpers.md` - обновлена документация
 
 ---
 
