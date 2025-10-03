@@ -164,7 +164,7 @@ test('throws exception for non-existent template', function () {
     $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
 
     expect(fn() => $engine->render('nonexistent.twig'))
-        ->toThrow(InvalidArgumentException::class, 'Template not found: nonexistent.twig');
+        ->toThrow(InvalidArgumentException::class, 'Template not found or not readable: nonexistent.twig');
 });
 
 test('can get singleton instance', function () {

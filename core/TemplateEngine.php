@@ -118,13 +118,20 @@ class TemplateEngine
         }
 
         if (!$fromCache) {
-            // Проверяем размер файла только при компиляции (не при взятии из кэша)
-            $this->validateTemplateSize($templatePath);
-            
             // Читаем шаблон (оптимизация: один системный вызов вместо file_exists + file_get_contents)
             $templateContent = @file_get_contents($templatePath);
             if ($templateContent === false) {
                 throw new \InvalidArgumentException("Template not found or not readable: {$template}");
+            }
+            
+            // Проверяем размер прочитанного контента (защита от DoS)
+            $contentSize = strlen($templateContent);
+            if ($contentSize > self::MAX_TEMPLATE_SIZE) {
+                $maxSizeMB = round(self::MAX_TEMPLATE_SIZE / 1024 / 1024, 2);
+                $actualSizeMB = round($contentSize / 1024 / 1024, 2);
+                throw new \RuntimeException(
+                    "Template content is too large: {$actualSizeMB}MB (max: {$maxSizeMB}MB)"
+                );
             }
             
             $compiledContent = $this->compileTemplate($templateContent, $template);
@@ -796,15 +803,20 @@ class TemplateEngine
         
         $includePath = $this->templateDir . '/' . $template;
 
-        if (!file_exists($includePath)) {
+        // Читаем файл (оптимизация: один вызов вместо file_exists + file_get_contents)
+        $content = @file_get_contents($includePath);
+        if ($content === false) {
             Logger::warning("Include template not found: {$template}");
             return '';
         }
 
-        // Проверяем размер файла
-        $this->validateTemplateSize($includePath);
+        // Проверяем размер прочитанного контента
+        $contentSize = strlen($content);
+        if ($contentSize > self::MAX_TEMPLATE_SIZE) {
+            Logger::warning("Include template is too large: {$template}");
+            return '';
+        }
 
-        $content = file_get_contents($includePath);
         return $this->compileTemplate($content);
     }
 
