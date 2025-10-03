@@ -410,6 +410,17 @@ class TemplateEngine
         }, $content);
         $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
 
+        // Обрабатываем {% spaceless %}
+        $content = preg_replace_callback(
+            '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
+            function ($matches) {
+                $innerContent = $matches[1];
+                // Удаляем пробелы между HTML-тегами
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo preg_replace(\'/>\s+</\', \'><\', ob_get_clean()); ?>';
+            },
+            $content
+        );
+
         // Обрабатываем переменные {{ variable }} с поддержкой фильтров
         $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
             // Разделяем на переменную и фильтры
@@ -747,6 +758,17 @@ class TemplateEngine
             return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
         }, $content);
         $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
+
+        // Обрабатываем {% spaceless %}
+        $content = preg_replace_callback(
+            '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
+            function ($matches) {
+                $innerContent = $matches[1];
+                // Удаляем пробелы между HTML-тегами
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo preg_replace(\'/>\s+</\', \'><\', ob_get_clean()); ?>';
+            },
+            $content
+        );
 
         // Обрабатываем переменные {{ variable }} с поддержкой фильтров
         $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
