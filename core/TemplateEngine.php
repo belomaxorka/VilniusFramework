@@ -6,6 +6,12 @@ use Core\Logger;
 
 class TemplateEngine
 {
+    // Константы безопасности
+    private const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5MB - максимальный размер шаблона
+    private const MAX_NESTING_LEVEL = 50; // Максимальная глубина вложенности блоков
+    private const PROTECTED_FILTERS = ['escape', 'e', 'upper', 'lower', 'raw']; // Защищённые фильтры
+    private const RESERVED_VARIABLES = ['__tpl', 'this', 'GLOBALS', '_SERVER', '_GET', '_POST', '_FILES', '_COOKIE', '_SESSION', '_REQUEST', '_ENV']; // Зарезервированные переменные
+    
     private static ?TemplateEngine $instance = null;
     private string $templateDir;
     private string $cacheDir;
@@ -18,6 +24,8 @@ class TemplateEngine
     private bool $strictVariables = false; // Строгий режим - ошибка при undefined переменной
     private static array $undefinedVars = []; // Сбор неопределенных переменных
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
+    private int $currentNestingLevel = 0; // Текущая глубина вложенности
+    private static int $loopCounter = 0; // Счётчик циклов для генерации уникальных ID
 
     // Поддержка блоков (extends/block)
     private array $blocks = []; // Определённые блоки
@@ -81,16 +89,23 @@ class TemplateEngine
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
+        // Проверяем безопасность пути
+        $template = $this->sanitizeTemplatePath($template);
+        
         $templatePath = $this->templateDir . '/' . $template;
 
         if (!file_exists($templatePath)) {
             throw new \InvalidArgumentException("Template not found: {$template}");
         }
 
+        // Проверяем размер файла
+        $this->validateTemplateSize($templatePath);
+
         // Сбрасываем блоки для нового рендеринга
         $this->blocks = [];
         $this->currentBlock = null;
         $this->parentTemplate = null;
+        $this->currentNestingLevel = 0; // Сбрасываем счётчик вложенности
 
         // Объединяем переменные
         $allVariables = array_merge($this->variables, $variables);
@@ -347,9 +362,20 @@ class TemplateEngine
 
     /**
      * Регистрирует пользовательский фильтр
+     * 
+     * @param string $name Имя фильтра
+     * @param callable $callback Функция-обработчик
+     * @param bool $allowOverride Разрешить перезапись защищённых фильтров (по умолчанию false)
+     * @return self
+     * @throws \RuntimeException Если попытка перезаписать защищённый фильтр
      */
-    public function addFilter(string $name, callable $callback): self
+    public function addFilter(string $name, callable $callback, bool $allowOverride = false): self
     {
+        // Защищаем встроенные фильтры от перезаписи
+        if (!$allowOverride && in_array($name, self::PROTECTED_FILTERS, true)) {
+            throw new \RuntimeException("Cannot override protected filter: {$name}");
+        }
+        
         $this->filters[$name] = $callback;
         return $this;
     }
@@ -434,7 +460,19 @@ class TemplateEngine
      */
     private function executeTemplate(string $compiledContent, array $variables, string $templateName = ''): string
     {
-        extract($variables);
+        // Фильтруем переменные - удаляем зарезервированные имена для защиты от перезаписи
+        $filteredVariables = [];
+        foreach ($variables as $key => $value) {
+            // Проверяем, что имя переменной не зарезервировано
+            if (!in_array($key, self::RESERVED_VARIABLES, true) && !str_starts_with($key, '__')) {
+                $filteredVariables[$key] = $value;
+            } else {
+                // Логируем попытку использования зарезервированного имени
+                Logger::warning("Attempt to use reserved variable name in template: {$key}");
+            }
+        }
+
+        extract($filteredVariables, EXTR_SKIP); // EXTR_SKIP - не перезаписывать существующие переменные
 
         // Передаем ссылку на движок шаблонов для доступа к helper-методам
         $__tpl = $this;
@@ -570,16 +608,124 @@ class TemplateEngine
     }
 
     /**
+     * Увеличивает счётчик вложенности и проверяет лимит
+     * 
+     * @param string $blockType Тип блока (for, if, while и т.д.)
+     * @throws \RuntimeException Если превышен максимальный уровень вложенности
+     */
+    private function increaseNesting(string $blockType = 'block'): void
+    {
+        $this->currentNestingLevel++;
+        
+        if ($this->currentNestingLevel > self::MAX_NESTING_LEVEL) {
+            throw new \RuntimeException(
+                "Maximum nesting level exceeded ({$this->currentNestingLevel} > " . 
+                self::MAX_NESTING_LEVEL . "). Check your template for deep nesting or infinite loops."
+            );
+        }
+    }
+
+    /**
+     * Уменьшает счётчик вложенности
+     */
+    private function decreaseNesting(): void
+    {
+        if ($this->currentNestingLevel > 0) {
+            $this->currentNestingLevel--;
+        }
+    }
+
+    /**
+     * Проверяет и очищает путь к шаблону для защиты от Path Traversal
+     * 
+     * @param string $path Путь к шаблону
+     * @return string Очищенный путь
+     * @throws \InvalidArgumentException Если путь небезопасен
+     */
+    private function sanitizeTemplatePath(string $path): string
+    {
+        // Запрещаем пустые пути
+        if (empty($path)) {
+            throw new \InvalidArgumentException("Template path cannot be empty");
+        }
+
+        // Запрещаем абсолютные пути
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:/', $path)) {
+            throw new \InvalidArgumentException("Absolute paths are not allowed in templates: {$path}");
+        }
+
+        // Запрещаем path traversal (..)
+        if (str_contains($path, '..')) {
+            throw new \InvalidArgumentException("Path traversal is not allowed in templates: {$path}");
+        }
+
+        // Запрещаем нулевые байты
+        if (str_contains($path, "\0")) {
+            throw new \InvalidArgumentException("Null bytes are not allowed in template paths");
+        }
+
+        // Нормализуем путь
+        $path = str_replace('\\', '/', $path);
+        
+        // Получаем реальный путь и проверяем, что он находится внутри templateDir
+        $fullPath = $this->templateDir . '/' . $path;
+        $realTemplatePath = realpath($fullPath);
+        $realTemplateDir = realpath($this->templateDir);
+
+        // Если файл не существует, realpath вернёт false - это нормально для новых файлов
+        // Но если существует, проверяем что он внутри templateDir
+        if ($realTemplatePath !== false && $realTemplateDir !== false) {
+            if (!str_starts_with($realTemplatePath, $realTemplateDir)) {
+                throw new \InvalidArgumentException("Template path is outside of template directory: {$path}");
+            }
+        }
+
+        return $path;
+    }
+
+    /**
+     * Проверяет размер файла шаблона
+     * 
+     * @param string $filePath Путь к файлу
+     * @throws \RuntimeException Если файл слишком большой
+     */
+    private function validateTemplateSize(string $filePath): void
+    {
+        if (!file_exists($filePath)) {
+            return; // Будет обработано в другом месте
+        }
+
+        $size = filesize($filePath);
+        if ($size === false) {
+            throw new \RuntimeException("Cannot determine template file size: {$filePath}");
+        }
+
+        if ($size > self::MAX_TEMPLATE_SIZE) {
+            $maxSizeMB = round(self::MAX_TEMPLATE_SIZE / 1024 / 1024, 2);
+            $actualSizeMB = round($size / 1024 / 1024, 2);
+            throw new \RuntimeException(
+                "Template file is too large: {$actualSizeMB}MB (max: {$maxSizeMB}MB)"
+            );
+        }
+    }
+
+    /**
      * Обрабатывает включения шаблонов
      */
     private function processInclude(string $template): string
     {
+        // Проверяем безопасность пути
+        $template = $this->sanitizeTemplatePath($template);
+        
         $includePath = $this->templateDir . '/' . $template;
 
         if (!file_exists($includePath)) {
             Logger::warning("Include template not found: {$template}");
             return '';
         }
+
+        // Проверяем размер файла
+        $this->validateTemplateSize($includePath);
 
         $content = file_get_contents($includePath);
         return $this->compileTemplate($content);
@@ -1757,8 +1903,8 @@ class TemplateEngine
             }
         }
         
-        // Генерируем уникальный ID для переменных цикла
-        $loopId = uniqid('loop_');
+        // Генерируем уникальный ID для переменных цикла (используем счётчик вместо uniqid для производительности)
+        $loopId = 'loop_' . (++self::$loopCounter);
         
         $code = '<?php ';
         // Сохраняем родительский loop
@@ -1836,8 +1982,8 @@ class TemplateEngine
             }
         }
         
-        // Генерируем уникальный ID для переменных цикла
-        $loopId = uniqid('loop_');
+        // Генерируем уникальный ID для переменных цикла (используем счётчик вместо uniqid для производительности)
+        $loopId = 'loop_' . (++self::$loopCounter);
         
         $code = '<?php ';
         // Сохраняем родительский loop (для вложенных циклов)
