@@ -2,6 +2,7 @@
 
 namespace Core\Cache;
 
+use Core\Environment;
 use DateInterval;
 
 abstract class AbstractCacheDriver implements CacheDriverInterface
@@ -38,9 +39,7 @@ abstract class AbstractCacheDriver implements CacheDriverInterface
         $this->defaultTtl = $config['ttl'] ?? null;
         
         // Включаем debug только если установлен APP_DEBUG
-        if (defined('ROOT') && function_exists('env')) {
-            $this->debugEnabled = env('APP_DEBUG', false);
-        }
+        $this->debugEnabled = Environment::isDebug();
     }
 
     /**
