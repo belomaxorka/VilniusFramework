@@ -180,3 +180,87 @@ test('can get singleton instance', function () {
     expect($instance1)->toBe($instance2);
     expect($instance1)->toBeInstanceOf(TemplateEngine::class);
 });
+
+test('loop variable provides index information', function () {
+    $templateContent = '{% for item in items %}{{ loop.index }}:{{ item }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_index.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_index.twig', ['items' => ['a', 'b', 'c']]);
+
+    expect($result)->toBe('1:a,2:b,3:c,');
+});
+
+test('loop variable provides index0 (zero-based)', function () {
+    $templateContent = '{% for item in items %}{{ loop.index0 }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_index0.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_index0.twig', ['items' => ['a', 'b', 'c']]);
+
+    expect($result)->toBe('012');
+});
+
+test('loop variable provides first and last flags', function () {
+    $templateContent = '{% for item in items %}{% if loop.first %}FIRST:{% endif %}{{ item }}{% if loop.last %}:LAST{% else %},{% endif %}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_first_last.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_first_last.twig', ['items' => ['a', 'b', 'c']]);
+
+    expect($result)->toBe('FIRST:a,b,c:LAST');
+});
+
+test('loop variable provides length', function () {
+    $templateContent = '{% for item in items %}{{ loop.length }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_length.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_length.twig', ['items' => ['a', 'b', 'c']]);
+
+    expect($result)->toBe('333'); // длина одинакова на каждой итерации
+});
+
+test('loop variable provides revindex (reverse index)', function () {
+    $templateContent = '{% for item in items %}{{ loop.revindex }}{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_revindex.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_revindex.twig', ['items' => ['a', 'b', 'c']]);
+
+    expect($result)->toBe('321');
+});
+
+test('nested loops have access to parent loop', function () {
+    $templateContent = '{% for row in matrix %}{% for cell in row %}{{ loop.parent.index }}.{{ loop.index }},{% endfor %}|{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_parent.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_parent.twig', [
+        'matrix' => [
+            ['a', 'b'],
+            ['c', 'd']
+        ]
+    ]);
+
+    expect($result)->toBe('1.1,1.2,|2.1,2.2,|');
+});
+
+test('loop variable works with destructuring', function () {
+    $templateContent = '{% for key, value in items %}{{ loop.index }}:{{ key }}={{ value }},{% endfor %}';
+    $templateFile = $this->testTemplateDir . '/loop_destructuring.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('loop_destructuring.twig', [
+        'items' => ['a' => '1', 'b' => '2', 'c' => '3']
+    ]);
+
+    expect($result)->toBe('1:a=1,2:b=2,3:c=3,');
+});

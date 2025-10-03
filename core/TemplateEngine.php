@@ -360,15 +360,7 @@ class TemplateEngine
 
         // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            $iterable = $this->processVariable($matches[3]);
-            
-            // Если указана вторая переменная - это деструктуризация (key, value)
-            if (!empty($matches[2])) {
-                return '<?php foreach (' . $iterable . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ?>';
-            }
-            
-            // Иначе обычный цикл (только value)
-            return '<?php foreach (' . $iterable . ' as $' . $matches[1] . '): ?>';
+            return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
@@ -666,15 +658,7 @@ class TemplateEngine
 
         // Обрабатываем циклы {% for item in items %} и {% for key, value in items %}
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            $iterable = $this->processVariable($matches[3]);
-            
-            // Если указана вторая переменная - это деструктуризация (key, value)
-            if (!empty($matches[2])) {
-                return '<?php foreach (' . $iterable . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ?>';
-            }
-            
-            // Иначе обычный цикл (только value)
-            return '<?php foreach (' . $iterable . ' as $' . $matches[1] . '): ?>';
+            return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
@@ -1190,6 +1174,51 @@ class TemplateEngine
         }
         
         return $args;
+    }
+
+    /**
+     * Компилирует for-цикл с поддержкой loop переменной
+     */
+    private function compileForLoop(array $matches): string
+    {
+        $iterable = $this->processVariable($matches[3]);
+        
+        // Генерируем уникальный ID для переменных цикла
+        $loopId = uniqid('loop_');
+        
+        $code = '<?php ';
+        // Сохраняем родительский loop (для вложенных циклов)
+        $code .= '$__loop_parent_' . $loopId . ' = isset($loop) ? $loop : null; ';
+        // Инициализируем массив итераций
+        $code .= '$__loop_items_' . $loopId . ' = ' . $iterable . '; ';
+        // Получаем общее количество элементов
+        $code .= '$__loop_length_' . $loopId . ' = is_array($__loop_items_' . $loopId . ') || $__loop_items_' . $loopId . ' instanceof \Countable ? count($__loop_items_' . $loopId . ') : 0; ';
+        // Инициализируем счетчик
+        $code .= '$__loop_index_' . $loopId . ' = 0; ';
+        
+        // Если указана вторая переменная - это деструктуризация (key, value)
+        if (!empty($matches[2])) {
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $matches[1] . ' => $' . $matches[2] . '): ';
+        } else {
+            // Иначе обычный цикл (только value)
+            $code .= 'foreach ($__loop_items_' . $loopId . ' as $' . $matches[1] . '): ';
+        }
+        
+        // Создаем переменную loop с информацией о текущей итерации
+        $code .= '$loop = [';
+        $code .= '"index" => $__loop_index_' . $loopId . ' + 1, '; // 1-based index
+        $code .= '"index0" => $__loop_index_' . $loopId . ', '; // 0-based index
+        $code .= '"revindex" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ', '; // обратный индекс (1-based)
+        $code .= '"revindex0" => $__loop_length_' . $loopId . ' - $__loop_index_' . $loopId . ' - 1, '; // обратный индекс (0-based)
+        $code .= '"first" => $__loop_index_' . $loopId . ' === 0, ';
+        $code .= '"last" => $__loop_index_' . $loopId . ' === $__loop_length_' . $loopId . ' - 1, ';
+        $code .= '"length" => $__loop_length_' . $loopId . ', ';
+        $code .= '"parent" => $__loop_parent_' . $loopId;
+        $code .= ']; ';
+        $code .= '$__loop_index_' . $loopId . '++; ';
+        $code .= '?>';
+        
+        return $code;
     }
 
     /**
