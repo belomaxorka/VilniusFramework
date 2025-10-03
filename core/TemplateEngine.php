@@ -348,6 +348,17 @@ class TemplateEngine
         // Экранируем PHP теги
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
 
+        // Обрабатываем {% set variable = value %}
+        $content = preg_replace_callback('/\{\%\s*set\s+(\w+)\s*=\s*([^%]+)\s*\%\}/', function ($matches) {
+            $varName = $matches[1];
+            $value = trim($matches[2]);
+            
+            // Обрабатываем значение как выражение
+            $processedValue = $this->processExpression($value);
+            
+            return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
+        }, $content);
+
         // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
         $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
             return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
@@ -645,6 +656,17 @@ class TemplateEngine
 
         // Экранируем PHP теги
         $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
+
+        // Обрабатываем {% set variable = value %}
+        $content = preg_replace_callback('/\{\%\s*set\s+(\w+)\s*=\s*([^%]+)\s*\%\}/', function ($matches) {
+            $varName = $matches[1];
+            $value = trim($matches[2]);
+            
+            // Обрабатываем значение как выражение
+            $processedValue = $this->processExpression($value);
+            
+            return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
+        }, $content);
 
         // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
         $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
@@ -1174,6 +1196,101 @@ class TemplateEngine
         }
         
         return $args;
+    }
+
+    /**
+     * Обрабатывает выражения (для set, условий, вычислений)
+     */
+    private function processExpression(string $expression): string
+    {
+        $expression = trim($expression);
+        
+        // Защищаем строки в кавычках
+        $strings = [];
+        $expression = preg_replace_callback('/"([^"]*)"|\'([^\']*)\'/', function ($matches) use (&$strings) {
+            $strings[] = $matches[0];
+            return '___STRING_' . (count($strings) - 1) . '___';
+        }, $expression);
+        
+        // Обрабатываем оператор конкатенации ~ (как в Twig)
+        $expression = str_replace('~', '.', $expression);
+        
+        // Обрабатываем вызовы функций ПЕРЕД обработкой свойств
+        $functionProtected = [];
+        $expression = $this->processFunctionCalls($expression, $strings, $functionProtected);
+        
+        // Обрабатываем доступ к свойствам (user.name, items[0])
+        $result = $this->processPropertyAccess($expression);
+        $expression = $result['expression'];
+        $protected = $result['protected'];
+        
+        // Обрабатываем массивы [1, 2, 3]
+        $expression = preg_replace_callback('/\[([^\]]*)\]/', function ($matches) use (&$strings, &$functionProtected) {
+            $content = trim($matches[1]);
+            if (empty($content)) {
+                return '[]';
+            }
+            
+            // Разбиваем элементы по запятым
+            $elements = $this->splitArguments($content);
+            $processedElements = [];
+            
+            foreach ($elements as $element) {
+                $element = trim($element);
+                
+                // Если это placeholder строки
+                if (preg_match('/^___STRING_(\d+)___$/', $element, $match)) {
+                    $processedElements[] = $strings[(int)$match[1]];
+                }
+                // Если это число
+                elseif (is_numeric($element)) {
+                    $processedElements[] = $element;
+                }
+                // Если это boolean или null
+                elseif (in_array(strtolower($element), ['true', 'false', 'null'])) {
+                    $processedElements[] = strtolower($element);
+                }
+                // Иначе это переменная
+                else {
+                    if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $element)) {
+                        $processedElements[] = '$' . $element;
+                    } else {
+                        // Сложное выражение
+                        $processedElements[] = $this->processExpression($element);
+                    }
+                }
+            }
+            
+            return '[' . implode(', ', $processedElements) . ']';
+        }, $expression);
+        
+        // Обрабатываем простые переменные (которые еще не обработаны)
+        $phpKeywords = ['true', 'false', 'null', 'and', 'or', 'not', 'isset', 'empty'];
+        $expression = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/', function ($matches) use ($phpKeywords) {
+            $var = $matches[1];
+            // Пропускаем ключевые слова и защищенные фрагменты
+            if (in_array(strtolower($var), $phpKeywords) || strpos($var, '___') === 0) {
+                return $var;
+            }
+            return '$' . $var;
+        }, $expression);
+        
+        // Восстанавливаем защищенные фрагменты функций
+        foreach ($functionProtected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
+        
+        // Восстанавливаем защищенные фрагменты
+        foreach ($protected as $placeholder => $value) {
+            $expression = str_replace($placeholder, $value, $expression);
+        }
+        
+        // Восстанавливаем строки
+        foreach ($strings as $index => $string) {
+            $expression = str_replace('___STRING_' . $index . '___', $string, $expression);
+        }
+        
+        return $expression;
     }
 
     /**
