@@ -748,3 +748,49 @@ test('spaceless works with variables', function () {
 
     expect($result)->toBe('<div><span>John</span></div>');
 });
+
+test('verbatim preserves template syntax', function () {
+    $templateContent = '{% verbatim %}
+{{ variable }}
+{% if condition %}
+    <p>Test</p>
+{% endif %}
+{% endverbatim %}';
+    file_put_contents($this->testTemplateDir . '/verbatim.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('verbatim.twig');
+
+    expect(trim($result))->toContain('{{ variable }}');
+    expect(trim($result))->toContain('{% if condition %}');
+});
+
+test('verbatim works with variables outside', function () {
+    $templateContent = 'Name: {{ name }}
+{% verbatim %}
+{{ this_is_not_processed }}
+{% endverbatim %}
+Age: {{ age }}';
+    file_put_contents($this->testTemplateDir . '/verbatim_mixed.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('verbatim_mixed.twig', ['name' => 'John', 'age' => 25]);
+
+    expect($result)->toContain('Name: John');
+    expect($result)->toContain('{{ this_is_not_processed }}');
+    expect($result)->toContain('Age: 25');
+});
+
+test('multiple verbatim blocks work correctly', function () {
+    $templateContent = '{% verbatim %}{{ block1 }}{% endverbatim %}
+<div>{{ processed }}</div>
+{% verbatim %}{{ block2 }}{% endverbatim %}';
+    file_put_contents($this->testTemplateDir . '/verbatim_multiple.twig', $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('verbatim_multiple.twig', ['processed' => 'WORKS']);
+
+    expect($result)->toContain('{{ block1 }}');
+    expect($result)->toContain('{{ block2 }}');
+    expect($result)->toContain('<div>WORKS</div>');
+});

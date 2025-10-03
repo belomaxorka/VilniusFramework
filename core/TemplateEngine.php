@@ -342,140 +342,7 @@ class TemplateEngine
             }
         }
 
-        // Удаляем комментарии {# comment #}
-        $content = preg_replace('/\{#.*?#\}/s', '', $content);
-
-        // Экранируем PHP теги
-        $content = str_replace(['<?php', '<?=', '?>'], ['&lt;?php', '&lt;?=', '?&gt;'], $content);
-
-        // Обрабатываем {% set variable = value %}
-        $content = preg_replace_callback('/\{\%\s*set\s+(\w+)\s*=\s*([^%]+)\s*\%\}/', function ($matches) {
-            $varName = $matches[1];
-            $value = trim($matches[2]);
-            
-            // Обрабатываем значение как выражение
-            $processedValue = $this->processExpression($value);
-            
-            return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
-        }, $content);
-
-        // Защищаем {% if %}...{% else %}...{% endif %} блоки перед обработкой for...else
-        $ifBlocks = [];
-        $content = preg_replace_callback(
-            '/\{\%\s*if\s+([^%]+)\s*\%\}(.*?)(?:\{\%\s*elseif\s+([^%]+)\s*\%\}(.*?))*(?:\{\%\s*else\s*\%\}(.*?))?\{\%\s*endif\s*\%\}/s',
-            function ($matches) use (&$ifBlocks) {
-                $placeholder = '___IFBLOCK_' . count($ifBlocks) . '___';
-                $ifBlocks[$placeholder] = $matches[0];
-                return $placeholder;
-            },
-            $content
-        );
-
-        // Обрабатываем циклы {% for %} с {% else %}
-        $content = preg_replace_callback(
-            '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
-            function ($matches) {
-                $loopVars = [$matches[1], $matches[2] ?? null, $matches[3]];
-                $forContent = $matches[4];
-                $elseContent = $matches[5];
-                return $this->compileForLoopWithElse($loopVars, $forContent, $elseContent);
-            },
-            $content
-        );
-
-        // Восстанавливаем if-блоки
-        foreach ($ifBlocks as $placeholder => $block) {
-            $content = str_replace($placeholder, $block, $content);
-        }
-
-        // Обрабатываем обычные циклы {% for item in items %} без else
-        $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
-            return $this->compileForLoop($matches);
-        }, $content);
-        $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
-
-        // Обрабатываем условия {% if condition %}
-        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
-        $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
-
-        // Обрабатываем циклы while {% while condition %}
-        $content = preg_replace_callback('/\{\%\s*while\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php while (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace('/\{\%\s*endwhile\s*\%\}/', '<?php endwhile; ?>', $content);
-
-        // Обрабатываем {% spaceless %}
-        $content = preg_replace_callback(
-            '/\{\%\s*spaceless\s*\%\}(.*?)\{\%\s*endspaceless\s*\%\}/s',
-            function ($matches) {
-                $innerContent = $matches[1];
-                // Удаляем пробелы между HTML-тегами, после открывающих и перед закрывающими тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php $__spaceless = ob_get_clean(); $__spaceless = preg_replace(\'/>\s+/\', \'>\', $__spaceless); $__spaceless = preg_replace(\'/\s+</\', \'<\', $__spaceless); echo trim($__spaceless); ?>';
-            },
-            $content
-        );
-
-        // Обрабатываем переменные {{ variable }} с поддержкой фильтров
-        $content = preg_replace_callback('/\{\{\s*([^}]+)\s*\}\}/', function ($matches) {
-            // Разделяем на переменную и фильтры
-            $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
-
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
-
-            return '<?= htmlspecialchars((string)(' . $compiled . ' ?? \'\'), ENT_QUOTES, \'UTF-8\') ?>';
-        }, $content);
-
-        // Обрабатываем неэкранированные переменные {! variable !} с поддержкой фильтров
-        $content = preg_replace_callback('/\{\!\s*([^}]+)\s*\!\}/', function ($matches) {
-            // Разделяем на переменную и фильтры
-            $parts = $this->splitByPipe($matches[1]);
-            $variable = $this->processVariable(array_shift($parts));
-
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
-
-            return '<?= ' . $compiled . ' ?? \'\' ?>';
-        }, $content);
-
-        // Обрабатываем включения {% include 'template.twig' %}
-        $content = preg_replace_callback('/\{\%\s*include\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', function ($matches) {
-            return $this->processInclude($matches[1]);
-        }, $content);
-
-        // Удаляем теги блоков (если шаблон используется без extends)
-        // Оставляем только содержимое блоков
-        $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
-        $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
-
-        return $content;
+        return $this->compileTemplateContent($content);
     }
 
     /**
@@ -691,6 +558,18 @@ class TemplateEngine
      */
     private function compileTemplateContent(string $content): string
     {
+        // Защищаем {% verbatim %} блоки ПЕРВЫМ делом, до любой другой обработки
+        $verbatimBlocks = [];
+        $content = preg_replace_callback(
+            '/\{\%\s*verbatim\s*\%\}(.*?)\{\%\s*endverbatim\s*\%\}/s',
+            function ($matches) use (&$verbatimBlocks) {
+                $placeholder = '___VERBATIM_' . count($verbatimBlocks) . '___';
+                $verbatimBlocks[$placeholder] = $matches[1];
+                return $placeholder;
+            },
+            $content
+        );
+        
         // Удаляем комментарии {# comment #}
         $content = preg_replace('/\{#.*?#\}/s', '', $content);
 
@@ -823,6 +702,11 @@ class TemplateEngine
         // Оставляем только содержимое блоков
         $content = preg_replace('/\{\%\s*block\s+\w+\s*\%\}/', '', $content);
         $content = preg_replace('/\{\%\s*endblock\s*\%\}/', '', $content);
+
+        // Восстанавливаем verbatim блоки В САМОМ КОНЦЕ (они не должны обрабатываться)
+        foreach ($verbatimBlocks as $placeholder => $verbatimContent) {
+            $content = str_replace($placeholder, $verbatimContent, $content);
+        }
 
         return $content;
     }
