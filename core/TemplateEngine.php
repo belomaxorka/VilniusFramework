@@ -806,6 +806,62 @@ class TemplateEngine
     }
 
     /**
+     * Обрабатывает операторы in / not in
+     */
+    private function processInOperator(string $condition, array &$inProtected): string
+    {
+        // Обрабатываем "not in"
+        $condition = preg_replace_callback('/(\S+)\s+not\s+in\s+(\S+)/', function ($matches) use (&$inProtected) {
+            $needle = trim($matches[1]);
+            $haystack = trim($matches[2]);
+            
+            // Обрабатываем переменные
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle)) {
+                $needle = '$' . $needle;
+            }
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack)) {
+                $haystack = '$' . $haystack;
+            }
+            
+            // Генерируем PHP код для проверки
+            // Для массивов используем in_array, для строк - strpos
+            $inCode = "(is_array($haystack) ? !in_array($needle, $haystack, true) : (is_string($haystack) && strpos($haystack, $needle) === false))";
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___IN_' . count($inProtected) . '___';
+            $inProtected[$placeholder] = $inCode;
+            
+            return $placeholder;
+        }, $condition);
+        
+        // Обрабатываем обычный "in"
+        $condition = preg_replace_callback('/(\S+)\s+in\s+(\S+)/', function ($matches) use (&$inProtected) {
+            $needle = trim($matches[1]);
+            $haystack = trim($matches[2]);
+            
+            // Обрабатываем переменные
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $needle)) {
+                $needle = '$' . $needle;
+            }
+            if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $haystack)) {
+                $haystack = '$' . $haystack;
+            }
+            
+            // Генерируем PHP код для проверки
+            // Для массивов используем in_array, для строк - strpos
+            $inCode = "(is_array($haystack) ? in_array($needle, $haystack, true) : (is_string($haystack) && strpos($haystack, $needle) !== false))";
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___IN_' . count($inProtected) . '___';
+            $inProtected[$placeholder] = $inCode;
+            
+            return $placeholder;
+        }, $condition);
+        
+        return $condition;
+    }
+
+    /**
      * Обрабатывает тесты (is defined, is null, is empty, etc.)
      */
     private function processTests(string $condition, array &$testProtected): string
@@ -933,6 +989,10 @@ class TemplateEngine
         // Обрабатываем тесты (is defined, is null, is empty, etc.) ПЕРЕД обработкой логических операторов
         $testProtected = [];
         $condition = $this->processTests($condition, $testProtected);
+        
+        // Обрабатываем операторы in / not in
+        $inProtected = [];
+        $condition = $this->processInOperator($condition, $inProtected);
 
         // Защищаем логические операторы ДО обработки функций
         $logicalOperators = [];
@@ -1019,6 +1079,11 @@ class TemplateEngine
 
         // Восстанавливаем тесты
         foreach ($testProtected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
+        
+        // Восстанавливаем операторы in
+        foreach ($inProtected as $placeholder => $value) {
             $condition = str_replace($placeholder, $value, $condition);
         }
 
