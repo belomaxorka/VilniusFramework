@@ -230,7 +230,7 @@ class QueryDebugger
             // Bindings
             if (!empty($query['bindings'])) {
                 $output .= '<div style="font-size: 11px; color: #757575; margin-top: 5px;">';
-                $output .= '<strong>Bindings:</strong> ' . htmlspecialchars(json_encode($query['bindings']));
+                $output .= '<strong>Bindings:</strong> ' . htmlspecialchars(json_encode($query['bindings'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 $output .= '</div>';
             }
 

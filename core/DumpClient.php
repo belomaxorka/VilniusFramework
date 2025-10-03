@@ -36,19 +36,53 @@ class DumpClient
             return false;
         }
 
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-        $caller = $backtrace[1] ?? $backtrace[0] ?? [];
+        // Получаем полный backtrace для определения реального caller
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+        
+        // Ищем первый вызов НЕ из helpers и НЕ из DumpClient
+        $caller = null;
+        foreach ($backtrace as $trace) {
+            $file = $trace['file'] ?? '';
+            
+            // Нормализуем путь для сравнения (Windows/Unix)
+            $normalizedFile = str_replace('\\', '/', $file);
+            
+            // Пропускаем DumpClient и все helper файлы
+            if (str_contains($normalizedFile, 'DumpClient.php') || 
+                str_contains($normalizedFile, 'helpers/debug/') ||
+                str_contains($normalizedFile, 'helpers\\debug\\')) {
+                continue;
+            }
+            
+            $caller = $trace;
+            break;
+        }
+        
+        // Fallback на первый элемент если ничего не найдено
+        if (!$caller) {
+            $caller = $backtrace[0] ?? [];
+        }
 
         $payload = [
             'type' => $type,
             'label' => $label,
+            'data_type' => gettype($data), // Сохраняем оригинальный тип
             'content' => self::formatData($data),
-            'file' => $caller['file'] ?? 'unknown',
+            'raw_data' => is_scalar($data) ? $data : null, // Сохраняем скалярные значения
+            'file' => normalize_path($caller['file'] ?? 'unknown'),
             'line' => $caller['line'] ?? 0,
             'timestamp' => microtime(true),
         ];
 
-        return self::sendToServer($payload);
+        // Пытаемся отправить на сервер
+        $sent = self::sendToServer($payload);
+        
+        // Если не удалось - логируем в файл
+        if (!$sent) {
+            self::logToFile($payload);
+        }
+        
+        return $sent;
     }
 
     /**
@@ -108,7 +142,7 @@ class DumpClient
             return false;
         }
 
-        $json = json_encode($payload);
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         fwrite($connection, $json);
         fclose($connection);
 
@@ -134,5 +168,69 @@ class DumpClient
         }
 
         return print_r($data, true);
+    }
+
+    /**
+     * Логировать в файл (fallback если сервер недоступен)
+     */
+    private static function logToFile(array $payload): void
+    {
+        try {
+            $logDir = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs' : __DIR__ . '/../../storage/logs';
+            $logFile = $logDir . '/dumps.log';
+            
+            // Создаём директорию если её нет
+            if (!is_dir($logDir)) {
+                mkdir($logDir, 0755, true);
+            }
+            
+            // Форматируем вывод
+            $timestamp = date('Y-m-d H:i:s');
+            $label = $payload['label'] ?? 'No label';
+            $dataType = $payload['data_type'] ?? 'unknown';
+            $file = $payload['file'] ?? 'unknown';
+            $line = $payload['line'] ?? 0;
+            $content = $payload['content'] ?? '';
+            
+            // Относительный путь с нормализацией
+            $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
+            $relativePath = normalize_path($relativePath);
+            
+            // Нормализуем путь к лог-файлу
+            $normalizedLogFile = normalize_path($logFile);
+            
+            $logEntry = str_repeat('─', 80) . "\n";
+            $logEntry .= "[{$timestamp}] 📝 {$label} | 🔍 Type: {$dataType} | 📍 {$relativePath}:{$line}\n";
+            $logEntry .= str_repeat('─', 80) . "\n";
+            $logEntry .= $content . "\n\n";
+            
+            // Записываем в файл dumps.log
+            file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+            
+            // Логируем через Logger для Debug Toolbar и app.log
+            if (class_exists('\Core\Logger')) {
+                \Core\Logger::warning(
+                    'Dump Server unavailable, data logged to file: label={label}, type={type}, file={file}:{line}, log={log_file}',
+                    [
+                        'label' => $label,
+                        'type' => $dataType,
+                        'file' => $relativePath,
+                        'line' => $line,
+                        'log_file' => $normalizedLogFile,
+                        '_toolbar_message' => 'Dump Server unavailable, data logged to file', // Короткое для toolbar
+                    ]
+                );
+            }
+            
+            // Опционально: вывод в stderr для CLI
+            if (php_sapi_name() === 'cli') {
+                fwrite(STDERR, "⚠️  Dump Server unavailable, logged to: {$logFile}\n");
+            }
+            
+        } catch (\Throwable $e) {
+            // Тихо игнорируем ошибки логирования
+            // Можно раскомментировать для отладки:
+            // error_log("DumpClient::logToFile failed: " . $e->getMessage());
+        }
     }
 }

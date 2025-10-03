@@ -135,20 +135,28 @@ class Logger
             return;
         }
 
-        // Сохраняем в памяти для Debug Toolbar (до интерполяции, чтобы сохранить контекст)
+        // Для Debug Toolbar используем короткое сообщение если указано
+        $toolbarMessage = $context['_toolbar_message'] ?? $message;
+        
+        // Убираем служебное поле из контекста
+        $cleanContext = $context;
+        unset($cleanContext['_toolbar_message']);
+
+        // Сохраняем в памяти для Debug Toolbar
         self::$logs[] = [
             'level' => $level,
-            'message' => $message,
-            'context' => $context,
+            'message' => $toolbarMessage, // Короткое сообщение без плейсхолдеров
+            'context' => $cleanContext,
             'time' => microtime(true),
             'timestamp' => date('Y-m-d H:i:s'),
         ];
 
-        // Добавляем контекст к сообщению
-        $message = self::interpolate($message, $context);
+        // Интерполируем для файловых handlers (полное сообщение)
+        $interpolatedMessage = self::interpolate($message, $cleanContext);
 
+        // Отправляем в handlers
         foreach (self::$handlers as $handler) {
-            $handler->handle($level, $message);
+            $handler->handle($level, $interpolatedMessage);
         }
     }
 
@@ -166,7 +174,7 @@ class Logger
         foreach ($context as $key => $val) {
             // Преобразуем массивы и объекты в JSON
             if (is_array($val) || is_object($val)) {
-                $val = json_encode($val);
+                $val = json_encode($val, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
             $replace['{' . $key . '}'] = $val;
         }

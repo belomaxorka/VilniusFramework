@@ -83,6 +83,13 @@ is_windows(): bool
 
 is_unix(): bool
 // Проверить, работает ли на Unix-подобной системе
+
+normalize_path(string $path): string
+// Нормализовать путь, конвертируя обратные слеши в прямые
+// Полезно для кросс-платформенной совместимости и единообразного вывода
+
+normalize_paths(array $data): array
+// Нормализовать все строковые значения (пути) в массиве рекурсивно
 ```
 
 **Примеры:**
@@ -98,6 +105,20 @@ if (is_prod()) {
 if (is_cli()) {
     echo "Running in command line\n";
 }
+
+// Нормализация путей для кросс-платформенного вывода
+$windowsPath = "C:\\OSPanel\\home\\project\\file.php";
+$normalized = normalize_path($windowsPath);
+// Результат: "C:/OSPanel/home/project/file.php"
+
+// Нормализация всех путей в массиве
+$data = [
+    'file' => 'app\\Controllers\\HomeController.php',
+    'log_file' => 'C:\\logs\\app.log',
+    'other' => 123
+];
+$normalized = normalize_paths($data);
+// Результат: ['file' => 'app/Controllers/HomeController.php', 'log_file' => 'C:/logs/app.log', 'other' => 123]
 ```
 
 ---

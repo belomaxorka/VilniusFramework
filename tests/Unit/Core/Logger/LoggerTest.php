@@ -216,3 +216,105 @@ test('clearHandlers() clears all handlers', function () {
 
     expect(Logger::getHandlers())->toHaveCount(0);
 });
+
+describe('Toolbar Message Feature', function () {
+    test('uses _toolbar_message for debug toolbar', function () {
+        Logger::info('Full message with {placeholder}', [
+            'placeholder' => 'value',
+            '_toolbar_message' => 'Short message',
+        ]);
+        
+        $logs = Logger::getLogs();
+        
+        expect($logs)->toHaveCount(1);
+        expect($logs[0]['message'])->toBe('Short message');
+        expect($logs[0]['context'])->toHaveKey('placeholder');
+        expect($logs[0]['context'])->not->toHaveKey('_toolbar_message');
+    });
+    
+    test('uses full message when no _toolbar_message provided', function () {
+        Logger::info('Regular message without toolbar override');
+        
+        $logs = Logger::getLogs();
+        
+        expect($logs)->toHaveCount(1);
+        expect($logs[0]['message'])->toBe('Regular message without toolbar override');
+    });
+    
+    test('interpolates message for file handlers but not toolbar', function () {
+        $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
+        $handler = new FileHandler($logFile);
+        Logger::addHandler($handler);
+        
+        Logger::warning('Full: {key}', [
+            'key' => 'value',
+            '_toolbar_message' => 'Short message',
+        ]);
+        
+        $logs = Logger::getLogs();
+        $fileContent = file_get_contents($logFile);
+        
+        // Debug Toolbar: короткое сообщение
+        expect($logs[0]['message'])->toBe('Short message');
+        
+        // Файловый лог: интерполированное сообщение
+        expect($fileContent)->toContain('Full: value');
+        expect($fileContent)->not->toContain('{key}');
+        
+        @unlink($logFile);
+    });
+    
+    test('preserves context without _toolbar_message field', function () {
+        Logger::warning('Message', [
+            'label' => 'Test',
+            'type' => 'array',
+            'file' => 'test.php',
+            '_toolbar_message' => 'Short',
+        ]);
+        
+        $logs = Logger::getLogs();
+        $context = $logs[0]['context'];
+        
+        expect($context)->toHaveKey('label');
+        expect($context)->toHaveKey('type');
+        expect($context)->toHaveKey('file');
+        expect($context)->not->toHaveKey('_toolbar_message');
+    });
+    
+    test('works with dump server unavailable scenario', function () {
+        $logFile = sys_get_temp_dir() . '/test_' . uniqid() . '.log';
+        $handler = new FileHandler($logFile);
+        Logger::addHandler($handler);
+        
+        // Симулируем что делает DumpClient
+        Logger::warning(
+            'Dump Server unavailable, data logged to file: label={label}, type={type}, file={file}:{line}, log={log_file}',
+            [
+                'label' => 'User Data',
+                'type' => 'array',
+                'file' => 'app/Controllers/HomeController.php',
+                'line' => 25,
+                'log_file' => 'storage/logs/dumps.log',
+                '_toolbar_message' => 'Dump Server unavailable, data logged to file',
+            ]
+        );
+        
+        $logs = Logger::getLogs();
+        $fileContent = file_get_contents($logFile);
+        
+        // Debug Toolbar: короткое без плейсхолдеров
+        expect($logs[0]['message'])->toBe('Dump Server unavailable, data logged to file');
+        expect($logs[0]['message'])->not->toContain('{label}');
+        expect($logs[0]['context'])->toHaveKey('label');
+        expect($logs[0]['context']['label'])->toBe('User Data');
+        
+        // Файловый лог: полное с интерполяцией
+        expect($fileContent)->toContain('label=User Data');
+        expect($fileContent)->toContain('type=array');
+        expect($fileContent)->toContain('file=app/Controllers/HomeController.php:25');
+        expect($fileContent)->not->toContain('{label}');
+        expect($fileContent)->not->toContain('{type}');
+        
+        @unlink($logFile);
+    });
+});
