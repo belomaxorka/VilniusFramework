@@ -149,13 +149,49 @@ use Core\Session;
 
 ---
 
+### Utility хелперы → Используйте класс Path
+
+| Удаленная функция | Замена | Описание |
+|------------------|--------|----------|
+| `normalize_path($path)` | `Path::normalize($path)` | Нормализация путей (замена \ на /) |
+
+**Было:**
+```php
+$path = normalize_path($filePath);
+$normalized = normalize_path('C:\path\to\file.php');
+```
+
+**Стало:**
+```php
+use Core\Path;
+
+$path = Path::normalize($filePath);
+$normalized = Path::normalize('C:\path\to\file.php');
+
+// Бонус: больше полезных методов
+$relative = Path::relative($absolutePath);
+$joined = Path::join('app', 'Controllers', 'HomeController.php');
+$extension = Path::extension($filename);
+```
+
+**Обоснование:** Вместо глобальной функции создан класс-утилита `Core\Path` с множеством полезных методов для работы с путями. Более функционально и соответствует философии фреймворка.
+
+**См. подробнее:** [Path.md](Path.md)
+
+---
+
 ### Debug хелперы → Используйте Debug классы напрямую
 
-| Удаленная группа | Замена | Описание |
-|-----------------|--------|----------|
-| `dd()`, `dump()` | `Debug::dump()`, `Debug::dd()` | Дамп переменных |
-| `trace()` | `Debug::trace()` | Stack trace |
-| `collect()` | `Debug::collect()` | Сбор debug данных |
+| Удаленная функция | Замена | Описание |
+|------------------|--------|----------|
+| `dump($var, $label)` | `Debug::dump($var, $label)` | Дамп переменной |
+| `dd($var, $label)` | `Debug::dd($var, $label)` | Дамп и остановка (die) |
+| `dump_pretty($var, $label)` | `Debug::dumpPretty($var, $label)` | Красивый дамп |
+| `dd_pretty($var, $label)` | `Debug::ddPretty($var, $label)` | Красивый дамп и die |
+| `trace($label)` | `Debug::trace($label)` | Stack trace (backtrace) |
+| `collect($var, $label)` | `Debug::collect($var, $label)` | Сбор debug данных |
+| `dump_all($die)` | `Debug::dumpAll($die)` | Вывести все собранные данные |
+| `clear_debug()` | `Debug::clear()` | Очистить собранные данные |
 | `debug_output()` | `Debug::getOutput()` | Получить вывод |
 | `debug_flush()` | `Debug::flush()` | Очистить буфер |
 | `has_debug_output()` | `Debug::hasOutput()` | Проверка наличия |
@@ -164,8 +200,10 @@ use Core\Session;
 
 **Было:**
 ```php
-dd($variable);
-dump($data);
+dump($variable, 'Debug Info');
+dd($data);
+trace('Current Location');
+dump_pretty($array, 'Array Data');
 log_info('User logged in');
 ```
 
@@ -174,9 +212,35 @@ log_info('User logged in');
 use Core\Debug;
 use Core\Logger;
 
-Debug::dd($variable);
-Debug::dump($data);
+Debug::dump($variable, 'Debug Info');
+Debug::dd($data);
+Debug::trace('Current Location');
+Debug::dumpPretty($array, 'Array Data');
 Logger::info('User logged in');
+```
+
+**Полный список методов Debug:**
+```php
+// Базовый дамп
+Debug::dump($var, $label);           // Вывести переменную
+Debug::dd($var, $label);             // Вывести и остановить выполнение
+
+// Красивый дамп
+Debug::dumpPretty($var, $label);     // Красивый вывод с подсветкой
+Debug::ddPretty($var, $label);       // Красивый вывод и die
+
+// Stack trace
+Debug::trace($label);                // Вывести backtrace
+
+// Коллекция
+Debug::collect($var, $label);        // Собрать для вывода позже
+Debug::dumpAll($die);                // Вывести все собранные данные
+Debug::clear();                      // Очистить коллекцию
+
+// Буфер
+Debug::getOutput($raw);              // Получить накопленный вывод
+Debug::hasOutput();                  // Проверить наличие вывода
+Debug::flush();                      // Вывести и очистить буфер
 ```
 
 ---

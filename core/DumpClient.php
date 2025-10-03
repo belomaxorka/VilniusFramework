@@ -69,7 +69,7 @@ class DumpClient
             'data_type' => gettype($data), // Сохраняем оригинальный тип
             'content' => self::formatData($data),
             'raw_data' => is_scalar($data) ? $data : null, // Сохраняем скалярные значения
-            'file' => normalize_path($caller['file'] ?? 'unknown'),
+            'file' => \Core\Path::normalize($caller['file'] ?? 'unknown'),
             'line' => $caller['line'] ?? 0,
             'timestamp' => microtime(true),
         ];
@@ -193,11 +193,10 @@ class DumpClient
             $content = $payload['content'] ?? '';
             
             // Относительный путь с нормализацией
-            $relativePath = str_replace([ROOT . '/', ROOT . '\\'], '', $file);
-            $relativePath = normalize_path($relativePath);
+            $relativePath = \Core\Path::relative($file);
             
             // Нормализуем путь к лог-файлу
-            $normalizedLogFile = normalize_path($logFile);
+            $normalizedLogFile = \Core\Path::normalize($logFile);
             
             $logEntry = str_repeat('─', 80) . "\n";
             $logEntry .= "[{$timestamp}] 📝 {$label} | 🔍 Type: {$dataType} | 📍 {$relativePath}:{$line}\n";
