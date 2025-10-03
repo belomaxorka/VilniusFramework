@@ -184,3 +184,104 @@ describe('Integration', function () {
         expect(DumpClient::getConfig()['port'])->toBe(9912);
     });
 });
+
+describe('Fallback Logging', function () {
+    test('logs to file when server unavailable', function () {
+        $logFile = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs/dumps.log' : __DIR__ . '/../../../../storage/logs/dumps.log';
+        
+        // Удаляем старый лог если есть
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+        
+        // Отправляем данные когда сервер недоступен
+        $result = server_dump(['test' => 'data'], 'Test Fallback');
+        
+        // Проверяем что файл создан
+        expect(file_exists($logFile))->toBeTrue();
+        
+        // Проверяем содержимое
+        $content = file_get_contents($logFile);
+        expect($content)->toContain('Test Fallback');
+        expect($content)->toContain('array');
+        
+        // Cleanup
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+    });
+    
+    test('fallback creates log directory if not exists', function () {
+        $logDir = sys_get_temp_dir() . '/test_dumps_' . uniqid();
+        $logFile = $logDir . '/dumps.log';
+        
+        // Убеждаемся что директории нет
+        expect(is_dir($logDir))->toBeFalse();
+        
+        // Временно заменяем STORAGE_DIR
+        $originalStorageDir = defined('STORAGE_DIR') ? STORAGE_DIR : null;
+        if (!defined('STORAGE_DIR')) {
+            define('STORAGE_DIR', sys_get_temp_dir() . '/test_dumps_' . uniqid());
+        }
+        
+        // Отправляем данные
+        server_dump(['test' => 'data'], 'Create Dir Test');
+        
+        // Проверяем что директория создана
+        $actualLogFile = STORAGE_DIR . '/logs/dumps.log';
+        expect(file_exists($actualLogFile))->toBeTrue();
+        
+        // Cleanup
+        if (file_exists($actualLogFile)) {
+            unlink($actualLogFile);
+            rmdir(dirname($actualLogFile));
+            if (is_dir(STORAGE_DIR)) {
+                @rmdir(STORAGE_DIR);
+            }
+        }
+    });
+    
+    test('fallback preserves data type in log', function () {
+        $logFile = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs/dumps.log' : __DIR__ . '/../../../../storage/logs/dumps.log';
+        
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+        
+        // Отправляем разные типы данных
+        server_dump(['array' => 'data'], 'Array Type');
+        server_dump('string data', 'String Type');
+        server_dump(42, 'Integer Type');
+        
+        $content = file_get_contents($logFile);
+        
+        expect($content)->toContain('Type: array');
+        expect($content)->toContain('Type: string');
+        expect($content)->toContain('Type: integer');
+        
+        // Cleanup
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+    });
+    
+    test('fallback logs correct file and line', function () {
+        $logFile = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs/dumps.log' : __DIR__ . '/../../../../storage/logs/dumps.log';
+        
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+        
+        server_dump('test', 'File Line Test');
+        
+        $content = file_get_contents($logFile);
+        
+        // Проверяем что в логе есть путь к этому файлу
+        expect($content)->toContain('DumpServerTest.php');
+        
+        // Cleanup
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+    });
+});
