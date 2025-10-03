@@ -92,7 +92,21 @@ php vilnius route:list
 - URI
 - Controller@method
 
-### Очистить кэш
+### Кэш роутов
+
+#### Создать кэш роутов
+```bash
+php vilnius route:cache
+```
+
+**Для продакшена!** Ускоряет загрузку роутов.
+
+#### Очистить кэш роутов
+```bash
+php vilnius route:clear
+```
+
+### Очистить весь кэш
 ```bash
 php vilnius cache:clear
 ```
@@ -102,6 +116,16 @@ php vilnius cache:clear
 - Template cache
 - Config cache
 - Route cache
+
+### Dump Server
+```bash
+php vilnius dump-server
+
+# С кастомным хостом и портом
+php vilnius dump-server --host=127.0.0.1 --port=9912
+```
+
+Запускает сервер для приема debug dumps (из `dd()`, `dump()`).
 
 ---
 
@@ -250,9 +274,14 @@ alias vrl='php vilnius route:list'
 │  make:controller      Create controller             │
 │  make:model          Create model                   │
 │                                                      │
-│ UTILITIES                                           │
+│ ROUTES & CACHE                                      │
 │  route:list          Show all routes                │
+│  route:cache         Cache routes (production)      │
+│  route:clear         Clear route cache              │
 │  cache:clear         Clear all cache                │
+│                                                      │
+│ DEBUG & OTHER                                       │
+│  dump-server         Start dump server              │
 │  list                Show all commands              │
 └─────────────────────────────────────────────────────┘
 ```
