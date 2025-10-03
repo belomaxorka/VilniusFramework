@@ -416,7 +416,7 @@ class TemplateEngine
             function ($matches) {
                 $innerContent = $matches[1];
                 // Удаляем пробелы между HTML-тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php echo preg_replace(\'/>\s+</\', \'><\', ob_get_clean()); ?>';
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo trim(preg_replace(\'/>\s+</\', \'><\', ob_get_clean())); ?>';
             },
             $content
         );
@@ -765,7 +765,7 @@ class TemplateEngine
             function ($matches) {
                 $innerContent = $matches[1];
                 // Удаляем пробелы между HTML-тегами
-                return '<?php ob_start(); ?>' . $innerContent . '<?php echo preg_replace(\'/>\s+</\', \'><\', ob_get_clean()); ?>';
+                return '<?php ob_start(); ?>' . $innerContent . '<?php echo trim(preg_replace(\'/>\s+</\', \'><\', ob_get_clean())); ?>';
             },
             $content
         );
