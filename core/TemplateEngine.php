@@ -625,6 +625,31 @@ class TemplateEngine
     }
 
     /**
+     * Компилирует применение фильтров к переменной
+     * 
+     * @param string $variable PHP код переменной
+     * @param array $filters Массив фильтров для применения
+     * @return string Скомпилированный код с применёнными фильтрами
+     */
+    private function compileFilters(string $variable, array $filters): string
+    {
+        $compiled = $variable;
+        
+        foreach ($filters as $filter) {
+            $filter = trim($filter);
+            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
+                $filterName = $filterMatches[1];
+                $args = $filterMatches[2];
+                $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
+            } else {
+                $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
+            }
+        }
+        
+        return $compiled;
+    }
+
+    /**
      * Увеличивает счётчик вложенности и проверяет лимит
      * 
      * @param string $blockType Тип блока (for, if, while и т.д.)
@@ -978,18 +1003,8 @@ class TemplateEngine
             $variableExpr = trim(array_shift($parts));
             $variable = $this->processVariable($variableExpr);
 
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
+            // Применяем фильтры через вспомогательный метод
+            $compiled = $this->compileFilters($variable, $parts);
 
             // Для строгого режима добавляем проверку существования переменной
             // Проверяем, простая ли это переменная (вида $name)
@@ -1011,18 +1026,8 @@ class TemplateEngine
             $variableExpr = trim(array_shift($parts));
             $variable = $this->processVariable($variableExpr);
 
-            // Применяем фильтры
-            $compiled = $variable;
-            foreach ($parts as $filter) {
-                $filter = trim($filter);
-                if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                    $filterName = $filterMatches[1];
-                    $args = $filterMatches[2];
-                    $compiled = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $compiled . ($args ? ', ' . $args : '') . ')';
-                } else {
-                    $compiled = '$__tpl->applyFilter(\'' . $filter . '\', ' . $compiled . ')';
-                }
-            }
+            // Применяем фильтры через вспомогательный метод
+            $compiled = $this->compileFilters($variable, $parts);
 
             // Для строгого режима добавляем проверку существования переменной
             if (preg_match('/^\$(\w+)$/', $variable, $varMatch)) {
@@ -1940,17 +1945,8 @@ class TemplateEngine
         $parts = $this->splitByPipe($iterableExpr);
         $iterable = $this->processVariable(array_shift($parts));
         
-        // Применяем фильтры
-        foreach ($parts as $filter) {
-            $filter = trim($filter);
-            if (preg_match('/^(\w+)\s*\((.*)\)$/s', $filter, $filterMatches)) {
-                $filterName = $filterMatches[1];
-                $args = $filterMatches[2];
-                $iterable = '$__tpl->applyFilter(\'' . $filterName . '\', ' . $iterable . ($args ? ', ' . $args : '') . ')';
-            } else {
-                $iterable = '$__tpl->applyFilter(\'' . $filter . '\', ' . $iterable . ')';
-            }
-        }
+        // Применяем фильтры через вспомогательный метод
+        $iterable = $this->compileFilters($iterable, $parts);
         
         // Генерируем уникальный ID для переменных цикла (используем счётчик вместо uniqid для производительности)
         $loopId = 'loop_' . (++self::$loopCounter);
