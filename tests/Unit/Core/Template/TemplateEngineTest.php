@@ -529,3 +529,56 @@ test('ternary operator works in set', function () {
     $result = $engine->render('ternary_set.twig', ['isAdmin' => true]);
     expect($result)->toBe('Welcome Admin');
 });
+
+test('in operator works with arrays', function () {
+    $templateContent = '{% if item in items %}Found{% else %}Not found{% endif %}';
+    $templateFile = $this->testTemplateDir . '/in_array.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('in_array.twig', ['item' => 'apple', 'items' => ['apple', 'banana', 'orange']]);
+    expect($result1)->toBe('Found');
+    
+    $result2 = $engine->render('in_array.twig', ['item' => 'grape', 'items' => ['apple', 'banana', 'orange']]);
+    expect($result2)->toBe('Not found');
+});
+
+test('in operator works with strings', function () {
+    $templateContent = '{% if needle in haystack %}Contains{% else %}Not contains{% endif %}';
+    $templateFile = $this->testTemplateDir . '/in_string.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('in_string.twig', ['needle' => 'world', 'haystack' => 'Hello world']);
+    expect($result1)->toBe('Contains');
+    
+    $result2 = $engine->render('in_string.twig', ['needle' => 'foo', 'haystack' => 'Hello world']);
+    expect($result2)->toBe('Not contains');
+});
+
+test('not in operator works with arrays', function () {
+    $templateContent = '{% if item not in items %}Not in list{% else %}In list{% endif %}';
+    $templateFile = $this->testTemplateDir . '/not_in_array.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    
+    $result1 = $engine->render('not_in_array.twig', ['item' => 'grape', 'items' => ['apple', 'banana']]);
+    expect($result1)->toBe('Not in list');
+    
+    $result2 = $engine->render('not_in_array.twig', ['item' => 'apple', 'items' => ['apple', 'banana']]);
+    expect($result2)->toBe('In list');
+});
+
+test('in operator works with literal arrays', function () {
+    $templateContent = '{% set role = "admin" %}{% if role in ["admin", "moderator"] %}Access granted{% endif %}';
+    $templateFile = $this->testTemplateDir . '/in_literal_array.twig';
+    file_put_contents($templateFile, $templateContent);
+
+    $engine = new TemplateEngine($this->testTemplateDir, $this->testCacheDir);
+    $result = $engine->render('in_literal_array.twig');
+
+    expect($result)->toBe('Access granted');
+});
