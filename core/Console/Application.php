@@ -91,10 +91,7 @@ class Application
 
         // Показать версию
         if ($commandName === '--version' || $commandName === '-V') {
-            $this->output->line('');
-            $this->output->line($this->colorize(" 🚀 {$this->name}", 'cyan'));
-            $this->output->line($this->colorize(" 📦 Version: {$this->version}", 'cyan'));
-            $this->output->line('');
+            $this->showVersion();
             return 0;
         }
 
@@ -131,14 +128,22 @@ class Application
     }
 
     /**
-     * Показать список команд
+     * Показать версию фреймворка
      */
-    private function showCommands(): void
+    private function showVersion(): void
     {
         $this->output->line('');
         $this->output->line($this->colorize(" 🚀 {$this->name}", 'cyan'));
         $this->output->line($this->colorize(" 📦 Version: {$this->version}", 'cyan'));
         $this->output->line('');
+    }
+
+    /**
+     * Показать список команд
+     */
+    private function showCommands(): void
+    {
+        $this->showVersion();
         $this->output->line($this->colorize('Usage:', 'yellow'));
         $this->output->line('  command [options] [arguments]');
         $this->output->line('');
@@ -192,12 +197,7 @@ class Application
      */
     private function showHelp(): void
     {
-        $this->output->line('');
-        $this->output->line(str_repeat('═', 80));
-        $this->output->line($this->colorize("  🚀 {$this->name}", 'cyan'));
-        $this->output->line($this->colorize("  📦 Version: {$this->version}", 'cyan'));
-        $this->output->line(str_repeat('═', 80));
-        $this->output->line('');
+        $this->showVersion();
         $this->output->line($this->colorize('Usage:', 'yellow'));
         $this->output->line('  php vilnius <command> [options] [arguments]');
         $this->output->line('');
