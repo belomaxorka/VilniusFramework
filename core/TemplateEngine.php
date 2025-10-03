@@ -1105,23 +1105,8 @@ class TemplateEngine
         $startsEndsProtected = [];
         $condition = $this->processStartsEndsWith($condition, $startsEndsProtected);
 
-        // Защищаем логические операторы ДО обработки функций
+        // Защищаем логические операторы ДО обработки функций (но НЕ not - его обработаем позже)
         $logicalOperators = [];
-        
-        // Обрабатываем 'not' особым образом: 
-        // если после 'not' идёт скобка - просто заменяем на !
-        // если после 'not' идёт выражение без скобок - добавляем скобки до конца выражения или до and/or
-        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?!\()/i', function ($matches) use (&$logicalOperators) {
-            // Сохраняем 'not ' с маркером, что нужно добавить скобки
-            $logicalOperators[] = ['type' => 'not_no_parens', 'original' => $matches[0]];
-            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
-        }, $condition);
-        
-        $condition = preg_replace_callback('/(?:^|\s+)(not)\s+(?=\()/i', function ($matches) use (&$logicalOperators) {
-            // Сохраняем 'not ' как есть
-            $logicalOperators[] = ['type' => 'not_with_parens', 'original' => $matches[0]];
-            return '___LOGICAL_' . (count($logicalOperators) - 1) . '___';
-        }, $condition);
         
         // Обрабатываем 'and' и 'or' между выражениями
         $condition = preg_replace_callback('/\s+(and|or)\s+/i', function ($matches) use (&$logicalOperators) {
@@ -1137,24 +1122,6 @@ class TemplateEngine
         $result = $this->processPropertyAccess($condition);
         $condition = $result['expression'];
         $protected = $result['protected'];
-
-        // Восстанавливаем и заменяем логические операторы
-        foreach ($logicalOperators as $index => $operator) {
-            $placeholder = '___LOGICAL_' . $index . '___';
-            
-            if ($operator['type'] === 'and') {
-                $condition = str_replace($placeholder, ' && ', $condition);
-            } elseif ($operator['type'] === 'or') {
-                $condition = str_replace($placeholder, ' || ', $condition);
-            } elseif ($operator['type'] === 'not_with_parens') {
-                $condition = str_replace($placeholder, '!', $condition);
-            } elseif ($operator['type'] === 'not_no_parens') {
-                // Для 'not' без скобок нужно обернуть следующее выражение
-                // Находим выражение после плейсхолдера до следующего логического оператора
-                $pattern = '/' . preg_quote($placeholder, '/') . '([^&|]+?)(?=\s+(?:&&|\|\|)|$)/';
-                $condition = preg_replace($pattern, '!($1)', $condition);
-            }
-        }
 
         // Проверяем, это простое условие (только переменная) или сложное выражение
         $trimmedCondition = trim($condition);
@@ -1183,10 +1150,27 @@ class TemplateEngine
             $condition = str_replace($placeholder, $value, $condition);
         }
 
-        // Восстанавливаем защищенные фрагменты
+        // Восстанавливаем защищенные фрагменты ПЕРЕД обработкой логических операторов
         foreach ($protected as $placeholder => $value) {
             $condition = str_replace($placeholder, $value, $condition);
         }
+
+        // Восстанавливаем и заменяем логические операторы ПОСЛЕ восстановления защищённых фрагментов
+        foreach ($logicalOperators as $index => $operator) {
+            $placeholder = '___LOGICAL_' . $index . '___';
+            
+            if ($operator['type'] === 'and') {
+                $condition = str_replace($placeholder, ' && ', $condition);
+            } elseif ($operator['type'] === 'or') {
+                $condition = str_replace($placeholder, ' || ', $condition);
+            }
+        }
+        
+        // Обрабатываем 'not' В САМОМ КОНЦЕ, после всех восстановлений
+        // Заменяем 'not выражение' на '!(выражение)'
+        $condition = preg_replace_callback('/\bnot\s+(.+?)(?=\s+(?:&&|\|\||$)|$)/i', function ($matches) {
+            return '!(' . trim($matches[1]) . ')';
+        }, $condition);
 
         // Восстанавливаем тесты
         foreach ($testProtected as $placeholder => $value) {
