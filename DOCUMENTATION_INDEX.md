@@ -84,6 +84,8 @@
 ### Debug система
 
 - ✅ [DebugAPI.md](docs/DebugAPI.md) - API Reference
+- ✅ [DebugArchitectureImprovement.md](docs/DebugArchitectureImprovement.md) - Улучшение архитектуры
+- ✅ [DEBUG_TYPE_IMPROVEMENT.md](DEBUG_TYPE_IMPROVEMENT.md) - Типизация выводов
 - ✅ [HOTFIX.md](HOTFIX.md) - Исправления dd(), trace()
 
 ### Работа с путями

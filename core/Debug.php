@@ -124,26 +124,21 @@ class Debug
     {
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         
-        if (!Environment::isDebug()) {
-            // В продакшене логируем в файл
-            $output = $label ? "[{$label}] " : '';
-            $output .= "Backtrace:\n";
-            
-            foreach ($backtrace as $index => $trace) {
-                $file = $trace['file'] ?? 'unknown';
-                $line = $trace['line'] ?? 0;
-                $function = $trace['function'] ?? 'unknown';
-                $class = $trace['class'] ?? '';
-                $type = $trace['type'] ?? '';
-                $output .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
-            }
-            
-            Logger::debug($output);
-            return;
-        }
-        
         // Убираем первый элемент (сам вызов trace)
         array_shift($backtrace);
+        
+        // Формируем текстовую версию для логов
+        $rawText = "Backtrace:\n";
+        foreach ($backtrace as $index => $trace) {
+            $file = $trace['file'] ?? 'unknown';
+            $line = $trace['line'] ?? 0;
+            $function = $trace['function'] ?? 'unknown';
+            $class = $trace['class'] ?? '';
+            $type = $trace['type'] ?? '';
+            $rawText .= "#{$index} {$file}({$line}): {$class}{$type}{$function}()\n";
+        }
+        
+        // Формируем HTML для браузера
         
         $output = '<div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; margin: 10px; border-radius: 5px; font-family: monospace; font-size: 13px;">';
         
@@ -183,11 +178,8 @@ class Debug
         $output .= '</div>';
         $output .= '</div>';
         
-        self::$debugOutput[] = [
-            'type' => 'trace',
-            'output' => $output,
-            'die' => false
-        ];
+        // Используем универсальный addOutput - он сам решит, куда отправить
+        self::addOutput($output, 'trace', $label, $rawText);
     }
 
     /**
@@ -238,13 +230,20 @@ class Debug
         }
 
         $output .= '</div>';
-
-        // Когда debug включен - отправляем в toolbar, иначе в логи
-        if (Environment::isDebug()) {
-            self::addOutput($output);
-        } else {
-            Logger::debug($output);
+        
+        // Формируем текстовую версию для логов
+        $rawText = "Debug Collection:\n";
+        foreach (self::$debugData as $index => $item) {
+            $rawText .= "#" . ($index + 1);
+            if ($item['label']) {
+                $rawText .= " [{$item['label']}]";
+            }
+            $rawText .= " ({$item['file']}:{$item['line']})\n";
+            $rawText .= self::varToString($item['data']) . "\n\n";
         }
+
+        // Используем универсальный addOutput
+        self::addOutput($output, 'dump_all', 'Debug Collection', $rawText);
 
         if ($die) {
             self::flush();
@@ -269,16 +268,27 @@ class Debug
     }
 
     /**
-     * Добавить вывод в буфер напрямую
+     * Добавить вывод в буфер или залогировать
+     * 
+     * @param string $output HTML вывод для браузера
+     * @param string $type Тип вывода (dump, trace, collect, etc.)
+     * @param string|null $label Метка для логирования
+     * @param string|null $rawText Текстовая версия для логов
      */
-    public static function addOutput(string $output): void
+    public static function addOutput(string $output, string $type = 'custom', ?string $label = null, ?string $rawText = null): void
     {
         if (!Environment::isDebug()) {
+            // В продакшене логируем
+            if ($rawText !== null) {
+                $logOutput = $label ? "[{$label}] {$rawText}" : $rawText;
+                Logger::debug($logOutput);
+            }
             return;
         }
 
+        // В debug режиме добавляем в буфер для вывода
         self::$debugOutput[] = [
-            'type' => 'custom',
+            'type' => $type,
             'output' => $output,
             'die' => false
         ];
