@@ -359,14 +359,19 @@ class TemplateEngine
             return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
         }, $content);
 
-        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
-        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        // Обрабатываем циклы {% for %} с {% else %} ПЕРЕД обработкой обычных for и if
+        // Защищаем {% if %}...{% else %}...{% endif %} блоки перед обработкой for...else
+        $ifBlocks = [];
+        $content = preg_replace_callback(
+            '/\{\%\s*if\s+([^%]+)\s*\%\}(.*?)(?:\{\%\s*elseif\s+([^%]+)\s*\%\}(.*?))*(?:\{\%\s*else\s*\%\}(.*?))?\{\%\s*endif\s*\%\}/s',
+            function ($matches) use (&$ifBlocks) {
+                $placeholder = '___IFBLOCK_' . count($ifBlocks) . '___';
+                $ifBlocks[$placeholder] = $matches[0];
+                return $placeholder;
+            },
+            $content
+        );
+
+        // Обрабатываем циклы {% for %} с {% else %}
         $content = preg_replace_callback(
             '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
             function ($matches) {
@@ -378,13 +383,24 @@ class TemplateEngine
             $content
         );
 
+        // Восстанавливаем if-блоки
+        foreach ($ifBlocks as $placeholder => $block) {
+            $content = str_replace($placeholder, $block, $content);
+        }
+
         // Обрабатываем обычные циклы {% for item in items %} без else
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
             return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
-        // Обрабатываем условия {% else %} и {% endif %} для if-блоков
+        // Обрабатываем условия {% if condition %}
+        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
@@ -681,14 +697,19 @@ class TemplateEngine
             return '<?php $' . $varName . ' = ' . $processedValue . '; ?>';
         }, $content);
 
-        // Обрабатываем условия {% if condition %} ПЕРЕД обработкой переменных
-        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
-            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
-        }, $content);
-        // Обрабатываем циклы {% for %} с {% else %} ПЕРЕД обработкой обычных for и if
+        // Защищаем {% if %}...{% else %}...{% endif %} блоки перед обработкой for...else
+        $ifBlocks = [];
+        $content = preg_replace_callback(
+            '/\{\%\s*if\s+([^%]+)\s*\%\}(.*?)(?:\{\%\s*elseif\s+([^%]+)\s*\%\}(.*?))*(?:\{\%\s*else\s*\%\}(.*?))?\{\%\s*endif\s*\%\}/s',
+            function ($matches) use (&$ifBlocks) {
+                $placeholder = '___IFBLOCK_' . count($ifBlocks) . '___';
+                $ifBlocks[$placeholder] = $matches[0];
+                return $placeholder;
+            },
+            $content
+        );
+
+        // Обрабатываем циклы {% for %} с {% else %}
         $content = preg_replace_callback(
             '/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}(.*?)\{\%\s*else\s*\%\}(.*?)\{\%\s*endfor\s*\%\}/s',
             function ($matches) {
@@ -700,13 +721,24 @@ class TemplateEngine
             $content
         );
 
+        // Восстанавливаем if-блоки
+        foreach ($ifBlocks as $placeholder => $block) {
+            $content = str_replace($placeholder, $block, $content);
+        }
+
         // Обрабатываем обычные циклы {% for item in items %} без else
         $content = preg_replace_callback('/\{\%\s*for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+([^%]+)\s*\%\}/', function ($matches) {
             return $this->compileForLoop($matches);
         }, $content);
         $content = preg_replace('/\{\%\s*endfor\s*\%\}/', '<?php endforeach; ?>', $content);
 
-        // Обрабатываем условия {% else %} и {% endif %} для if-блоков
+        // Обрабатываем условия {% if condition %}
+        $content = preg_replace_callback('/\{\%\s*if\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php if (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
+        $content = preg_replace_callback('/\{\%\s*elseif\s+([^%]+)\s*\%\}/', function ($matches) {
+            return '<?php elseif (' . $this->processCondition($matches[1]) . '): ?>';
+        }, $content);
         $content = preg_replace('/\{\%\s*else\s*\%\}/', '<?php else: ?>', $content);
         $content = preg_replace('/\{\%\s*endif\s*\%\}/', '<?php endif; ?>', $content);
 
