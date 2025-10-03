@@ -2358,26 +2358,25 @@ class TemplateEngine
             });
         }
 
-        // Регистрируем функцию route (если она существует)
-        if (function_exists('route')) {
-            $this->addFunction('route', function (string $name, array $params = []) {
-                return route($name, $params);
-            });
-        }
+        // Регистрируем функцию route
+        $this->addFunction('route', function (string $name, array $params = []) {
+            $router = \Core\DebugToolbar::getRouter();
+            if (!$router) {
+                throw new \RuntimeException('Router is not initialized');
+            }
+            return $router->route($name, $params);
+        });
 
-        // Регистрируем функцию csrf_token (если она существует)
-        if (function_exists('csrf_token')) {
-            $this->addFunction('csrf_token', function () {
-                return csrf_token();
-            });
-        }
+        // Регистрируем функцию csrf_token
+        $this->addFunction('csrf_token', function () {
+            return \Core\Session::generateCsrfToken();
+        });
 
-        // Регистрируем функцию csrf_field (если она существует)
-        if (function_exists('csrf_field')) {
-            $this->addFunction('csrf_field', function () {
-                return csrf_field();
-            });
-        }
+        // Регистрируем функцию csrf_field
+        $this->addFunction('csrf_field', function () {
+            $token = \Core\Session::generateCsrfToken();
+            return '<input type="hidden" name="_csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
+        });
 
         // Регистрируем функцию old (если она существует)
         if (function_exists('old')) {

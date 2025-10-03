@@ -17,16 +17,7 @@ error_reporting(E_ERROR | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ER
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 ini_set('log_errors', '1');
-ini_set('error_log', LOG_DIR . '/php_errors.log');
+ini_set('error_log', LOG_DIR . '/app.log');
 
-// Load helper groups
-\Core\HelperLoader::loadHelperGroups([
-    'app',          // Core application functions (config, lang, view, env)
-    'environment',  // Environment detection (is_debug, is_dev, is_prod)
-    'debug',        // Debug functions (dd, dump, trace)
-    'profiler',     // Performance profiling (timer, memory, benchmark)
-    'database',     // Database debugging (query_log, query_stats)
-    'context',      // Debug contexts (context_start, context_run)
-    'cache',        // Cache functions (cache, cache_remember, cache_forget)
-    'emailer',      // Email functions (emailer, send_email, send_email_view)
-]);
+// Load only critical helper functions
+\Core\HelperLoader::loadHelperGroup('app');

@@ -192,7 +192,11 @@ class Response
      */
     public function route(string $name, array $params = [], int $status = 302): self
     {
-        $url = route($name, $params);
+        $router = \Core\DebugToolbar::getRouter();
+        if (!$router) {
+            throw new \RuntimeException('Router is not initialized');
+        }
+        $url = $router->route($name, $params);
         return $this->redirect($url, $status);
     }
 
@@ -327,7 +331,7 @@ class Response
      */
     public function view(string $template, array $data = [], ?int $status = null, array $headers = []): self
     {
-        $content = view($template, $data);
+        $content = \Core\TemplateEngine::getInstance()->render($template, $data);
         return $this->html($content, $status, $headers);
     }
 }
