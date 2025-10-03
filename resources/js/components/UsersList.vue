@@ -112,20 +112,29 @@ const deleteUser = async (userId) => {
   deleting.value = userId;
 
   try {
-    // Используем POST с _method=DELETE для совместимости
+    // Используем нативный DELETE метод
     const response = await fetch(`/api/users/${userId}`, {
-      method: 'POST',
+      method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
         'X-CSRF-TOKEN': getCsrfToken()
-      },
-      body: JSON.stringify({
-        _method: 'DELETE'
-      })
+      }
     });
 
-    const data = await response.json();
+    // Получаем текст ответа
+    const responseText = await response.text();
+    console.log('Server response:', responseText);
+
+    // Проверяем, что ответ - это JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Invalid JSON response:', responseText);
+      alert('Ошибка: Сервер вернул некорректный ответ. Смотрите консоль.');
+      return;
+    }
 
     if (response.ok && data.success) {
       // Удаляем пользователя из списка
