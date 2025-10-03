@@ -750,22 +750,32 @@ class TemplateEngine
     /**
      * Обрабатывает тесты (is defined, is null, is empty, etc.)
      */
-    private function processTests(string $condition): string
+    private function processTests(string $condition, array &$testProtected): string
     {
         // Обрабатываем "is not" тесты (отрицание)
-        $condition = preg_replace_callback('/(\w+)\s+is\s+not\s+(\w+)/', function ($matches) {
+        $condition = preg_replace_callback('/(\w+)\s+is\s+not\s+(\w+)/', function ($matches) use (&$testProtected) {
             $variable = '$' . $matches[1];
             $test = strtolower($matches[2]);
             
-            return $this->compileTest($variable, $test, true);
+            $compiledTest = $this->compileTest($variable, $test, true);
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___TEST_' . count($testProtected) . '___';
+            $testProtected[$placeholder] = $compiledTest;
+            return $placeholder;
         }, $condition);
         
         // Обрабатываем обычные "is" тесты
-        $condition = preg_replace_callback('/(\w+)\s+is\s+(\w+)/', function ($matches) {
+        $condition = preg_replace_callback('/(\w+)\s+is\s+(\w+)/', function ($matches) use (&$testProtected) {
             $variable = '$' . $matches[1];
             $test = strtolower($matches[2]);
             
-            return $this->compileTest($variable, $test, false);
+            $compiledTest = $this->compileTest($variable, $test, false);
+            
+            // Защищаем от дальнейшей обработки
+            $placeholder = '___TEST_' . count($testProtected) . '___';
+            $testProtected[$placeholder] = $compiledTest;
+            return $placeholder;
         }, $condition);
         
         return $condition;
@@ -796,7 +806,7 @@ class TemplateEngine
                 break;
                 
             case 'odd':
-                $result = "($variable % 2 !== 0)";
+                $result = "($variable % 2 != 0)";
                 break;
                 
             case 'iterable':
@@ -863,7 +873,8 @@ class TemplateEngine
         }, $condition);
 
         // Обрабатываем тесты (is defined, is null, is empty, etc.) ПЕРЕД обработкой логических операторов
-        $condition = $this->processTests($condition);
+        $testProtected = [];
+        $condition = $this->processTests($condition, $testProtected);
 
         // Защищаем логические операторы ДО обработки функций
         $logicalOperators = [];
@@ -945,6 +956,11 @@ class TemplateEngine
 
         // Восстанавливаем защищенные фрагменты
         foreach ($protected as $placeholder => $value) {
+            $condition = str_replace($placeholder, $value, $condition);
+        }
+
+        // Восстанавливаем тесты
+        foreach ($testProtected as $placeholder => $value) {
             $condition = str_replace($placeholder, $value, $condition);
         }
 
