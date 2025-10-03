@@ -11,6 +11,8 @@ class TemplateEngine
     private const MAX_NESTING_LEVEL = 50; // Максимальная глубина вложенности блоков
     private const PROTECTED_FILTERS = ['escape', 'e', 'upper', 'lower', 'raw']; // Защищённые фильтры
     private const RESERVED_VARIABLES = ['__tpl', 'this', 'GLOBALS', '_SERVER', '_GET', '_POST', '_FILES', '_COOKIE', '_SESSION', '_REQUEST', '_ENV']; // Зарезервированные переменные
+    private const MAX_UNDEFINED_VARS = 1000; // Максимальное количество собранных undefined переменных
+    private const MAX_RENDERED_TEMPLATES = 500; // Максимальное количество записей в истории рендеринга
     
     private static ?TemplateEngine $instance = null;
     private string $templateDir;
@@ -136,6 +138,12 @@ class TemplateEngine
         // Сохраняем информацию о рендеринге для Debug Toolbar
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
+
+        // Автоочистка истории при превышении лимита для защиты от утечки памяти
+        if (count(self::$renderedTemplates) >= self::MAX_RENDERED_TEMPLATES) {
+            // Удаляем первую половину массива (FIFO)
+            self::$renderedTemplates = array_slice(self::$renderedTemplates, self::MAX_RENDERED_TEMPLATES / 2);
+        }
 
         self::$renderedTemplates[] = [
             'template' => $template,
@@ -434,6 +442,9 @@ class TemplateEngine
      */
     private function compileTemplate(string $content, string $templateName = ''): string
     {
+        // Проверяем глубину вложенности для защиты от ReDoS и stack overflow
+        $this->validateNestingLevel($content);
+        
         // Проверяем наличие extends
         if (preg_match('/\{\%\s*extends\s+[\'"]([^\'"]+)[\'"]\s*\%\}/', $content, $extendsMatch)) {
             $parentTemplate = $extendsMatch[1];
@@ -493,6 +504,12 @@ class TemplateEngine
 
                     // Собираем для статистики
                     if (!isset(self::$undefinedVars[$varName])) {
+                        // Автоочистка при превышении лимита для защиты от утечки памяти
+                        if (count(self::$undefinedVars) >= self::MAX_UNDEFINED_VARS) {
+                            // Удаляем первую половину массива (FIFO)
+                            self::$undefinedVars = array_slice(self::$undefinedVars, self::MAX_UNDEFINED_VARS / 2, null, true);
+                        }
+                        
                         self::$undefinedVars[$varName] = [
                             'count' => 0,
                             'message' => $message,
@@ -705,6 +722,38 @@ class TemplateEngine
             $actualSizeMB = round($size / 1024 / 1024, 2);
             throw new \RuntimeException(
                 "Template file is too large: {$actualSizeMB}MB (max: {$maxSizeMB}MB)"
+            );
+        }
+    }
+
+    /**
+     * Проверяет глубину вложенности в шаблоне
+     * 
+     * @param string $content Содержимое шаблона
+     * @throws \RuntimeException Если превышена максимальная вложенность
+     */
+    private function validateNestingLevel(string $content): void
+    {
+        // Подсчитываем глубину вложенности блоков
+        $maxDepth = 0;
+        $currentDepth = 0;
+        
+        // Ищем все открывающие и закрывающие теги блоков
+        preg_match_all('/\{\%\s*(for|if|while|block|spaceless|autoescape|verbatim)\s+.*?\%\}|\{\%\s*end(for|if|while|block|spaceless|autoescape|verbatim)\s*\%\}/s', $content, $matches, PREG_SET_ORDER);
+        
+        foreach ($matches as $match) {
+            if (str_starts_with($match[0], '{%') && !str_contains($match[0], 'end')) {
+                $currentDepth++;
+                $maxDepth = max($maxDepth, $currentDepth);
+            } else {
+                $currentDepth--;
+            }
+        }
+        
+        if ($maxDepth > self::MAX_NESTING_LEVEL) {
+            throw new \RuntimeException(
+                "Maximum template nesting level exceeded: {$maxDepth} (max: " . 
+                self::MAX_NESTING_LEVEL . ")"
             );
         }
     }
