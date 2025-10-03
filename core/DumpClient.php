@@ -204,6 +204,17 @@ class DumpClient
             // Записываем в файл
             file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
             
+            // Логируем через Logger для Debug Toolbar
+            if (class_exists('\Core\Logger')) {
+                \Core\Logger::warning('Dump Server unavailable, data logged to file', [
+                    'label' => $label,
+                    'type' => $dataType,
+                    'file' => $relativePath,
+                    'line' => $line,
+                    'log_file' => $logFile,
+                ]);
+            }
+            
             // Опционально: вывод в stderr для CLI
             if (php_sapi_name() === 'cli') {
                 fwrite(STDERR, "⚠️  Dump Server unavailable, logged to: {$logFile}\n");
