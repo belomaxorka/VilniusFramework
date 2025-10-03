@@ -115,7 +115,7 @@ $value = cache('key', 'default');
 cache_remember('key', 3600, fn() => 'value');
 ```
 
-### Migrations
+### Migrations & Console
 
 ```bash
 # Create a migration
@@ -124,11 +124,20 @@ php vilnius make:migration create_users_table
 # Run migrations
 php vilnius migrate
 
-# Rollback migrations
-php vilnius migrate:rollback
+# Create a controller
+php vilnius make:controller UserController
 
-# Check migration status
-php vilnius migrate:status
+# Create a model with migration
+php vilnius make:model Post -m
+
+# List all routes
+php vilnius route:list
+
+# Clear cache
+php vilnius cache:clear
+
+# View all commands
+php vilnius list
 ```
 
 Migration example:
