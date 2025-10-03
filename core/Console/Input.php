@@ -19,19 +19,21 @@ class Input
      */
     private array $options = [];
 
-    public function __construct()
+    public function __construct(?array $argv = null)
     {
-        $this->parseArguments();
+        $this->parseArguments($argv);
     }
 
     /**
      * Парсинг аргументов командной строки
      */
-    private function parseArguments(): void
+    private function parseArguments(?array $argv = null): void
     {
-        global $argv;
+        if ($argv === null) {
+            global $argv;
+        }
         
-        if (!isset($argv)) {
+        if (!isset($argv) || empty($argv)) {
             return;
         }
 
@@ -62,14 +64,14 @@ class Input
     /**
      * Получить аргумент по индексу
      */
-    public function getArgument(string|int $name): mixed
+    public function getArgument(string|int $name, mixed $default = null): mixed
     {
         if (is_int($name)) {
-            return $this->arguments[$name] ?? null;
+            return $this->arguments[$name] ?? $default;
         }
 
         // Если имя строковое, ищем по индексу 0
-        return $this->arguments[0] ?? null;
+        return $this->arguments[0] ?? $default;
     }
 
     /**
@@ -83,9 +85,9 @@ class Input
     /**
      * Получить опцию
      */
-    public function getOption(string $name): mixed
+    public function getOption(string $name, mixed $default = null): mixed
     {
-        return $this->options[$name] ?? null;
+        return $this->options[$name] ?? $default;
     }
 
     /**

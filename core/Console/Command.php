@@ -41,6 +41,17 @@ abstract class Command
     abstract public function handle(): int;
 
     /**
+     * Запустить команду
+     */
+    public function execute(Input $input, Output $output): int
+    {
+        $this->input = $input;
+        $this->output = $output;
+        
+        return $this->handle();
+    }
+
+    /**
      * Получить signature команды
      */
     public function getSignature(): string
@@ -131,17 +142,17 @@ abstract class Command
     /**
      * Получить аргумент
      */
-    protected function argument(string $name): mixed
+    protected function argument(string|int $name, mixed $default = null): mixed
     {
-        return $this->input->getArgument($name);
+        return $this->input->getArgument($name, $default);
     }
 
     /**
      * Получить опцию
      */
-    protected function option(string $name): mixed
+    protected function option(string $name, mixed $default = null): mixed
     {
-        return $this->input->getOption($name);
+        return $this->input->getOption($name, $default);
     }
 
     /**
