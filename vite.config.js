@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import fs from 'fs';
 
 export default defineConfig({
   root: '.',
@@ -18,9 +19,41 @@ export default defineConfig({
     cors: true,
     strictPort: true,
     port: 5173,
+    host: '0.0.0.0', // Слушать на всех интерфейсах
     hmr: {
+      // HMR будет работать на том же хосте, что и основное приложение
       host: 'localhost',
     },
   },
+  plugins: [
+    {
+      name: 'vite-plugin-hot-file',
+      configureServer(server) {
+        const hotFile = resolve(__dirname, 'public/hot');
+        
+        // Создаем hot файл при старте dev сервера
+        server.httpServer?.once('listening', () => {
+          fs.writeFileSync(hotFile, '');
+          console.log(`✓ Hot file created: ${hotFile}`);
+        });
+
+        // Удаляем hot файл при остановке
+        process.on('SIGINT', () => {
+          if (fs.existsSync(hotFile)) {
+            fs.unlinkSync(hotFile);
+            console.log(`✓ Hot file removed: ${hotFile}`);
+          }
+          process.exit();
+        });
+
+        process.on('SIGTERM', () => {
+          if (fs.existsSync(hotFile)) {
+            fs.unlinkSync(hotFile);
+          }
+          process.exit();
+        });
+      },
+    },
+  ],
 });
 

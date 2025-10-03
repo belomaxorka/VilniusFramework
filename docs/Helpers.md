@@ -100,6 +100,77 @@ vite(string $entry = 'app'): string
 <script type="module" src="/build/assets/app-[hash].js"></script>
 ```
 
+**Настройка окружения:**
+
+URL dev сервера настраивается через `.env`:
+```env
+VITE_DEV_SERVER_URL=http://localhost:5173        # по умолчанию
+VITE_DEV_SERVER_URL=http://torrentpier.loc:5173  # для OSPanel
+```
+
+См. подробнее: [ViteSetup.md](ViteSetup.md)
+
+**Местоположение:** `core/helpers/app/vite.php`
+
+---
+
+### vite_config()
+
+Получить значение из конфигурации Vite.
+
+**Сигнатура:**
+```php
+vite_config(string $key, mixed $default = null): mixed
+```
+
+**Примеры:**
+```php
+$devUrl = vite_config('dev_server_url');
+// "http://localhost:5173"
+
+$entries = vite_config('entries');
+// ['app' => 'resources/js/app.js']
+```
+
+**Местоположение:** `core/helpers/app/vite.php`
+
+---
+
+### vite_dev_server_url()
+
+Получить URL Vite dev сервера.
+
+**Сигнатура:**
+```php
+vite_dev_server_url(): string
+```
+
+**Примеры:**
+```php
+$url = vite_dev_server_url();
+// "http://localhost:5173" или "http://torrentpier.loc:5173"
+```
+
+**Местоположение:** `core/helpers/app/vite.php`
+
+---
+
+### vite_is_dev_mode()
+
+Проверяет, запущен ли Vite dev сервер.
+
+**Сигнатура:**
+```php
+vite_is_dev_mode(): bool
+```
+
+**Примеры:**
+```php
+if (vite_is_dev_mode()) {
+    echo "Dev mode active";
+}
+```
+
 **Местоположение:** `core/helpers/app/vite.php`
 
 ---
