@@ -153,6 +153,12 @@ class ErrorHandler
      */
     private static function displayError(array $error): void
     {
+        // В CLI режиме выводим текстовую версию ошибки
+        if (self::isCli()) {
+            self::displayCliError($error);
+            exit(1);
+        }
+
         // Если уже отправлен заголовок, не можем изменить его
         if (headers_sent()) {
             echo "\n<!-- Error occurred after headers were sent -->\n";
@@ -505,5 +511,77 @@ HTML;
 
         // Добавляем многоточие в начале
         return '...' . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $lastParts);
+    }
+
+    /**
+     * Проверить, запущено ли приложение в CLI режиме
+     */
+    private static function isCli(): bool
+    {
+        return PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg';
+    }
+
+    /**
+     * Показать ошибку в CLI режиме
+     */
+    private static function displayCliError(array $error): void
+    {
+        // Очищаем буфер вывода
+        if (ob_get_level()) {
+            ob_clean();
+        }
+
+        $severityName = self::getSeverityName($error['severity']);
+        $displayType = self::getDisplayType($error['type']);
+
+        // Цвета для CLI (ANSI escape codes)
+        $red = "\033[31m";
+        $yellow = "\033[33m";
+        $green = "\033[32m";
+        $cyan = "\033[36m";
+        $gray = "\033[90m";
+        $bold = "\033[1m";
+        $reset = "\033[0m";
+
+        // Формируем вывод
+        $output = "\n";
+        $output .= "{$red}{$bold}═══════════════════════════════════════════════════════════════════{$reset}\n";
+        $output .= "{$red}{$bold}  ERROR: {$displayType} - {$severityName}{$reset}\n";
+        $output .= "{$red}{$bold}═══════════════════════════════════════════════════════════════════{$reset}\n";
+        $output .= "\n";
+
+        // Сообщение об ошибке
+        $output .= "{$bold}Message:{$reset}\n";
+        $output .= "  {$yellow}{$error['message']}{$reset}\n";
+        $output .= "\n";
+
+        // Файл и строка
+        $output .= "{$bold}Location:{$reset}\n";
+        $output .= "  {$cyan}File:{$reset} {$error['file']}\n";
+        $output .= "  {$cyan}Line:{$reset} {$green}{$error['line']}{$reset}\n";
+        $output .= "\n";
+
+        // Дополнительная информация
+        $output .= "{$bold}Details:{$reset}\n";
+        $output .= "  {$cyan}Time:{$reset} {$error['timestamp']}\n";
+        $output .= "  {$cyan}Environment:{$reset} " . Environment::get() . "\n";
+        
+        if (isset($error['exception_class'])) {
+            $output .= "  {$cyan}Exception:{$reset} {$error['exception_class']}\n";
+        }
+        $output .= "\n";
+
+        // Stack trace
+        if (!empty($error['backtrace'])) {
+            $output .= "{$bold}Stack Trace:{$reset}\n";
+            $output .= "{$gray}" . self::formatBacktrace($error['backtrace']) . "{$reset}";
+            $output .= "\n";
+        }
+
+        $output .= "{$red}═══════════════════════════════════════════════════════════════════{$reset}\n";
+        $output .= "\n";
+
+        // Выводим в STDERR для ошибок
+        fwrite(STDERR, $output);
     }
 }
