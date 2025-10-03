@@ -42,7 +42,7 @@ core/helpers/app/
 #### Файлы ядра
 - [x] `core/bootstrap.php` - загрузка только группы 'app'
 - [x] `core/TemplateEngine.php` - замена route(), csrf_token(), csrf_field() на прямые вызовы
-- [x] `core/Response.php` - замена route() на Router::route()
+- [x] `core/Response.php` - замена route() на Router::route() + замена view() на TemplateEngine::getInstance()->render()
 
 #### Документация
 - [x] `docs/Helpers.md` - обновлена документация (только 4 хелпера)
