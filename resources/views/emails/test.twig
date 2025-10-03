@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ title|default('Welcome!') }}</h1>
+    </div>
+    <div class="content">
+        <p>Hello{% if name %}, {{ name }}{% endif %}!</p>
+        
+        <p>{{ message|default('This is a test email from your awesome framework.') }}</p>
+        
+        {% if button_text and button_url %}
+        <div style="text-align: center;">
+            <a href="{{ button_url }}" class="button">{{ button_text }}</a>
+        </div>
+        {% endif %}
+        
+        <p style="margin-top: 30px;">Best regards,<br>{{ app_name|default('Your Framework') }}</p>
+    </div>
+    <div class="footer">
+        <p>This email was sent by {{ app_name|default('Your Framework') }}</p>
+        <p>&copy; {{ "now"|date("Y") }} All rights reserved.</p>
+    </div>
+</body>
+</html>
+

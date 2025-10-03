@@ -11,6 +11,7 @@ final class Core
         self::initDebugSystem();
         self::initializeLang();
         self::initializeDatabase();
+        self::initializeEmailer();
     }
 
     private static function initEnvironment(): void
@@ -68,5 +69,10 @@ final class Core
     private static function initializeDatabase(): void
     {
         Database::init();
+    }
+
+    private static function initializeEmailer(): void
+    {
+        Emailer::init();
     }
 }

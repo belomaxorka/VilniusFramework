@@ -39,6 +39,9 @@ $app->registerCommands([
     \Core\Console\Commands\CacheClearCommand::class,
     \Core\Console\Commands\DumpServerCommand::class,
     \Core\Console\Commands\DumpLogCommand::class,
+    
+    // Email commands
+    \Core\Console\Commands\EmailTestCommand::class,
 ]);
 
 // Run application
