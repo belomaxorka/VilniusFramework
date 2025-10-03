@@ -8,17 +8,21 @@ use Core\Response;
 /**
  * Base Controller
  * 
- * Базовый класс для всех контроллеров
+ * Базовый класс для всех контроллеров с Dependency Injection
  */
 abstract class Controller
 {
-    protected Request $request;
-    protected Response $response;
-
-    public function __construct()
-    {
-        $this->request = Request::capture();
-        $this->response = new Response();
+    /**
+     * Constructor with automatic dependency injection
+     * 
+     * @param Request $request Auto-injected by Container
+     * @param Response $response Auto-injected by Container
+     */
+    public function __construct(
+        protected Request $request,
+        protected Response $response
+    ) {
+        // Dependencies are automatically injected by Container!
     }
 
     /**

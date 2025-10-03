@@ -2,8 +2,33 @@
 
 namespace App\Controllers;
 
+use Core\Request;
+use Core\Response;
+
 class HomeController extends Controller
 {
+    /**
+     * Constructor with Dependency Injection
+     * 
+     * Example: You can inject additional dependencies here!
+     * 
+     * @param Request $request Auto-injected
+     * @param Response $response Auto-injected
+     */
+    public function __construct(
+        Request $request,
+        Response $response,
+        // Add your custom dependencies here:
+        // protected Database $db,
+        // protected CacheManager $cache,
+        // protected Logger $logger,
+    ) {
+        parent::__construct($request, $response);
+        
+        // Your custom dependencies are now available!
+        // Example: $this->db, $this->cache, $this->logger
+    }
+    
     /**
      * Home page
      */
