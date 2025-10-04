@@ -4,7 +4,7 @@ namespace Core\Console\Commands;
 
 use Core\Console\Command;
 use Core\Container;
-use Core\Database;
+use Core\Contracts\DatabaseInterface;
 
 /**
  * Database Seed Command
@@ -22,9 +22,9 @@ class DbSeedCommand extends Command
         $this->newLine();
 
         try {
-            // Получаем Database из контейнера
+            // Получаем DatabaseManager из контейнера через интерфейс
             $container = Container::getInstance();
-            $db = $container->make(Database::class);
+            $db = $container->make(DatabaseInterface::class);
             
             // Проверяем, есть ли уже пользователи
             $existingUsers = $db->table('users')->count();

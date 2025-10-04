@@ -41,28 +41,19 @@ class HomeController extends Controller
             $greeting = 'Good Evening 🌆';
         }
 
-        // ✅ Используем DI вместо статического вызова
         $this->logger->info($greeting);
 
-        // 1. Получение всех пользователей через QueryBuilder
-        $users = $this->db->table('users')->get();
-
-        // 2. Получение пользователей с условиями
-        $verifiedUsers = $this->db->table('users')
-            ->whereNotNull('email_verified_at')
+        $users = $this->db->table('users')
             ->orderBy('created_at', 'desc')
-            ->limit(5)
             ->get();
 
-        // 3. Получение одного пользователя
-        $firstUser = $this->db->table('users')
-            ->where('id', 1)
-            ->first();
+        $totalUsers = count($users);
+        $verifiedUsers = array_slice(
+            array_filter($users, fn($user) => $user['email_verified_at'] !== null),
+            0,
+            5
+        );
 
-        // 4. Подсчет количества пользователей
-        $totalUsers = $this->db->table('users')->count();
-
-        // ✅ Логируем статистику через DI
         $this->logger->info("Total users in database: {$totalUsers}");
 
         // Render template
@@ -77,7 +68,6 @@ class HomeController extends Controller
             'totalUsers' => $totalUsers,
             'users' => $users,
             'verifiedUsers' => $verifiedUsers,
-            'firstUser' => $firstUser,
         ]);
     }
 }
