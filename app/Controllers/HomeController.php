@@ -3,7 +3,7 @@
 namespace App\Controllers;
 
 use Core\Cache\CacheManager;
-use Core\Database;
+use Core\Contracts\DatabaseInterface;
 use Core\Logger;
 use Core\Request;
 use Core\Response;
@@ -14,10 +14,10 @@ class HomeController extends Controller
      * Constructor
      */
     public function __construct(
-        Request                $request,
-        Response               $response,
-        protected Database     $db,
-        protected CacheManager $cache,
+        Request                     $request,
+        Response                    $response,
+        protected DatabaseInterface $db,
+        protected CacheManager      $cache,
     )
     {
         parent::__construct($request, $response);

@@ -2,6 +2,7 @@
 
 namespace Core\Database;
 
+use Core\Contracts\DatabaseInterface;
 use Core\Database\Drivers\MySqlDriver;
 use Core\Database\Drivers\PostgreSqlDriver;
 use Core\Database\Drivers\SqliteDriver;
@@ -322,7 +323,7 @@ class DatabaseManager implements DatabaseInterface
     /**
      * Выполнить код в транзакции
      */
-    public function transaction(callable $callback)
+    public function transaction(callable $callback): mixed
     {
         $this->beginTransaction();
 

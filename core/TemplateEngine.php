@@ -2,7 +2,8 @@
 
 namespace Core;
 
-use Core\Logger;
+use Core\Contracts\LoggerInterface;
+use Core\Contracts\ConfigInterface;
 
 class TemplateEngine
 {
@@ -31,16 +32,22 @@ class TemplateEngine
     private static array $renderedTemplates = []; // История рендеринга шаблонов для Debug Toolbar
     private int $currentNestingLevel = 0; // Текущая глубина вложенности
     private static int $loopCounter = 0; // Счётчик циклов для генерации уникальных ID
+    private ?LoggerInterface $logger = null; // Внедренный логгер
 
     // Поддержка блоков (extends/block)
     private array $blocks = []; // Определённые блоки
     private ?string $currentBlock = null; // Текущий блок
     private ?string $parentTemplate = null; // Родительский шаблон
 
-    public function __construct(?string $templateDir = null, ?string $cacheDir = null)
+    public function __construct(
+        ?string $templateDir = null, 
+        ?string $cacheDir = null,
+        ?LoggerInterface $logger = null
+    )
     {
         $this->templateDir = $templateDir ?? RESOURCES_DIR . '/views';
         $this->cacheDir = $cacheDir ?? STORAGE_DIR . '/cache/templates';
+        $this->logger = $logger;
 
         // Создаем директорию кэша если её нет
         if (!is_dir($this->cacheDir)) {
@@ -318,7 +325,13 @@ class TemplateEngine
             implode(', ', array_keys($availableVars))
         );
 
-        Logger::warning($logMessage);
+        // Используем внедренный logger если доступен
+        if ($this->logger) {
+            $this->logger->warning($logMessage);
+        } else {
+            // Fallback на error_log если логгер не внедрен
+            error_log($logMessage);
+        }
     }
 
     /**
@@ -522,7 +535,9 @@ class TemplateEngine
                     $filteredVariables[$key] = $value;
                 } else {
                     // Логируем попытку использования зарезервированного имени
-                    Logger::warning("Attempt to use reserved variable name in template: {$key}");
+                    if ($this->logger) {
+                        $this->logger->warning("Attempt to use reserved variable name in template: {$key}");
+                    }
                 }
             }
             extract($filteredVariables, EXTR_SKIP);
@@ -853,14 +868,18 @@ class TemplateEngine
         // Читаем файл (оптимизация: один вызов вместо file_exists + file_get_contents)
         $content = @file_get_contents($includePath);
         if ($content === false) {
-            Logger::warning("Include template not found: {$template}");
+            if ($this->logger) {
+                $this->logger->warning("Include template not found: {$template}");
+            }
             return '';
         }
 
         // Проверяем размер прочитанного контента
         $contentSize = strlen($content);
         if ($contentSize > self::MAX_TEMPLATE_SIZE) {
-            Logger::warning("Include template is too large: {$template}");
+            if ($this->logger) {
+                $this->logger->warning("Include template is too large: {$template}");
+            }
             return '';
         }
 
@@ -2440,14 +2459,14 @@ class TemplateEngine
             return '<input type="hidden" name="_csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
         });
 
-        // Регистрируем функцию __ для переводов
+        // Регистрируем функцию __ для переводов (используем фасад)
         $this->addFunction('__', function (string $key, array $replacements = []) {
-            return Lang::get($key, $replacements);
+            return \Core\Lang::get($key, $replacements);
         });
 
-        // Регистрируем функцию config
+        // Регистрируем функцию config (используем фасад для совместимости)
         $this->addFunction('config', function (string $key, mixed $default = null) {
-            return Config::get($key, $default);
+            return \Core\Config::get($key, $default);
         });
 
         // Регистрируем функцию env

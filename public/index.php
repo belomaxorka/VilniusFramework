@@ -11,25 +11,13 @@ define('VILNIUS_START', microtime(true));
 // Load bootstrap file
 require_once __DIR__ . '/../core/bootstrap.php';
 
-// Initialize app
+// Initialize app (это теперь загружает и services.php)
 Core::init();
 
-// Initialize container
+// Get container instance (уже инициализирован в Core::init())
 $container = Container::getInstance();
 
-// Register services from config
-$services = Config::get('services');
-foreach ($services['singletons'] ?? [] as $abstract => $concrete) {
-    $container->singleton($abstract, $concrete);
-}
-foreach ($services['bindings'] ?? [] as $abstract => $concrete) {
-    $container->bind($abstract, $concrete);
-}
-foreach ($services['aliases'] ?? [] as $alias => $abstract) {
-    $container->alias($alias, $abstract);
-}
-
-// Initialize router
+// Initialize router (уже зарегистрирован в контейнере)
 $router = $container->make(\Core\Router::class);
 if (Environment::isProduction()) {
     $router->enableCache();

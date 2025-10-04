@@ -2,6 +2,7 @@
 
 namespace Core;
 
+use Core\Contracts\HttpInterface;
 use InvalidArgumentException;
 use LogicException;
 
@@ -22,6 +23,13 @@ class Router
     protected array $routeConstraints = [];
     protected ?Validation\RouteParameterValidator $validator = null;
     protected array $routeDomains = [];
+    protected ?HttpInterface $http = null;
+
+    public function __construct(?HttpInterface $http = null, ?Container $container = null)
+    {
+        $this->http = $http;
+        $this->container = $container;
+    }
 
     public function get(string $uri, callable|array $action): self
     {
@@ -355,8 +363,8 @@ class Router
         $uri = trim(parse_url($uri, PHP_URL_PATH), '/');
         $uri = preg_replace('#^index\.php/?#', '', $uri);
 
-        // Получаем текущий домен
-        $currentDomain = Http::getHost();
+        // Получаем текущий домен через внедренную зависимость
+        $currentDomain = $this->getHttp()->getHost();
 
         foreach ($this->routes[$method] ?? [] as $index => $route) {
             // Проверяем домен, если он задан для роута
@@ -819,6 +827,20 @@ class Router
         }
 
         return $this->container;
+    }
+
+    /**
+     * Получить HTTP сервис (с lazy loading)
+     *
+     * @return HttpInterface
+     */
+    protected function getHttp(): HttpInterface
+    {
+        if ($this->http === null) {
+            $this->http = $this->getContainer()->make(HttpInterface::class);
+        }
+
+        return $this->http;
     }
 
     /**

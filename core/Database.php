@@ -2,77 +2,46 @@
 
 namespace Core;
 
-use Core\Database\DatabaseManager;
+use Core\Facades\Facade;
+use Core\Contracts\DatabaseInterface;
 use Core\Database\QueryBuilder;
 
-use RuntimeException;
-
-final class Database
+/**
+ * Database Facade
+ * 
+ * Статический фасад для DatabaseManager
+ * Обеспечивает обратную совместимость со старым API
+ * 
+ * @method static QueryBuilder table(string $table)
+ * @method static array select(string $query, array $bindings = [])
+ * @method static array|null selectOne(string $query, array $bindings = [])
+ * @method static bool insert(string $query, array $bindings = [])
+ * @method static int update(string $query, array $bindings = [])
+ * @method static int delete(string $query, array $bindings = [])
+ * @method static mixed transaction(callable $callback)
+ * @method static bool beginTransaction()
+ * @method static bool commit()
+ * @method static bool rollBack()
+ * 
+ * @see \Core\Database\DatabaseManager
+ */
+class Database extends Facade
 {
-    private static ?DatabaseManager $instance = null;
-
-    public static function init(): DatabaseManager
+    protected static function getFacadeAccessor(): string
     {
-        if (self::$instance === null) {
-            $config = Config::get('database');
-
-            if (!$config) {
-                throw new RuntimeException('Database configuration not found');
-            }
-
-            self::$instance = new DatabaseManager($config);
-        }
-
-        return self::$instance;
+        return DatabaseInterface::class;
     }
 
-    public static function getInstance(): DatabaseManager
+    // Backward compatibility - статический метод init() больше не нужен
+    // DatabaseManager автоматически создается через DI контейнер
+    public static function init(): DatabaseInterface
     {
-        if (self::$instance === null) {
-            throw new RuntimeException('Database not initialized. Call Database::init() first.');
-        }
-
-        return self::$instance;
+        return static::resolveFacadeInstance();
     }
 
-    /**
-     * Получить Query Builder
-     */
-    public static function table(string $table): QueryBuilder
+    // Backward compatibility - getInstance()
+    public static function getInstance(): DatabaseInterface
     {
-        return (new QueryBuilder(self::getInstance()))->table($table);
-    }
-
-    /**
-     * Shortcut методы для быстрого доступа
-     */
-    public static function select(string $query, array $bindings = []): array
-    {
-        return self::getInstance()->select($query, $bindings);
-    }
-
-    public static function selectOne(string $query, array $bindings = []): ?array
-    {
-        return self::getInstance()->selectOne($query, $bindings);
-    }
-
-    public static function insert(string $query, array $bindings = []): bool
-    {
-        return self::getInstance()->insert($query, $bindings);
-    }
-
-    public static function update(string $query, array $bindings = []): int
-    {
-        return self::getInstance()->update($query, $bindings);
-    }
-
-    public static function delete(string $query, array $bindings = []): int
-    {
-        return self::getInstance()->delete($query, $bindings);
-    }
-
-    public static function transaction(callable $callback)
-    {
-        return self::getInstance()->transaction($callback);
+        return static::resolveFacadeInstance();
     }
 }

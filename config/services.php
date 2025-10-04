@@ -3,7 +3,7 @@
 /**
  * Service Container Bindings
  *
- * Здесь вы можете регистрировать привязки для контейнера зависимостей.
+ * Здесь регистрируются привязки для контейнера зависимостей.
  * Это позволяет внедрять зависимости в конструкторы контроллеров.
  */
 
@@ -14,30 +14,76 @@ return [
     |--------------------------------------------------------------------------
     |
     | Сервисы, которые создаются один раз на весь lifecycle приложения.
-    | Один экземпляр на все приложение.
     |
     */
     'singletons' => [
-        // Core Framework Services (Instance classes only)
-        \Core\Router::class => \Core\Router::class,
-        \Core\Database::class => \Core\Database::class,
-        \Core\TemplateEngine::class => \Core\TemplateEngine::class,
-        \Core\Session::class => \Core\Session::class,
+        // HTTP Service
+        \Core\Contracts\HttpInterface::class => \Core\Services\HttpService::class,
         
-        // Cache Manager with configuration
+        // Config Service (загрузка конфигурации происходит в Core::init())
+        \Core\Contracts\ConfigInterface::class => function ($container) {
+            return new \Core\Services\ConfigRepository();
+        },
+        
+        // Logger Service (зависит от Config)
+        \Core\Contracts\LoggerInterface::class => function ($container) {
+            $config = $container->make(\Core\Contracts\ConfigInterface::class);
+            $logger = new \Core\Services\LoggerService($config);
+            $logger->init();
+            return $logger;
+        },
+        
+        // Session Manager (зависит от Http)
+        \Core\Contracts\SessionInterface::class => function ($container) {
+            $http = $container->make(\Core\Contracts\HttpInterface::class);
+            return new \Core\Services\SessionManager($http);
+        },
+        
+        // Database Manager (зависит от Config)
+        \Core\Contracts\DatabaseInterface::class => function ($container) {
+            $config = $container->make(\Core\Contracts\ConfigInterface::class);
+            $dbConfig = $config->get('database', []);
+            
+            if (empty($dbConfig)) {
+                throw new \RuntimeException('Database configuration not found');
+            }
+            
+            return new \Core\Database\DatabaseManager($dbConfig);
+        },
+        
+        // Router (зависит от Container)
+        \Core\Router::class => function ($container) {
+            $router = new \Core\Router();
+            $router->setContainer($container);
+            return $router;
+        },
+        
+        // Template Engine (с внедрением логгера)
+        \Core\TemplateEngine::class => function ($container) {
+            $logger = $container->make(\Core\Contracts\LoggerInterface::class);
+            
+            return new \Core\TemplateEngine(
+                templateDir: RESOURCES_DIR . '/views',
+                cacheDir: STORAGE_DIR . '/cache/templates',
+                logger: $logger
+            );
+        },
+        
+        // Cache Manager
         \Core\Cache\CacheManager::class => function ($container) {
-            $config = \Core\Config::get('cache', []);
-            return new \Core\Cache\CacheManager($config);
+            $config = $container->make(\Core\Contracts\ConfigInterface::class);
+            $cacheConfig = $config->get('cache', []);
+            return new \Core\Cache\CacheManager($cacheConfig);
         },
         
-        // Emailer with configuration
+        // Emailer
         \Core\Emailer::class => function ($container) {
-            $config = \Core\Config::get('mail', []);
-            return new \Core\Emailer($config);
+            $config = $container->make(\Core\Contracts\ConfigInterface::class);
+            $mailConfig = $config->get('mail', []);
+            return new \Core\Emailer($mailConfig);
         },
         
-        // Note: Static classes (Config, Logger, Environment, Env, Cookie, Path, Lang, Http,
-        // Debug, DebugToolbar, MemoryProfiler) are NOT registered here - use them directly via static calls
+        // Query Debugger
         \Core\QueryDebugger::class => \Core\QueryDebugger::class,
         
         // Validation
@@ -53,15 +99,16 @@ return [
     |
     */
     'bindings' => [
-        // Core services
+        // Request
         \Core\Request::class => function ($container) {
             return \Core\Request::capture();
         },
+        
+        // Response
         \Core\Response::class => \Core\Response::class,
         
         // Examples of interface bindings:
         // \App\Contracts\PaymentInterface::class => \App\Services\StripePaymentService::class,
-        // \App\Contracts\CacheInterface::class => \App\Services\RedisCacheService::class,
     ],
 
     /*
@@ -70,25 +117,25 @@ return [
     |--------------------------------------------------------------------------
     |
     | Короткие алиасы для длинных имен классов.
+    | Теперь алиасы указывают на интерфейсы, а не на конкретные классы.
     |
     */
     'aliases' => [
-        // Core
-        'router' => \Core\Router::class,
-        'db' => \Core\Database::class,
-        'database' => \Core\Database::class,
+        // Core Services (указываем на интерфейсы)
+        'http' => \Core\Contracts\HttpInterface::class,
+        'config' => \Core\Contracts\ConfigInterface::class,
+        'logger' => \Core\Contracts\LoggerInterface::class,
+        'log' => \Core\Contracts\LoggerInterface::class,
+        'session' => \Core\Contracts\SessionInterface::class,
+        'db' => \Core\Contracts\DatabaseInterface::class,
+        'database' => \Core\Contracts\DatabaseInterface::class,
         
-        // Views & Templates
+        // Router
+        'router' => \Core\Router::class,
+        
+        // Template Engine
         'view' => \Core\TemplateEngine::class,
         'template' => \Core\TemplateEngine::class,
-        
-        // Session & Auth
-        'session' => \Core\Session::class,
-        
-        // Logging & Debug
-        'logger' => \Core\Logger::class,
-        'log' => \Core\Logger::class,
-        'debug' => \Core\Debug::class,
         
         // Cache
         'cache' => \Core\Cache\CacheManager::class,
@@ -98,14 +145,11 @@ return [
         'emailer' => \Core\Emailer::class,
         'mailer' => \Core\Emailer::class,
         
-        // Configuration
-        'config' => \Core\Config::class,
-        'env' => \Core\Environment::class,
-        
-        // Utilities
+        // Utilities (оставляем для обратной совместимости)
         'cookie' => \Core\Cookie::class,
         'path' => \Core\Path::class,
         'lang' => \Core\Lang::class,
-        'http' => \Core\Http::class,
+        'debug' => \Core\Debug::class,
+        'env' => \Core\Environment::class,
     ],
 ];
