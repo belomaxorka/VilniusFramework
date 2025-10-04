@@ -32,7 +32,7 @@ class DatabaseManager implements DatabaseInterface
         $this->config = $config;
         $this->defaultConnection = $config['default'] ?? null;
         $this->loggingQueries = $config['log_queries'] ?? false;
-        
+
         // Настраиваем QueryDebugger для Debug Toolbar
         if (class_exists('\Core\QueryDebugger')) {
             if (isset($config['slow_query_threshold'])) {
@@ -255,7 +255,7 @@ class DatabaseManager implements DatabaseInterface
     protected function logQuery(string $query, array $bindings, float $time, ?string $error = null, int $rows = 0): void
     {
         $timeMs = round($time * 1000, 2); // в миллисекундах
-        
+
         if ($this->loggingQueries) {
             $this->queryLog[] = [
                 'query' => $query,
