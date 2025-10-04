@@ -19,6 +19,36 @@ class Config implements ArrayAccess, Countable
     protected static ?self $instance = null;
     protected static array $memoizedMacros = [];
     protected static array $memoizedValues = [];
+    protected static array $realpathCache = [];
+    protected static array $pathExplodeCache = [];
+
+    /**
+     * Cached realpath() for better performance
+     *
+     * @param string $path Path to resolve
+     * @return string|false Resolved path or false on failure
+     */
+    protected static function cachedRealpath(string $path): string|false
+    {
+        if (!isset(self::$realpathCache[$path])) {
+            self::$realpathCache[$path] = realpath($path);
+        }
+        return self::$realpathCache[$path];
+    }
+
+    /**
+     * Cached explode() for dot notation paths (hot path optimization)
+     *
+     * @param string $key Dot-notation key to split
+     * @return array Array of path parts
+     */
+    protected static function explodePath(string $key): array
+    {
+        if (!isset(self::$pathExplodeCache[$key])) {
+            self::$pathExplodeCache[$key] = explode('.', $key);
+        }
+        return self::$pathExplodeCache[$key];
+    }
 
     /**
      * Loads configuration files from the specified directory
@@ -31,7 +61,7 @@ class Config implements ArrayAccess, Countable
      */
     public static function load(string $path, ?string $environment = null, bool $recursive = false): void
     {
-        $realPath = realpath($path);
+        $realPath = self::cachedRealpath($path);
 
         if ($realPath === false) {
             throw new InvalidArgumentException("Path does not exist: {$path}");
@@ -128,7 +158,7 @@ class Config implements ArrayAccess, Countable
      */
     protected static function setByPath(string $path, array $value): void
     {
-        $parts = explode('.', $path);
+        $parts = self::explodePath($path);
         $current = &self::$items;
 
         foreach ($parts as $i => $part) {
@@ -192,25 +222,27 @@ class Config implements ArrayAccess, Countable
      */
     protected static function loadEnvironmentConfigs(string $basePath, string $environment): void
     {
-        // Approach 1: Load from environment subdirectory (e.g., config/production/)
+        // Combined pattern to match both approaches in single glob call
+        // Matches: config/production/*.php OR config/*.production.php
         $envDir = $basePath . DIRECTORY_SEPARATOR . $environment;
+        $suffixPattern = $basePath . DIRECTORY_SEPARATOR . '*.' . $environment . '.php';
+        
+        // Approach 1: Check for environment subdirectory
         if (is_dir($envDir)) {
-            $pattern = $envDir . '/*.php';
-            $files = glob($pattern);
-
-            if ($files !== false) {
-                foreach ($files as $file) {
+            $dirPattern = $envDir . '/*.php';
+            $dirFiles = glob($dirPattern);
+            
+            if ($dirFiles !== false) {
+                foreach ($dirFiles as $file) {
                     self::loadFile($file);
                 }
             }
         }
 
-        // Approach 2: Load files with environment suffix (e.g., app.production.php)
-        $pattern = $basePath . '/*.' . $environment . '.php';
-        $files = glob($pattern);
-
-        if ($files !== false) {
-            foreach ($files as $file) {
+        // Approach 2: Load files with environment suffix (only if not in subdirectory)
+        $suffixFiles = glob($suffixPattern);
+        if ($suffixFiles !== false) {
+            foreach ($suffixFiles as $file) {
                 // Extract base name without environment suffix
                 $basename = basename($file, '.' . $environment . '.php');
                 self::loadFileWithKey($file, $basename);
@@ -228,12 +260,8 @@ class Config implements ArrayAccess, Countable
      */
     protected static function loadFileWithKey(string $filePath, string $key): void
     {
-        if (!file_exists($filePath)) {
-            throw new InvalidArgumentException("File not found: {$filePath}");
-        }
-
         if (!is_readable($filePath)) {
-            throw new InvalidArgumentException("File is not readable: {$filePath}");
+            throw new InvalidArgumentException("File not found or not readable: {$filePath}");
         }
 
         // Security: validate path
@@ -263,12 +291,8 @@ class Config implements ArrayAccess, Countable
      */
     public static function loadFile(string $filePath): void
     {
-        if (!file_exists($filePath)) {
-            throw new InvalidArgumentException("File not found: {$filePath}");
-        }
-
         if (!is_readable($filePath)) {
-            throw new InvalidArgumentException("File is not readable: {$filePath}");
+            throw new InvalidArgumentException("File not found or not readable: {$filePath}");
         }
 
         // Security: validate path
@@ -378,7 +402,7 @@ class Config implements ArrayAccess, Countable
     public static function has(string $key): bool
     {
         if (str_contains($key, '.')) {
-            $parts = explode('.', $key);
+            $parts = self::explodePath($key);
             $value = self::$items;
 
             foreach ($parts as $part) {
@@ -437,6 +461,8 @@ class Config implements ArrayAccess, Countable
         self::$resolvingMacros = [];
         self::$memoizedMacros = [];
         self::$memoizedValues = [];
+        self::$realpathCache = [];
+        self::$pathExplodeCache = [];
     }
 
     /**
@@ -665,7 +691,7 @@ class Config implements ArrayAccess, Countable
      */
     protected static function getNestedValue(string $key, mixed $default): mixed
     {
-        $parts = explode('.', $key);
+        $parts = self::explodePath($key);
         $value = self::$items;
 
         foreach ($parts as $part) {
@@ -686,7 +712,7 @@ class Config implements ArrayAccess, Countable
      */
     protected static function setNestedValue(string $key, mixed $value): void
     {
-        $parts = explode('.', $key);
+        $parts = self::explodePath($key);
         $current = &self::$items;
 
         foreach ($parts as $i => $part) {
@@ -708,7 +734,7 @@ class Config implements ArrayAccess, Countable
      */
     protected static function forgetNestedValue(string $key): void
     {
-        $parts = explode('.', $key);
+        $parts = self::explodePath($key);
         $current = &self::$items;
 
         for ($i = 0; $i < count($parts) - 1; $i++) {
@@ -749,25 +775,83 @@ class Config implements ArrayAccess, Countable
             throw new RuntimeException("Cache directory is not writable: {$cacheDir}");
         }
 
-        // Remove callables from items before caching (they can't be serialized with var_export)
+        // Remove callables from items before caching (they can't be serialized)
         $cacheableItems = self::removeCachableCallables(self::$items);
+
+        // Collect file modification times for cache validation
+        $fileModTimes = self::collectFileModificationTimes(self::$loadedPaths);
 
         $data = [
             'items' => $cacheableItems,
             'loadedPaths' => self::$loadedPaths,
+            'fileModTimes' => $fileModTimes,
             'timestamp' => time(),
         ];
 
+        // Use serialize for better performance with large configs
+        $serialized = serialize($data);
+        
         $content = '<?php declare(strict_types=1);' . PHP_EOL . PHP_EOL;
         $content .= '// Configuration cache generated at ' . date('Y-m-d H:i:s') . PHP_EOL;
         $content .= '// Do not modify this file manually' . PHP_EOL;
         $content .= '// Note: Macros (callables) are not cached' . PHP_EOL . PHP_EOL;
-        $content .= 'return ' . var_export($data, true) . ';' . PHP_EOL;
+        $content .= 'return unserialize(' . var_export($serialized, true) . ');' . PHP_EOL;
 
         $result = file_put_contents($cachePath, $content, LOCK_EX);
 
         if ($result === false) {
             throw new RuntimeException("Failed to write cache file: {$cachePath}");
+        }
+
+        return true;
+    }
+
+    /**
+     * Collects modification times for all config files
+     *
+     * @param array $loadedPaths Array of loaded directory paths
+     * @return array Array mapping file paths to their modification times
+     */
+    protected static function collectFileModificationTimes(array $loadedPaths): array
+    {
+        $modTimes = [];
+
+        foreach ($loadedPaths as $path) {
+            if (is_dir($path)) {
+                // Collect all PHP files in directory
+                $files = glob($path . '/*.php');
+                if ($files !== false) {
+                    foreach ($files as $file) {
+                        $modTimes[$file] = @filemtime($file) ?: 0;
+                    }
+                }
+            } elseif (is_file($path)) {
+                $modTimes[$path] = @filemtime($path) ?: 0;
+            }
+        }
+
+        return $modTimes;
+    }
+
+    /**
+     * Checks if cache is still valid by comparing file modification times
+     *
+     * @param array $cachedModTimes Modification times stored in cache
+     * @return bool True if cache is valid, false if any file was modified
+     */
+    protected static function isCacheValid(array $cachedModTimes): bool
+    {
+        foreach ($cachedModTimes as $file => $cachedTime) {
+            if (!file_exists($file)) {
+                // File was deleted - cache is invalid
+                return false;
+            }
+
+            $currentTime = @filemtime($file);
+            if ($currentTime === false || $currentTime > $cachedTime) {
+                // File was modified - cache is invalid
+                return false;
+            }
         }
 
         return true;
@@ -801,23 +885,25 @@ class Config implements ArrayAccess, Countable
      * Note: Macros are not restored from cache.
      *
      * @param string $cachePath Path to the cache file
-     * @return bool True if cache was successfully loaded, false if cache doesn't exist
+     * @return bool True if cache was successfully loaded, false if cache doesn't exist or is stale
      * @throws RuntimeException If cache file is corrupted or invalid
      */
     public static function loadCached(string $cachePath): bool
     {
-        if (!file_exists($cachePath)) {
-            return false;
-        }
-
+        // Check if cache file exists and is readable (single check)
         if (!is_readable($cachePath)) {
-            throw new RuntimeException("Cache file is not readable: {$cachePath}");
+            return false;
         }
 
         $data = require $cachePath;
 
         if (!is_array($data) || !isset($data['items']) || !isset($data['loadedPaths'])) {
             throw new RuntimeException("Cache file is corrupted or invalid: {$cachePath}");
+        }
+
+        // Check if cache is still valid (files haven't been modified)
+        if (isset($data['fileModTimes']) && !self::isCacheValid($data['fileModTimes'])) {
+            return false;
         }
 
         self::$items = $data['items'];
@@ -845,7 +931,7 @@ class Config implements ArrayAccess, Countable
      */
     public static function isCached(string $cachePath): bool
     {
-        return file_exists($cachePath) && is_readable($cachePath);
+        return is_readable($cachePath);
     }
 
     /**
@@ -871,20 +957,17 @@ class Config implements ArrayAccess, Countable
      */
     public static function getCacheInfo(string $cachePath): ?array
     {
-        if (!file_exists($cachePath)) {
+        if (!is_readable($cachePath)) {
             return null;
         }
 
-        $data = require $cachePath;
-
-        if (!is_array($data)) {
-            return null;
-        }
+        $mtime = @filemtime($cachePath);
+        $size = @filesize($cachePath);
 
         return [
-            'timestamp' => $data['timestamp'] ?? null,
-            'size' => filesize($cachePath),
-            'created_at' => $data['timestamp'] ? date('Y-m-d H:i:s', $data['timestamp']) : null,
+            'timestamp' => $mtime ?: null,
+            'size' => $size ?: 0,
+            'created_at' => $mtime ? date('Y-m-d H:i:s', $mtime) : null,
         ];
     }
 
@@ -939,7 +1022,7 @@ class Config implements ArrayAccess, Countable
     public static function setAllowedBasePaths(array $paths): void
     {
         self::$allowedBasePaths = array_map(function ($path) {
-            $realPath = realpath($path);
+            $realPath = self::cachedRealpath($path);
             if ($realPath === false) {
                 throw new InvalidArgumentException("Invalid base path: {$path}");
             }
@@ -960,7 +1043,7 @@ class Config implements ArrayAccess, Countable
             return;
         }
 
-        $realPath = realpath($path);
+        $realPath = self::cachedRealpath($path);
 
         if ($realPath === false) {
             return; // Let other validation handle this

@@ -31,14 +31,17 @@ final class Core
         $environment = Env::get('APP_ENV', 'production');
         $cachePath = STORAGE_DIR . '/cache/config.php';
 
-        if ($environment === 'production' && Config::isCached($cachePath)) {
-            Config::loadCached($cachePath);
-        } else {
-            Config::load(CONFIG_DIR, $environment);
+        // Try to load from cache first (in production only)
+        if ($environment === 'production' && Config::loadCached($cachePath)) {
+            return;
+        }
 
-            if ($environment === 'production') {
-                Config::cache($cachePath);
-            }
+        // Load from files
+        Config::load(CONFIG_DIR, $environment);
+
+        // Cache for next time (in production only)
+        if ($environment === 'production') {
+            Config::cache($cachePath);
         }
     }
 
