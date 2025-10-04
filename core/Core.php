@@ -9,11 +9,10 @@ final class Core
     public static function init(): void
     {
         self::initEnvironment();
-        self::initContainer();  // Сначала инициализируем контейнер!
+        self::initContainer();
         self::initConfigLoader();
         self::initDebugSystem();
         self::initializeLang();
-        self::initializeDatabase();
         self::initializeEmailer();
     }
 
@@ -28,24 +27,24 @@ final class Core
     private static function initContainer(): void
     {
         $container = Container::getInstance();
-        
+
         // Загружаем services.php
         $servicesFile = CONFIG_DIR . '/services.php';
         if (!file_exists($servicesFile)) {
             throw new \RuntimeException("Services configuration file not found: {$servicesFile}");
         }
-        
+
         $services = require $servicesFile;
-        
+
         // Регистрируем сервисы
         foreach ($services['singletons'] ?? [] as $abstract => $concrete) {
             $container->singleton($abstract, $concrete);
         }
-        
+
         foreach ($services['bindings'] ?? [] as $abstract => $concrete) {
             $container->bind($abstract, $concrete);
         }
-        
+
         foreach ($services['aliases'] ?? [] as $alias => $abstract) {
             $container->alias($alias, $abstract);
         }
@@ -87,13 +86,6 @@ final class Core
     private static function initializeLang(): void
     {
         Lang::init();
-    }
-
-    private static function initializeDatabase(): void
-    {
-        // Database фасад теперь автоматически резолвится через контейнер
-        // Просто получаем instance чтобы убедиться что он создан
-        Database::init();
     }
 
     private static function initializeEmailer(): void

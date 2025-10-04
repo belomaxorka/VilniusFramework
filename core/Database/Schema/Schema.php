@@ -28,7 +28,8 @@ class Schema
     private static function getDatabase(): DatabaseManager
     {
         if (self::$database === null) {
-            self::$database = Database::getInstance();
+            // Получаем через DI контейнер
+            self::$database = \Core\Container::getInstance()->make(\Core\Contracts\DatabaseInterface::class);
         }
 
         return self::$database;

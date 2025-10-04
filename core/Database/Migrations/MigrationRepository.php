@@ -25,7 +25,8 @@ class MigrationRepository
 
     public function __construct()
     {
-        $this->database = Database::getInstance();
+        // Получаем через DI контейнер
+        $this->database = \Core\Container::getInstance()->make(\Core\Contracts\DatabaseInterface::class);
     }
 
     /**
