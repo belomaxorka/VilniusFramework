@@ -141,6 +141,14 @@ class DebugToolbar
     }
 
     /**
+     * Проверить, включен ли toolbar
+     */
+    public static function isEnabled(): bool
+    {
+        return self::$enabled;
+    }
+
+    /**
      * Установить позицию (bottom | top)
      */
     public static function setPosition(string $position): void

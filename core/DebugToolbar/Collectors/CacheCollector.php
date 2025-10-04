@@ -47,12 +47,16 @@ class CacheCollector extends AbstractCollector
      */
     private function getCurrentDriver(): array
     {
-        if (!class_exists('\Core\Cache')) {
-            return ['name' => 'N/A', 'type' => 'unknown'];
-        }
-
         try {
-            $manager = \Core\Cache::getManager();
+            // Получаем CacheManager через контейнер (а не через фасад)
+            $container = \Core\Container::getInstance();
+            $manager = $container->make(\Core\Contracts\CacheInterface::class);
+            
+            // Проверяем, что это именно CacheManager (а не просто интерфейс)
+            if (!method_exists($manager, 'getDefaultDriver')) {
+                return ['name' => 'N/A', 'type' => 'unknown'];
+            }
+            
             $defaultDriver = $manager->getDefaultDriver();
             $config = $manager->getDriverConfig($defaultDriver);
             
