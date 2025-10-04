@@ -27,13 +27,13 @@ return [
         
         // Cache Manager with configuration
         \Core\Cache\CacheManager::class => function ($container) {
-            $config = \Core\Config::get('cache');
+            $config = \Core\Config::get('cache', []);
             return new \Core\Cache\CacheManager($config);
         },
         
         // Emailer with configuration
         \Core\Emailer::class => function ($container) {
-            $config = \Core\Config::get('mail');
+            $config = \Core\Config::get('mail', []);
             return new \Core\Emailer($config);
         },
         
