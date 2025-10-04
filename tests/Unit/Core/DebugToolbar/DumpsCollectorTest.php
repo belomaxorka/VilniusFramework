@@ -25,8 +25,8 @@ describe('DumpsCollector Configuration', function () {
         expect($this->collector->getIcon())->toBe('🔍');
     });
 
-    test('has priority 90', function () {
-        expect($this->collector->getPriority())->toBe(90);
+    test('has priority 87', function () {
+        expect($this->collector->getPriority())->toBe(87);
     });
 
     test('is enabled when Debug class exists', function () {

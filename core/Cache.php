@@ -37,7 +37,7 @@ class Cache
     public static function getManager(): CacheManager
     {
         if (self::$manager === null) {
-            $config = Config::get('cache');
+            $config = Config::get('cache', []);
             self::$manager = new CacheManager($config);
         }
 
