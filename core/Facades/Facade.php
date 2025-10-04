@@ -73,7 +73,7 @@ abstract class Facade
     {
         $instance = static::resolveFacadeInstance();
 
-        if (!$instance) {
+        if ($instance === null) {
             throw new RuntimeException('A facade root has not been set.');
         }
 

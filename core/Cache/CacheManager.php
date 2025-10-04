@@ -8,8 +8,9 @@ use Core\Cache\Drivers\FileDriver;
 use Core\Cache\Drivers\MemcachedDriver;
 use Core\Cache\Drivers\RedisDriver;
 use Core\Cache\Exceptions\CacheException;
+use Core\Contracts\CacheInterface;
 
-class CacheManager
+class CacheManager implements CacheInterface
 {
     protected array $config;
     protected array $drivers = [];
@@ -115,6 +116,91 @@ class CacheManager
         } elseif (isset($this->drivers[$name])) {
             $this->drivers[$name]->clear();
         }
+    }
+
+    // =================================================================
+    // CacheInterface Implementation
+    // Все методы делегируются к драйверу по умолчанию
+    // =================================================================
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return $this->driver()->get($key, $default);
+    }
+
+    public function set(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        return $this->driver()->set($key, $value, $ttl);
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->driver()->has($key);
+    }
+
+    public function delete(string $key): bool
+    {
+        return $this->driver()->delete($key);
+    }
+
+    public function clear(): bool
+    {
+        return $this->driver()->clear();
+    }
+
+    public function remember(string $key, int $ttl, callable $callback): mixed
+    {
+        return $this->driver()->remember($key, $ttl, $callback);
+    }
+
+    public function rememberForever(string $key, callable $callback): mixed
+    {
+        return $this->driver()->rememberForever($key, $callback);
+    }
+
+    public function pull(string $key, mixed $default = null): mixed
+    {
+        return $this->driver()->pull($key, $default);
+    }
+
+    public function add(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        return $this->driver()->add($key, $value, $ttl);
+    }
+
+    public function forever(string $key, mixed $value): bool
+    {
+        return $this->driver()->forever($key, $value);
+    }
+
+    public function increment(string $key, int $value = 1): int|false
+    {
+        return $this->driver()->increment($key, $value);
+    }
+
+    public function decrement(string $key, int $value = 1): int|false
+    {
+        return $this->driver()->decrement($key, $value);
+    }
+
+    public function deleteMultiple(array $keys): bool
+    {
+        return $this->driver()->deleteMultiple($keys);
+    }
+
+    public function getMultiple(array $keys, mixed $default = null): array
+    {
+        return $this->driver()->getMultiple($keys, $default);
+    }
+
+    public function setMultiple(array $values, ?int $ttl = null): bool
+    {
+        return $this->driver()->setMultiple($values, $ttl);
+    }
+
+    public function getStats(): array
+    {
+        return $this->driver()->getStats();
     }
 
     /**

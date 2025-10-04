@@ -70,10 +70,15 @@ return [
         },
         
         // Cache Manager
-        \Core\Cache\CacheManager::class => function ($container) {
+        \Core\Contracts\CacheInterface::class => function ($container) {
             $config = $container->make(\Core\Contracts\ConfigInterface::class);
             $cacheConfig = $config->get('cache', []);
             return new \Core\Cache\CacheManager($cacheConfig);
+        },
+        
+        // Backward compatibility
+        \Core\Cache\CacheManager::class => function ($container) {
+            return $container->make(\Core\Contracts\CacheInterface::class);
         },
         
         // Emailer
@@ -138,7 +143,7 @@ return [
         'template' => \Core\TemplateEngine::class,
         
         // Cache
-        'cache' => \Core\Cache\CacheManager::class,
+        'cache' => \Core\Contracts\CacheInterface::class,
         
         // Email
         'email' => \Core\Emailer::class,

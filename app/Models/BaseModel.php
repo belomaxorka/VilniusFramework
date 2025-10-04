@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Core\Database;
-use Core\Database\DatabaseManager;
+use Core\Container;
+use Core\Contracts\DatabaseInterface;
 use Core\Database\QueryBuilder;
 
 abstract class BaseModel
 {
-    protected DatabaseManager $db;
+    protected DatabaseInterface $db;
     protected string $table = '';
     protected string $primaryKey = 'id';
     protected array $fillable = [];
@@ -39,7 +39,8 @@ abstract class BaseModel
 
     public function __construct(array $attributes = [])
     {
-        $this->db = Database::getInstance();
+        // ✅ Используем DI вместо статического вызова
+        $this->db = Container::getInstance()->make(DatabaseInterface::class);
         $this->bootIfNotBooted();
         $this->fill($attributes);
     }
@@ -183,7 +184,8 @@ abstract class BaseModel
      */
     public function newQuery(): QueryBuilder
     {
-        $query = Database::table($this->table);
+        // ✅ Используем DI вместо статического вызова
+        $query = $this->db->table($this->table);
 
         // Применяем global scopes
         foreach (static::$globalScopes as $scope) {
@@ -445,7 +447,8 @@ abstract class BaseModel
             throw new \RuntimeException("Model does not use soft deletes");
         }
 
-        return Database::table($model->table)
+        // ✅ Используем DI вместо статического вызова
+        return $model->db->table($model->table)
             ->whereNotNull($model->deletedAtColumn);
     }
 
@@ -455,7 +458,8 @@ abstract class BaseModel
     public static function withTrashed(): QueryBuilder
     {
         $model = new static;
-        return Database::table($model->table);
+        // ✅ Используем DI вместо статического вызова
+        return $model->db->table($model->table);
     }
 
     /**

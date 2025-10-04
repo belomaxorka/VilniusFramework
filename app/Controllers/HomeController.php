@@ -4,20 +4,21 @@ namespace App\Controllers;
 
 use Core\Cache\CacheManager;
 use Core\Contracts\DatabaseInterface;
-use Core\Logger;
+use Core\Contracts\LoggerInterface;
 use Core\Request;
 use Core\Response;
 
 class HomeController extends Controller
 {
     /**
-     * Constructor
+     * Constructor with Dependency Injection
      */
     public function __construct(
         Request                     $request,
         Response                    $response,
         protected DatabaseInterface $db,
         protected CacheManager      $cache,
+        protected LoggerInterface   $logger,
     )
     {
         parent::__construct($request, $response);
@@ -40,8 +41,8 @@ class HomeController extends Controller
             $greeting = 'Good Evening 🌆';
         }
 
-        // Add something into log ...
-        Logger::info($greeting);
+        // ✅ Используем DI вместо статического вызова
+        $this->logger->info($greeting);
 
         // 1. Получение всех пользователей через QueryBuilder
         $users = $this->db->table('users')->get();
@@ -61,8 +62,8 @@ class HomeController extends Controller
         // 4. Подсчет количества пользователей
         $totalUsers = $this->db->table('users')->count();
 
-        // Логируем статистику
-        Logger::info("Total users in database: {$totalUsers}");
+        // ✅ Логируем статистику через DI
+        $this->logger->info("Total users in database: {$totalUsers}");
 
         // Render template
         return $this->view('welcome.twig', [
