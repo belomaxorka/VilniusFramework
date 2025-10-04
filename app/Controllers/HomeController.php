@@ -18,7 +18,6 @@ class HomeController extends Controller
         Response               $response,
         protected Database     $db,
         protected CacheManager $cache,
-        protected Logger       $logger,
     )
     {
         parent::__construct($request, $response);
@@ -42,11 +41,7 @@ class HomeController extends Controller
         }
 
         // Add something into log ...
-        $this->logger::info($greeting);
-
-        // ==========================================
-        // Примеры работы с базой данных через DI
-        // ==========================================
+        Logger::info($greeting);
 
         // 1. Получение всех пользователей через QueryBuilder
         $users = $this->db->table('users')->get();
@@ -66,52 +61,8 @@ class HomeController extends Controller
         // 4. Подсчет количества пользователей
         $totalUsers = $this->db->table('users')->count();
 
-        // 5. Пример сырого SQL запроса (если нужно что-то специфичное)
-        $customQuery = $this->db->select(
-            'SELECT name, email FROM users WHERE created_at > ? LIMIT ?',
-            [date('Y-m-d', strtotime('-30 days')), 10]
-        );
-
-        // 6. Пример вставки данных (раскомментируйте для теста)
-        /*
-        $this->db->table('users')->insert([
-            'name' => 'Test User',
-            'email' => 'test' . time() . '@example.com',
-            'password' => password_hash('password123', PASSWORD_DEFAULT),
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-        */
-
-        // 7. Пример обновления данных
-        /*
-        $this->db->table('users')
-            ->where('id', 1)
-            ->update([
-                'name' => 'Updated Name',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
-        */
-
-        // 8. Пример транзакции
-        /*
-        $this->db->transaction(function () {
-            $this->db->table('users')->insert([
-                'name' => 'User 1',
-                'email' => 'user1@example.com',
-                'password' => password_hash('password', PASSWORD_DEFAULT),
-            ]);
-            
-            $this->db->table('users')->insert([
-                'name' => 'User 2',
-                'email' => 'user2@example.com',
-                'password' => password_hash('password', PASSWORD_DEFAULT),
-            ]);
-        });
-        */
-
         // Логируем статистику
-        $this->logger::info("Total users in database: {$totalUsers}");
+        Logger::info("Total users in database: {$totalUsers}");
 
         // Render template
         return $this->view('welcome.twig', [
@@ -120,7 +71,7 @@ class HomeController extends Controller
             'phpVersion' => PHP_VERSION,
             'serverTime' => date('H:i:s'),
             'initialCount' => rand(0, 10),
-            
+
             // Передаем данные из БД в шаблон
             'totalUsers' => $totalUsers,
             'users' => $users,

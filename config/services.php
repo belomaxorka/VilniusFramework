@@ -18,12 +18,11 @@ return [
     |
     */
     'singletons' => [
-        // Core Framework Services
+        // Core Framework Services (Instance classes only)
         \Core\Router::class => \Core\Router::class,
         \Core\Database::class => \Core\Database::class,
         \Core\TemplateEngine::class => \Core\TemplateEngine::class,
         \Core\Session::class => \Core\Session::class,
-        \Core\Logger::class => \Core\Logger::class,
         
         // Cache Manager with configuration
         \Core\Cache\CacheManager::class => function ($container) {
@@ -37,21 +36,8 @@ return [
             return new \Core\Emailer($config);
         },
         
-        // Configuration & Environment
-        \Core\Config::class => \Core\Config::class,
-        \Core\Environment::class => \Core\Environment::class,
-        \Core\Env::class => \Core\Env::class,
-        
-        // Utilities
-        \Core\Cookie::class => \Core\Cookie::class,
-        \Core\Path::class => \Core\Path::class,
-        \Core\Lang::class => \Core\Lang::class,
-        \Core\Http::class => \Core\Http::class,
-        
-        // Debug & Profiling
-        \Core\DebugToolbar::class => \Core\DebugToolbar::class,
-        \Core\Debug::class => \Core\Debug::class,
-        \Core\MemoryProfiler::class => \Core\MemoryProfiler::class,
+        // Note: Static classes (Config, Logger, Environment, Env, Cookie, Path, Lang, Http,
+        // Debug, DebugToolbar, MemoryProfiler) are NOT registered here - use them directly via static calls
         \Core\QueryDebugger::class => \Core\QueryDebugger::class,
         
         // Validation
