@@ -2,8 +2,8 @@
 
 namespace Core\Middleware;
 
-use Core\Session;
-use Core\Http;
+use Core\Contracts\HttpInterface;
+use Core\Contracts\SessionInterface;
 
 /**
  * CSRF Protection Middleware
@@ -22,8 +22,14 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     protected array $except = [];
 
-    public function __construct(array $except = [])
-    {
+    /**
+     * Constructor with Dependency Injection
+     */
+    public function __construct(
+        protected SessionInterface $session,
+        protected HttpInterface $http,
+        array $except = []
+    ) {
         $this->except = $except;
     }
 
@@ -32,8 +38,8 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     public function handle(callable $next): mixed
     {
-        $method = Http::getMethod();
-        $uri = trim(parse_url(Http::getUri(), PHP_URL_PATH) ?? '', '/');
+        $method = $this->http->getMethod();
+        $uri = trim(parse_url($this->http->getUri(), PHP_URL_PATH) ?? '', '/');
 
         // Проверяем, нужна ли CSRF защита для этого запроса
         if ($this->shouldVerifyCsrf($method, $uri)) {
@@ -41,7 +47,7 @@ class CsrfMiddleware implements MiddlewareInterface
         }
 
         // Генерируем токен для следующего запроса (если еще не существует)
-        Session::generateCsrfToken();
+        $this->session->generateCsrfToken();
 
         return $next();
     }
@@ -74,7 +80,7 @@ class CsrfMiddleware implements MiddlewareInterface
     {
         $token = $this->getTokenFromRequest();
 
-        if (!$token || !Session::verifyCsrfToken($token)) {
+        if (!$token || !$this->session->verifyCsrfToken($token)) {
             $this->handleInvalidToken();
         }
     }
@@ -85,18 +91,18 @@ class CsrfMiddleware implements MiddlewareInterface
     protected function getTokenFromRequest(): ?string
     {
         // Проверяем POST данные
-        $postData = \Core\Http::getPostData();
+        $postData = $this->http->getPostData();
         if (isset($postData['_csrf_token'])) {
             return $postData['_csrf_token'];
         }
 
         // Проверяем заголовки
-        $token = \Core\Http::getHeader('X-CSRF-TOKEN');
+        $token = $this->http->getHeader('X-CSRF-TOKEN');
         if ($token) {
             return $token;
         }
 
-        $token = \Core\Http::getHeader('X-XSRF-TOKEN');
+        $token = $this->http->getHeader('X-XSRF-TOKEN');
         if ($token) {
             return $token;
         }
@@ -155,7 +161,7 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        return \Core\Http::isJson() || \Core\Http::acceptsJson();
+        return $this->http->isJson() || $this->http->acceptsJson();
     }
 }
 

@@ -2,7 +2,7 @@
 
 namespace Core\Middleware;
 
-use Core\Session;
+use Core\Contracts\SessionInterface;
 
 /**
  * Guest Middleware
@@ -14,8 +14,14 @@ class GuestMiddleware implements MiddlewareInterface
     protected string $redirectTo;
     protected string $sessionKey;
 
-    public function __construct(string $redirectTo = '/', string $sessionKey = 'user_id')
-    {
+    /**
+     * Constructor with Dependency Injection
+     */
+    public function __construct(
+        protected SessionInterface $session,
+        string $redirectTo = '/',
+        string $sessionKey = 'user_id'
+    ) {
         $this->redirectTo = $redirectTo;
         $this->sessionKey = $sessionKey;
     }
@@ -38,7 +44,7 @@ class GuestMiddleware implements MiddlewareInterface
      */
     protected function isAuthenticated(): bool
     {
-        return Session::has($this->sessionKey);
+        return $this->session->has($this->sessionKey);
     }
 }
 

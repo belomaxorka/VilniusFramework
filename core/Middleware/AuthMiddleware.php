@@ -2,7 +2,8 @@
 
 namespace Core\Middleware;
 
-use Core\Session;
+use Core\Contracts\HttpInterface;
+use Core\Contracts\SessionInterface;
 
 /**
  * Authentication Middleware
@@ -14,8 +15,15 @@ class AuthMiddleware implements MiddlewareInterface
     protected string $redirectTo;
     protected string $sessionKey;
 
-    public function __construct(string $redirectTo = '/login', string $sessionKey = 'user_id')
-    {
+    /**
+     * Constructor with Dependency Injection
+     */
+    public function __construct(
+        protected SessionInterface $session,
+        protected HttpInterface $http,
+        string $redirectTo = '/login',
+        string $sessionKey = 'user_id'
+    ) {
         $this->redirectTo = $redirectTo;
         $this->sessionKey = $sessionKey;
     }
@@ -37,7 +45,7 @@ class AuthMiddleware implements MiddlewareInterface
      */
     protected function isAuthenticated(): bool
     {
-        return Session::has($this->sessionKey);
+        return $this->session->has($this->sessionKey);
     }
 
     /**
@@ -54,7 +62,7 @@ class AuthMiddleware implements MiddlewareInterface
             ]);
         } else {
             // Сохраняем URL, на который пользователь пытался попасть
-            Session::set('redirect_after_login', \Core\Http::getUri());
+            $this->session->set('redirect_after_login', $this->http->getUri());
             
             header('Location: ' . $this->redirectTo);
         }
@@ -67,7 +75,7 @@ class AuthMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        return \Core\Http::isJson() || \Core\Http::acceptsJson();
+        return $this->http->isJson() || $this->http->acceptsJson();
     }
 }
 

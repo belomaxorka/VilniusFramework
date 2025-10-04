@@ -2,7 +2,8 @@
 
 namespace Core\Middleware;
 
-use Core\Session;
+use Core\Contracts\HttpInterface;
+use Core\Contracts\SessionInterface;
 
 /**
  * Rate Limiting / Throttle Middleware
@@ -14,8 +15,15 @@ class ThrottleMiddleware implements MiddlewareInterface
     protected int $maxAttempts;
     protected int $decayMinutes;
 
-    public function __construct(int $maxAttempts = 60, int $decayMinutes = 1)
-    {
+    /**
+     * Constructor with Dependency Injection
+     */
+    public function __construct(
+        protected SessionInterface $session,
+        protected HttpInterface $http,
+        int $maxAttempts = 60,
+        int $decayMinutes = 1
+    ) {
         $this->maxAttempts = $maxAttempts;
         $this->decayMinutes = $decayMinutes;
     }
@@ -41,8 +49,8 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function resolveRequestKey(): string
     {
-        $ip = \Core\Http::getClientIp();
-        $uri = \Core\Http::getUri();
+        $ip = $this->http->getClientIp();
+        $uri = $this->http->getUri();
         
         return 'throttle:' . sha1($ip . '|' . $uri);
     }
@@ -52,7 +60,7 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function tooManyAttempts(string $key): bool
     {
-        $attempts = Session::get($key . ':attempts', 0);
+        $attempts = $this->session->get($key . ':attempts', 0);
         
         return $attempts >= $this->maxAttempts;
     }
@@ -62,8 +70,8 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function incrementAttempts(string $key): void
     {
-        $attempts = Session::get($key . ':attempts', 0);
-        $expiresAt = Session::get($key . ':expires_at');
+        $attempts = $this->session->get($key . ':attempts', 0);
+        $expiresAt = $this->session->get($key . ':expires_at');
 
         // Если время истекло, сбрасываем счетчик
         if ($expiresAt && time() > $expiresAt) {
@@ -72,8 +80,8 @@ class ThrottleMiddleware implements MiddlewareInterface
 
         $attempts++;
         
-        Session::set($key . ':attempts', $attempts);
-        Session::set($key . ':expires_at', time() + ($this->decayMinutes * 60));
+        $this->session->set($key . ':attempts', $attempts);
+        $this->session->set($key . ':expires_at', time() + ($this->decayMinutes * 60));
     }
 
     /**
@@ -81,7 +89,7 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function handleTooManyAttempts(string $key): void
     {
-        $expiresAt = Session::get($key . ':expires_at', time());
+        $expiresAt = $this->session->get($key . ':expires_at', time());
         $retryAfter = max(0, $expiresAt - time());
 
         http_response_code(429); // Too Many Requests
@@ -124,7 +132,7 @@ class ThrottleMiddleware implements MiddlewareInterface
      */
     protected function isJsonRequest(): bool
     {
-        return \Core\Http::isJson() || \Core\Http::acceptsJson();
+        return $this->http->isJson() || $this->http->acceptsJson();
     }
 }
 

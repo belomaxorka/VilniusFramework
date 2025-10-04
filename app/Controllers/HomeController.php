@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use Core\Cache\CacheManager;
+use Core\Contracts\CacheInterface;
 use Core\Contracts\DatabaseInterface;
 use Core\Contracts\LoggerInterface;
 use Core\Request;
@@ -17,7 +17,7 @@ class HomeController extends Controller
         Request                     $request,
         Response                    $response,
         protected DatabaseInterface $db,
-        protected CacheManager      $cache,
+        protected CacheInterface    $cache,
         protected LoggerInterface   $logger,
     )
     {
