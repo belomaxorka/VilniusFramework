@@ -76,7 +76,7 @@ return [
             return new \Core\Cache\CacheManager($cacheConfig);
         },
         
-        // Backward compatibility
+        // Альтернативный доступ по конкретному классу
         \Core\Cache\CacheManager::class => function ($container) {
             return $container->make(\Core\Contracts\CacheInterface::class);
         },

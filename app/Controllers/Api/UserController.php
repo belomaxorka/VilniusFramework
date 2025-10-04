@@ -3,15 +3,19 @@
 namespace App\Controllers\Api;
 
 use App\Controllers\Controller;
-use Core\Database;
+use Core\Contracts\DatabaseInterface;
+use Core\Request;
 use Core\Response;
 
 class UserController extends Controller
 {
+    /**
+     * Constructor with Dependency Injection
+     */
     public function __construct(
-        \Core\Request $request,
+        Request $request,
         Response $response,
-        protected Database $db
+        protected DatabaseInterface $db
     ) {
         parent::__construct($request, $response);
     }

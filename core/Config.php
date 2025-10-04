@@ -9,7 +9,7 @@ use Core\Contracts\ConfigInterface;
  * Config Facade
  * 
  * Статический фасад для ConfigRepository
- * Обеспечивает обратную совместимость со старым API
+ * Все методы делегируются к ConfigInterface через DI контейнер
  * 
  * @method static void load(string $path, ?string $environment = null, bool $recursive = false)
  * @method static void loadFile(string $filePath)

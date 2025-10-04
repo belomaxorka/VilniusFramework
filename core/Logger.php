@@ -9,7 +9,7 @@ use Core\Contracts\LoggerInterface;
  * Logger Facade
  * 
  * Статический фасад для LoggerService
- * Обеспечивает обратную совместимость со старым API
+ * Все методы делегируются к LoggerInterface через DI контейнер
  * 
  * @method static void init()
  * @method static void log(string $level, string $message, array $context = [])

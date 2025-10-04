@@ -10,7 +10,7 @@ use Core\Database\QueryBuilder;
  * Database Facade
  * 
  * Статический фасад для DatabaseManager
- * Обеспечивает обратную совместимость со старым API
+ * Все методы делегируются к DatabaseInterface через DI контейнер
  * 
  * @method static QueryBuilder table(string $table)
  * @method static array select(string $query, array $bindings = [])
@@ -22,6 +22,8 @@ use Core\Database\QueryBuilder;
  * @method static bool beginTransaction()
  * @method static bool commit()
  * @method static bool rollBack()
+ * @method static bool statement(string $query)
+ * @method static string lastInsertId()
  * 
  * @see \Core\Database\DatabaseManager
  */
@@ -30,18 +32,5 @@ class Database extends Facade
     protected static function getFacadeAccessor(): string
     {
         return DatabaseInterface::class;
-    }
-
-    // Backward compatibility - статический метод init() больше не нужен
-    // DatabaseManager автоматически создается через DI контейнер
-    public static function init(): DatabaseInterface
-    {
-        return static::resolveFacadeInstance();
-    }
-
-    // Backward compatibility - getInstance()
-    public static function getInstance(): DatabaseInterface
-    {
-        return static::resolveFacadeInstance();
     }
 }

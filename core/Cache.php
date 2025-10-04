@@ -9,7 +9,7 @@ use Core\Contracts\CacheInterface;
  * Cache Facade
  * 
  * Статический фасад для CacheManager
- * Обеспечивает обратную совместимость со старым API
+ * Все методы делегируются к CacheInterface через DI контейнер
  * 
  * @method static mixed get(string $key, mixed $default = null)
  * @method static bool set(string $key, mixed $value, ?int $ttl = null)

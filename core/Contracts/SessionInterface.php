@@ -5,10 +5,12 @@ namespace Core\Contracts;
 /**
  * Session Manager Interface
  * 
- * Определяет контракт для работы с сессиями
+ * Определяет полный контракт для работы с сессиями
  */
 interface SessionInterface
 {
+    // ========== Управление сессией ==========
+    
     /**
      * Запустить сессию
      */
@@ -19,6 +21,43 @@ interface SessionInterface
      */
     public function isStarted(): bool;
 
+    /**
+     * Получить ID сессии
+     */
+    public function id(): string;
+
+    /**
+     * Установить ID сессии
+     */
+    public function setId(string $id): void;
+
+    /**
+     * Получить имя сессии
+     */
+    public function name(): string;
+
+    /**
+     * Установить имя сессии
+     */
+    public function setName(string $name): void;
+
+    /**
+     * Регенерировать ID сессии
+     */
+    public function regenerate(bool $deleteOldSession = true): bool;
+
+    /**
+     * Уничтожить сессию полностью
+     */
+    public function destroy(): bool;
+
+    /**
+     * Сохранить и закрыть сессию
+     */
+    public function save(): void;
+
+    // ========== Работа с данными ==========
+    
     /**
      * Получить значение из сессии
      */
@@ -50,27 +89,39 @@ interface SessionInterface
     public function clear(): void;
 
     /**
-     * Уничтожить сессию полностью
+     * Получить значение и удалить его
      */
-    public function destroy(): bool;
+    public function pull(string $key, mixed $default = null): mixed;
 
     /**
-     * Регенерировать ID сессии
+     * Добавить значение в массив
      */
-    public function regenerate(bool $deleteOldSession = true): bool;
+    public function push(string $key, mixed $value): void;
 
     /**
-     * Получить ID сессии
+     * Увеличить числовое значение
      */
-    public function id(): string;
+    public function increment(string $key, int $amount = 1): int;
 
     /**
-     * Flash сообщение
+     * Уменьшить числовое значение
+     */
+    public function decrement(string $key, int $amount = 1): int;
+
+    /**
+     * Получить или установить значение (lazy)
+     */
+    public function remember(string $key, callable $callback): mixed;
+
+    // ========== Flash сообщения ==========
+    
+    /**
+     * Установить flash сообщение
      */
     public function flash(string $key, mixed $value): void;
 
     /**
-     * Получить flash сообщение
+     * Получить flash сообщение (и удалить)
      */
     public function getFlash(string $key, mixed $default = null): mixed;
 
@@ -79,6 +130,13 @@ interface SessionInterface
      */
     public function hasFlash(string $key): bool;
 
+    /**
+     * Получить все flash сообщения
+     */
+    public function getAllFlash(): array;
+
+    // ========== CSRF защита ==========
+    
     /**
      * Генерировать CSRF токен
      */
@@ -93,5 +151,35 @@ interface SessionInterface
      * Проверить CSRF токен
      */
     public function verifyCsrfToken(string $token): bool;
-}
 
+    // ========== Previous URL ==========
+    
+    /**
+     * Установить предыдущий URL
+     */
+    public function setPreviousUrl(string $url): void;
+
+    /**
+     * Получить предыдущий URL
+     */
+    public function getPreviousUrl(string $default = '/'): string;
+
+    // ========== Cookie параметры ==========
+    
+    /**
+     * Получить параметры cookie сессии
+     */
+    public function getCookieParams(): array;
+
+    /**
+     * Установить параметры cookie сессии
+     */
+    public function setCookieParams(
+        int $lifetime,
+        string $path = '/',
+        string $domain = '',
+        bool $secure = false,
+        bool $httponly = true,
+        string $samesite = 'Lax'
+    ): void;
+}
