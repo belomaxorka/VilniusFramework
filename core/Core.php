@@ -12,8 +12,7 @@ final class Core
         self::initContainer();
         self::initConfigLoader();
         self::initDebugSystem();
-        self::initializeLang();
-        self::initializeEmailer();
+        // Lang и Emailer автоматически инициализируются через DI контейнер
     }
 
     private static function initEnvironment(): void
@@ -81,15 +80,5 @@ final class Core
                 // Игнорируем ошибки кеширования
             }
         }
-    }
-
-    private static function initializeLang(): void
-    {
-        Lang::init();
-    }
-
-    private static function initializeEmailer(): void
-    {
-        Emailer::init();
     }
 }

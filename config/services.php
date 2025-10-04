@@ -25,19 +25,15 @@ return [
             return new \Core\Services\ConfigRepository();
         },
         
-        // Logger Service (зависит от Config)
+        // Logger Service (автоматическое разрешение зависимостей + init)
         \Core\Contracts\LoggerInterface::class => function ($container) {
-            $config = $container->make(\Core\Contracts\ConfigInterface::class);
-            $logger = new \Core\Services\LoggerService($config);
+            $logger = $container->make(\Core\Services\LoggerService::class);
             $logger->init();
             return $logger;
         },
         
-        // Session Manager (зависит от Http)
-        \Core\Contracts\SessionInterface::class => function ($container) {
-            $http = $container->make(\Core\Contracts\HttpInterface::class);
-            return new \Core\Services\SessionManager($http);
-        },
+        // Session Manager (автоматическое разрешение зависимостей)
+        \Core\Contracts\SessionInterface::class => \Core\Services\SessionManager::class,
         
         // Database Manager (зависит от Config)
         \Core\Contracts\DatabaseInterface::class => function ($container) {
@@ -81,11 +77,18 @@ return [
             return $container->make(\Core\Contracts\CacheInterface::class);
         },
         
-        // Emailer
-        \Core\Emailer::class => function ($container) {
-            $config = $container->make(\Core\Contracts\ConfigInterface::class);
-            $mailConfig = $config->get('mail', []);
-            return new \Core\Emailer($mailConfig);
+        // Emailer Service (автоматическое разрешение зависимостей + init)
+        \Core\Contracts\EmailerInterface::class => function ($container) {
+            $emailer = $container->make(\Core\Services\EmailerService::class);
+            $emailer->init();
+            return $emailer;
+        },
+        
+        // Language Service (автоматическое разрешение зависимостей + init)
+        \Core\Contracts\LanguageInterface::class => function ($container) {
+            $language = $container->make(\Core\Services\LanguageService::class);
+            $language->init();
+            return $language;
         },
         
         // Query Debugger
@@ -145,15 +148,18 @@ return [
         // Cache
         'cache' => \Core\Contracts\CacheInterface::class,
         
-        // Email
-        'email' => \Core\Emailer::class,
-        'emailer' => \Core\Emailer::class,
-        'mailer' => \Core\Emailer::class,
+        // Emailer (указываем на интерфейс)
+        'email' => \Core\Contracts\EmailerInterface::class,
+        'emailer' => \Core\Contracts\EmailerInterface::class,
+        'mailer' => \Core\Contracts\EmailerInterface::class,
+        
+        // Language (указываем на интерфейс)
+        'lang' => \Core\Contracts\LanguageInterface::class,
+        'language' => \Core\Contracts\LanguageInterface::class,
         
         // Utilities (оставляем для обратной совместимости)
         'cookie' => \Core\Cookie::class,
         'path' => \Core\Path::class,
-        'lang' => \Core\Lang::class,
         'debug' => \Core\Debug::class,
         'env' => \Core\Environment::class,
     ],
