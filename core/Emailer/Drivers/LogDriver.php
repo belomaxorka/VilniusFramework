@@ -26,12 +26,6 @@ class LogDriver implements EmailDriverInterface
 
         $logEntry = $this->formatMessage($message);
 
-        // Create directory if not exists
-        $dir = dirname($this->logFile);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         file_put_contents($this->logFile, $logEntry . PHP_EOL . PHP_EOL, FILE_APPEND);
 
         Logger::info('Email logged instead of sent', [

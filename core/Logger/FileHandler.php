@@ -13,12 +13,6 @@ class FileHandler implements LogHandlerInterface
 
     public function handle(string $level, string $message): void
     {
-        // Создаем директорию если не существует
-        $dir = dirname($this->file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         $entry = sprintf("[%s] [%s] %s%s", date('Y-m-d H:i:s'), strtoupper($level), $message, PHP_EOL);
         file_put_contents($this->file, $entry, FILE_APPEND);
     }

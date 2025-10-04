@@ -179,11 +179,6 @@ class DumpClient
             $logDir = defined('STORAGE_DIR') ? STORAGE_DIR . '/logs' : __DIR__ . '/../../storage/logs';
             $logFile = $logDir . '/dumps.log';
             
-            // Создаём директорию если её нет
-            if (!is_dir($logDir)) {
-                mkdir($logDir, 0755, true);
-            }
-            
             // Форматируем вывод
             $timestamp = date('Y-m-d H:i:s');
             $label = $payload['label'] ?? 'No label';

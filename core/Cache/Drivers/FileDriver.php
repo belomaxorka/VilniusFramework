@@ -19,13 +19,6 @@ class FileDriver extends AbstractCacheDriver
 
         $this->path = $config['path'] ?? CACHE_DIR . '/data';
 
-        // Создаем директорию, если не существует
-        if (!is_dir($this->path)) {
-            if (!mkdir($this->path, 0755, true) && !is_dir($this->path)) {
-                throw new CacheException("Failed to create cache directory: {$this->path}");
-            }
-        }
-
         if (!is_writable($this->path)) {
             throw new CacheException("Cache directory is not writable: {$this->path}");
         }
@@ -82,11 +75,8 @@ class FileDriver extends AbstractCacheDriver
 
         $content = $this->serialize($data);
 
-        // Создаем поддиректории если нужно
         $dir = dirname($file);
-        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
-            return false;
-        }
+        @mkdir($dir, 0755, true);
 
         // Атомарная запись через временный файл
         $tmpFile = $file . '.' . uniqid('tmp', true);
