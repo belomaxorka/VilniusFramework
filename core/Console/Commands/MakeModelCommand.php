@@ -9,44 +9,34 @@ use Core\Console\Command;
  * 
  * Создать новую модель
  */
-class MakeModelCommand extends Command
+class MakeModelCommand extends BaseMakeCommand
 {
     protected string $signature = 'make:model';
     protected string $description = 'Create a new model class';
 
     public function handle(): int
     {
-        $name = $this->argument(0);
-
+        $name = $this->getRequiredArgument('Model', 'php vilnius make:model User');
+        
         if (!$name) {
-            $this->error('Model name is required.');
-            $this->line('Usage: php vilnius make:model User');
-            return 1;
-        }
-
-        $path = ROOT . '/app/Models';
-
-        // Создаем директорию, если её нет
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
-        }
-
-        $filePath = "{$path}/{$name}.php";
-
-        // Проверяем, не существует ли уже такой файл
-        if (file_exists($filePath)) {
-            $this->error("Model already exists: {$name}");
             return 1;
         }
 
         // Генерируем контент
         $stub = $this->getStub($name);
 
-        // Записываем файл
-        file_put_contents($filePath, $stub);
+        // Создаем файл
+        $result = $this->createFile(
+            'Model',
+            ROOT . '/app/Models',
+            "{$name}.php",
+            $stub,
+            "app/Models/{$name}.php"
+        );
 
-        $this->success("Model created successfully!");
-        $this->line("  app/Models/{$name}.php");
+        if ($result !== 0) {
+            return $result;
+        }
 
         // Проверяем флаг --migration или -m
         if ($this->option('migration') || $this->option('m')) {

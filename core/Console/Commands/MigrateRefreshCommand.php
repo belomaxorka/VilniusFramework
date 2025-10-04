@@ -2,15 +2,12 @@
 
 namespace Core\Console\Commands;
 
-use Core\Console\Command;
-use Core\Database\Migrations\Migrator;
-
 /**
  * Migrate Refresh Command
  * 
  * Откатить все миграции и выполнить их заново
  */
-class MigrateRefreshCommand extends Command
+class MigrateRefreshCommand extends BaseMigrationCommand
 {
     protected string $signature = 'migrate:refresh';
     protected string $description = 'Reset and re-run all migrations';
@@ -25,18 +22,10 @@ class MigrateRefreshCommand extends Command
         $this->warning('Refreshing migrations...');
         $this->newLine();
 
-        $migrator = new Migrator(ROOT . '/database/migrations');
-        
-        $migrator->setOutput(function (string $message) {
-            $this->line("  {$message}");
-        });
-
+        $migrator = $this->createMigrator();
         $migrations = $migrator->refresh();
 
-        $this->newLine();
-        $this->success('Refresh completed successfully!');
-        $this->line("  Migrated: " . count($migrations) . " migrations");
-
+        $this->showResult('Refresh', $migrations);
         return 0;
     }
 }

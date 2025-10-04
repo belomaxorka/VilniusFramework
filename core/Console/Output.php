@@ -47,7 +47,7 @@ class Output
     /**
      * Применить цвет к тексту
      */
-    private function colorize(string $text, string $color): string
+    public function color(string $text, string $color): string
     {
         if (!$this->supportsColors()) {
             return $text;
@@ -74,11 +74,19 @@ class Output
     }
 
     /**
+     * Вывести сообщение с цветом и иконкой
+     */
+    private function message(string $text, string $color, string $icon): void
+    {
+        $this->line($this->color("{$icon} {$text}", $color));
+    }
+
+    /**
      * Вывести информацию (синий цвет)
      */
     public function info(string $message): void
     {
-        $this->line($this->colorize('ℹ ' . $message, 'cyan'));
+        $this->message($message, 'cyan', 'ℹ');
     }
 
     /**
@@ -86,7 +94,7 @@ class Output
      */
     public function success(string $message): void
     {
-        $this->line($this->colorize('✓ ' . $message, 'bright_green'));
+        $this->message($message, 'bright_green', '✓');
     }
 
     /**
@@ -94,7 +102,7 @@ class Output
      */
     public function error(string $message): void
     {
-        $this->line($this->colorize('✗ ' . $message, 'bright_red'));
+        $this->message($message, 'bright_red', '✗');
     }
 
     /**
@@ -102,7 +110,7 @@ class Output
      */
     public function warning(string $message): void
     {
-        $this->line($this->colorize('⚠ ' . $message, 'bright_yellow'));
+        $this->message($message, 'bright_yellow', '⚠');
     }
 
     /**

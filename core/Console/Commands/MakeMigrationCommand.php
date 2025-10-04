@@ -9,38 +9,22 @@ use Core\Console\Command;
  * 
  * Создать новый файл миграции
  */
-class MakeMigrationCommand extends Command
+class MakeMigrationCommand extends BaseMakeCommand
 {
     protected string $signature = 'make:migration';
     protected string $description = 'Create a new migration file';
 
     public function handle(): int
     {
-        $name = $this->argument(0);
-
+        $name = $this->getRequiredArgument('Migration', 'php vilnius make:migration create_users_table');
+        
         if (!$name) {
-            $this->error('Migration name is required.');
-            $this->line('Usage: php vilnius make:migration create_users_table');
             return 1;
-        }
-
-        $path = ROOT . '/database/migrations';
-
-        // Создаем директорию, если её нет
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
         }
 
         // Генерируем имя файла с timestamp
         $timestamp = date('Y_m_d_His');
         $fileName = "{$timestamp}_{$name}.php";
-        $filePath = "{$path}/{$fileName}";
-
-        // Проверяем, не существует ли уже такой файл
-        if (file_exists($filePath)) {
-            $this->error("Migration already exists: {$fileName}");
-            return 1;
-        }
 
         // Определяем тип миграции и создаем нужный stub
         $stub = $this->getStub($name);
@@ -49,13 +33,14 @@ class MakeMigrationCommand extends Command
         // Заменяем placeholder на название класса
         $content = str_replace('{{CLASS_NAME}}', $className, $stub);
 
-        // Записываем файл
-        file_put_contents($filePath, $content);
-
-        $this->success("Migration created successfully!");
-        $this->line("  {$fileName}");
-
-        return 0;
+        // Создаем файл
+        return $this->createFile(
+            'Migration',
+            ROOT . '/database/migrations',
+            $fileName,
+            $content,
+            $fileName
+        );
     }
 
     /**

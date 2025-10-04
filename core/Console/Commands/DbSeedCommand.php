@@ -92,12 +92,12 @@ class DbSeedCommand extends Command
                     ->first();
                 
                 if ($exists) {
-                    $this->line("  <fg=yellow>Skipped:</> {$user['email']} (already exists)");
+                    $this->line("  " . $this->color('Skipped:', 'yellow') . " {$user['email']} (already exists)");
                     continue;
                 }
 
                 $db->table('users')->insert($user);
-                $this->line("  <fg=green>Created:</> {$user['name']} ({$user['email']})");
+                $this->line("  " . $this->color('Created:', 'green') . " {$user['name']} ({$user['email']})");
                 $seededCount++;
             }
 

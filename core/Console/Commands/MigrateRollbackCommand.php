@@ -2,15 +2,12 @@
 
 namespace Core\Console\Commands;
 
-use Core\Console\Command;
-use Core\Database\Migrations\Migrator;
-
 /**
  * Migrate Rollback Command
  * 
  * Откатить последнюю миграцию
  */
-class MigrateRollbackCommand extends Command
+class MigrateRollbackCommand extends BaseMigrationCommand
 {
     protected string $signature = 'migrate:rollback';
     protected string $description = 'Rollback the last database migration';
@@ -22,23 +19,15 @@ class MigrateRollbackCommand extends Command
         $this->warning("Rolling back migrations (steps: {$steps})...");
         $this->newLine();
 
-        $migrator = new Migrator(ROOT . '/database/migrations');
-        
-        $migrator->setOutput(function (string $message) {
-            $this->line("  {$message}");
-        });
-
+        $migrator = $this->createMigrator();
         $migrations = $migrator->rollback($steps);
 
         if (empty($migrations)) {
-            $this->info('Nothing to rollback.');
+            $this->showNothing('rollback');
             return 0;
         }
 
-        $this->newLine();
-        $this->success('Rollback completed successfully!');
-        $this->line("  Rolled back: " . count($migrations) . " migrations");
-
+        $this->showResult('Rollback', $migrations);
         return 0;
     }
 }

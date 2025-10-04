@@ -2,22 +2,19 @@
 
 namespace Core\Console\Commands;
 
-use Core\Console\Command;
-use Core\Database\Migrations\Migrator;
-
 /**
  * Migrate Status Command
  * 
  * Показать статус миграций
  */
-class MigrateStatusCommand extends Command
+class MigrateStatusCommand extends BaseMigrationCommand
 {
     protected string $signature = 'migrate:status';
     protected string $description = 'Show the status of each migration';
 
     public function handle(): int
     {
-        $migrator = new Migrator(ROOT . '/database/migrations');
+        $migrator = $this->createMigrator();
         $status = $migrator->status();
 
         if (empty($status)) {

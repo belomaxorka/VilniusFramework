@@ -9,18 +9,16 @@ use Core\Console\Command;
  * 
  * Создать новый контроллер
  */
-class MakeControllerCommand extends Command
+class MakeControllerCommand extends BaseMakeCommand
 {
     protected string $signature = 'make:controller';
     protected string $description = 'Create a new controller class';
 
     public function handle(): int
     {
-        $name = $this->argument(0);
-
+        $name = $this->getRequiredArgument('Controller', 'php vilnius make:controller UserController');
+        
         if (!$name) {
-            $this->error('Controller name is required.');
-            $this->line('Usage: php vilnius make:controller UserController');
             return 1;
         }
 
@@ -29,32 +27,24 @@ class MakeControllerCommand extends Command
             $name .= 'Controller';
         }
 
-        $path = ROOT . '/app/Controllers';
-
-        // Создаем директорию, если её нет
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
-        }
-
-        $filePath = "{$path}/{$name}.php";
-
-        // Проверяем, не существует ли уже такой файл
-        if (file_exists($filePath)) {
-            $this->error("Controller already exists: {$name}");
-            return 1;
-        }
-
         // Проверяем флаг --resource
         $isResource = $this->option('resource') || $this->option('r');
 
         // Генерируем контент
         $stub = $isResource ? $this->getResourceStub($name) : $this->getStub($name);
 
-        // Записываем файл
-        file_put_contents($filePath, $stub);
+        // Создаем файл
+        $result = $this->createFile(
+            'Controller',
+            ROOT . '/app/Controllers',
+            "{$name}.php",
+            $stub,
+            "app/Controllers/{$name}.php"
+        );
 
-        $this->success("Controller created successfully!");
-        $this->line("  app/Controllers/{$name}.php");
+        if ($result !== 0) {
+            return $result;
+        }
 
         if ($isResource) {
             $this->newLine();

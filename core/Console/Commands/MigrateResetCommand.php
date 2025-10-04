@@ -2,15 +2,12 @@
 
 namespace Core\Console\Commands;
 
-use Core\Console\Command;
-use Core\Database\Migrations\Migrator;
-
 /**
  * Migrate Reset Command
  * 
  * Откатить все миграции
  */
-class MigrateResetCommand extends Command
+class MigrateResetCommand extends BaseMigrationCommand
 {
     protected string $signature = 'migrate:reset';
     protected string $description = 'Rollback all database migrations';
@@ -25,23 +22,15 @@ class MigrateResetCommand extends Command
         $this->warning('Resetting all migrations...');
         $this->newLine();
 
-        $migrator = new Migrator(ROOT . '/database/migrations');
-        
-        $migrator->setOutput(function (string $message) {
-            $this->line("  {$message}");
-        });
-
+        $migrator = $this->createMigrator();
         $migrations = $migrator->reset();
 
         if (empty($migrations)) {
-            $this->info('Nothing to reset.');
+            $this->showNothing('reset');
             return 0;
         }
 
-        $this->newLine();
-        $this->success('Reset completed successfully!');
-        $this->line("  Rolled back: " . count($migrations) . " migrations");
-
+        $this->showResult('Reset', $migrations);
         return 0;
     }
 }

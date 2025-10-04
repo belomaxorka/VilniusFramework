@@ -47,19 +47,9 @@ class CacheClearCommand extends Command
      */
     private function clearTemplateCache(): void
     {
-        $templateCacheDir = STORAGE_DIR . '/cache/templates';
+        $count = $this->deleteFiles(STORAGE_DIR . '/cache/templates/*.php');
         
-        if (is_dir($templateCacheDir)) {
-            $files = glob($templateCacheDir . '/*.php');
-            $count = 0;
-            
-            foreach ($files as $file) {
-                if (is_file($file)) {
-                    unlink($file);
-                    $count++;
-                }
-            }
-            
+        if ($count > 0) {
             $this->line("  ✓ Cleared {$count} template cache files");
         }
     }
@@ -69,10 +59,7 @@ class CacheClearCommand extends Command
      */
     private function clearConfigCache(): void
     {
-        $configCache = STORAGE_DIR . '/cache/config.php';
-        
-        if (file_exists($configCache)) {
-            unlink($configCache);
+        if ($this->deleteCacheFile(STORAGE_DIR . '/cache/config.php')) {
             $this->line("  ✓ Cleared config cache");
         }
     }
@@ -82,10 +69,7 @@ class CacheClearCommand extends Command
      */
     private function clearRouteCache(): void
     {
-        $routeCache = STORAGE_DIR . '/cache/routes.php';
-        
-        if (file_exists($routeCache)) {
-            unlink($routeCache);
+        if ($this->deleteCacheFile(STORAGE_DIR . '/cache/routes.php')) {
             $this->line("  ✓ Cleared route cache");
         }
     }

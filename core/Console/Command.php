@@ -68,123 +68,74 @@ abstract class Command
     }
 
     /**
-     * Вывести информацию
+     * Магический метод для автоматической проксификации методов к Output и Input
+     * 
+     * Это избавляет от необходимости создавать методы-обертки для каждого метода
      */
-    protected function info(string $message): void
+    public function __call(string $method, array $arguments): mixed
     {
-        $this->output->info($message);
+        // Методы Output
+        if (method_exists($this->output, $method)) {
+            return $this->output->$method(...$arguments);
+        }
+        
+        // Методы Input
+        if (method_exists($this->input, $method)) {
+            return $this->input->$method(...$arguments);
+        }
+        
+        // Алиасы для совместимости
+        $aliases = [
+            'warn' => 'warning',
+            'argument' => 'getArgument',
+            'option' => 'getOption',
+        ];
+        
+        if (isset($aliases[$method])) {
+            $realMethod = $aliases[$method];
+            if (method_exists($this->output, $realMethod)) {
+                return $this->output->$realMethod(...$arguments);
+            }
+            if (method_exists($this->input, $realMethod)) {
+                return $this->input->$realMethod(...$arguments);
+            }
+        }
+        
+        throw new \BadMethodCallException("Method {$method} does not exist on " . static::class);
     }
 
     /**
-     * Вывести успех
+     * Удалить файл кэша
+     * 
+     * @return bool true если файл был удален, false если файл не существовал
      */
-    protected function success(string $message): void
+    protected function deleteCacheFile(string $path): bool
     {
-        $this->output->success($message);
+        if (file_exists($path)) {
+            unlink($path);
+            return true;
+        }
+        return false;
     }
 
     /**
-     * Вывести ошибку
+     * Удалить файлы в директории по маске
+     * 
+     * @return int количество удаленных файлов
      */
-    protected function error(string $message): void
+    protected function deleteFiles(string $pattern): int
     {
-        $this->output->error($message);
-    }
-
-    /**
-     * Вывести предупреждение
-     */
-    protected function warning(string $message): void
-    {
-        $this->output->warning($message);
-    }
-
-    /**
-     * Вывести обычный текст
-     */
-    protected function line(string $message = ''): void
-    {
-        $this->output->line($message);
-    }
-
-    /**
-     * Вывести новую строку
-     */
-    protected function newLine(int $count = 1): void
-    {
-        $this->output->newLine($count);
-    }
-
-    /**
-     * Запросить ввод пользователя
-     */
-    protected function ask(string $question, ?string $default = null): string
-    {
-        return $this->input->ask($question, $default);
-    }
-
-    /**
-     * Запросить подтверждение
-     */
-    protected function confirm(string $question, bool $default = false): bool
-    {
-        return $this->input->confirm($question, $default);
-    }
-
-    /**
-     * Запросить выбор из вариантов
-     */
-    protected function choice(string $question, array $choices, mixed $default = null): string
-    {
-        return $this->input->choice($question, $choices, $default);
-    }
-
-    /**
-     * Получить аргумент
-     */
-    protected function argument(string|int $name, mixed $default = null): mixed
-    {
-        return $this->input->getArgument($name, $default);
-    }
-
-    /**
-     * Получить опцию
-     */
-    protected function option(string $name, mixed $default = null): mixed
-    {
-        return $this->input->getOption($name, $default);
-    }
-
-    /**
-     * Вывести таблицу
-     */
-    protected function table(array $headers, array $rows): void
-    {
-        $this->output->table($headers, $rows);
-    }
-
-    /**
-     * Вывести прогресс-бар
-     */
-    protected function progressStart(int $max): void
-    {
-        $this->output->progressStart($max);
-    }
-
-    /**
-     * Продвинуть прогресс-бар
-     */
-    protected function progressAdvance(int $step = 1): void
-    {
-        $this->output->progressAdvance($step);
-    }
-
-    /**
-     * Завершить прогресс-бар
-     */
-    protected function progressFinish(): void
-    {
-        $this->output->progressFinish();
+        $files = glob($pattern);
+        $count = 0;
+        
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+                $count++;
+            }
+        }
+        
+        return $count;
     }
 }
 

@@ -20,16 +20,15 @@ class RouteClearCommand extends Command
 
         $routeCache = STORAGE_DIR . '/cache/routes.php';
         
-        if (file_exists($routeCache)) {
-            unlink($routeCache);
+        if ($this->deleteCacheFile($routeCache)) {
             $this->newLine();
             $this->success('Route cache cleared successfully!');
-            return 0;
         } else {
             $this->newLine();
             $this->warning('Route cache file not found or already cleared.');
-            return 0;
         }
+        
+        return 0;
     }
 }
 
