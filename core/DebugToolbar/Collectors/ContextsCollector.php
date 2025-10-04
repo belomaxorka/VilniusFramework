@@ -46,14 +46,13 @@ class ContextsCollector extends AbstractCollector
 
     public function getBadge(): ?string
     {
-        $count = count($this->data['contexts'] ?? []);
-        return $count > 0 ? (string)$count : null;
+        return $this->countBadge('contexts');
     }
 
     public function render(): string
     {
         if (empty($this->data['contexts'])) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No contexts created</div>';
+            return $this->renderEmptyState('No contexts created');
         }
 
         $html = '<div style="padding: 10px; max-height: 400px; overflow-y: auto;">';

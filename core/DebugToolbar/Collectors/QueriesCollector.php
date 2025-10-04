@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 use Core\QueryDebugger;
 
 /**
@@ -47,14 +48,13 @@ class QueriesCollector extends AbstractCollector
 
     public function getBadge(): ?string
     {
-        $count = count($this->data['queries'] ?? []);
-        return $count > 0 ? (string)$count : null;
+        return $this->countBadge('queries');
     }
 
     public function render(): string
     {
         if (empty($this->data['queries'])) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No queries executed</div>';
+            return $this->renderEmptyState('No queries executed');
         }
 
         $stats = $this->data['stats'] ?? [];
@@ -154,7 +154,7 @@ class QueriesCollector extends AbstractCollector
 
         $stats = $this->data['stats'] ?? [];
         $slowCount = $stats['slow'] ?? 0;
-        $queryColor = $slowCount > 0 ? '#ef5350' : '#66bb6a';
+        $queryColor = $slowCount > 0 ? ColorPalette::ERROR : ColorPalette::SUCCESS;
 
         return [[
             'icon' => '🗄️',

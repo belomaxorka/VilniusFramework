@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 use Core\MemoryProfiler;
 
 /**
@@ -63,8 +64,8 @@ class MemoryCollector extends AbstractCollector
             $html .= '<div><strong>Usage:</strong> ' . number_format($percent, 2) . '%</div>';
 
             // Progress bar
-            $barColor = $this->getColorByThreshold($percent, 50, 75);
-            $html .= '<div style="margin-top: 10px; background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 20px;">';
+            $barColor = ColorPalette::getThresholdColor($percent, 50, 75);
+            $html .= '<div style="margin-top: 10px; background: ' . ColorPalette::GREY_LIGHT . '; border-radius: 10px; overflow: hidden; height: 20px;">';
             $html .= '<div style="background: ' . $barColor . '; width: ' . min(100, $percent) . '%; height: 100%;"></div>';
             $html .= '</div>';
         }
@@ -82,7 +83,7 @@ class MemoryCollector extends AbstractCollector
         }
 
         $memoryPercent = $this->getMemoryPercent();
-        $memoryColor = $this->getColorByThreshold($memoryPercent, 50, 75);
+        $memoryColor = ColorPalette::getThresholdColor($memoryPercent, 50, 75);
 
         // Форматируем память с двумя знаками после запятой
         $peakMb = $this->data['peak'] / (1024 * 1024);

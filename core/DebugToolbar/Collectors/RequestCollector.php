@@ -3,6 +3,8 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
+use Core\DebugToolbar\HtmlRenderer;
 use Core\Environment;
 use Core\Http;
 
@@ -64,7 +66,7 @@ class RequestCollector extends AbstractCollector
 
         // Basic Info
         $html .= $this->renderSection('Basic Info', [
-            'Method' => $this->renderBadge($this->data['method'], $this->getMethodColor($this->data['method'])),
+            'Method' => HtmlRenderer::renderBadge($this->data['method'], $this->getMethodColor($this->data['method'])),
             'URI' => '<code>' . htmlspecialchars($this->data['uri']) . '</code>',
             'Full URL' => '<code>' . htmlspecialchars(Http::getFullUrl()) . '</code>',
             'Protocol' => $this->data['protocol'],
@@ -74,14 +76,14 @@ class RequestCollector extends AbstractCollector
 
         // GET Parameters
         if (!empty($this->data['get'])) {
-            $html .= $this->renderDataTable('GET Parameters', $this->data['get']);
+            $html .= HtmlRenderer::renderDataTable('GET Parameters', $this->data['get']);
         } else {
             $html .= $this->renderEmptySection('GET Parameters', 'No GET parameters');
         }
 
         // POST Parameters
         if (!empty($this->data['post'])) {
-            $html .= $this->renderDataTable('POST Parameters', $this->data['post']);
+            $html .= HtmlRenderer::renderDataTable('POST Parameters', $this->data['post']);
         } else {
             $html .= $this->renderEmptySection('POST Parameters', 'No POST data');
         }
@@ -93,14 +95,14 @@ class RequestCollector extends AbstractCollector
 
         // Cookies
         if (!empty($this->data['cookies'])) {
-            $html .= $this->renderDataTable('Cookies', $this->data['cookies']);
+            $html .= HtmlRenderer::renderDataTable('Cookies', $this->data['cookies']);
         } else {
             $html .= $this->renderEmptySection('Cookies', 'No cookies');
         }
 
         // Headers
         if (!empty($this->data['headers'])) {
-            $html .= $this->renderDataTable('HTTP Headers', $this->data['headers']);
+            $html .= HtmlRenderer::renderDataTable('HTTP Headers', $this->data['headers']);
         }
 
         // Server Variables
@@ -112,7 +114,7 @@ class RequestCollector extends AbstractCollector
                 $title .= ' <span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">🔒 PRODUCTION MODE</span>';
             }
 
-            $html .= $this->renderDataTable($title, $this->data['server'], true, $isProduction);
+            $html .= HtmlRenderer::renderDataTable($title, $this->data['server'], true, $isProduction ? 'All server variables are hidden in production mode for security reasons.' : null);
         }
 
         $html .= '</div>';
@@ -131,7 +133,7 @@ class RequestCollector extends AbstractCollector
             [
                 'icon' => '🌐',
                 'value' => $this->data['method'] . ' ' . $this->data['path'],
-                'color' => '#2196f3',
+                'color' => ColorPalette::INFO,
             ],
         ];
     }
@@ -161,29 +163,6 @@ class RequestCollector extends AbstractCollector
         return $filtered;
     }
 
-    /**
-     * Получить цвет для HTTP метода
-     */
-    private function getMethodColor(string $method): string
-    {
-        return match ($method) {
-            'GET' => '#4caf50',
-            'POST' => '#2196f3',
-            'PUT' => '#ff9800',
-            'PATCH' => '#9c27b0',
-            'DELETE' => '#f44336',
-            default => '#757575',
-        };
-    }
-
-    /**
-     * Рендер badge
-     */
-    private function renderBadge(string $text, string $color): string
-    {
-        return '<span style="background: ' . $color . '; color: white; padding: 4px 8px; border-radius: 3px; font-weight: bold;">'
-            . htmlspecialchars($text) . '</span>';
-    }
 
     /**
      * Рендер секции с информацией
@@ -222,60 +201,6 @@ class RequestCollector extends AbstractCollector
         return $html;
     }
 
-    /**
-     * Рендер таблицы с данными
-     */
-    private function renderDataTable(string $title, array $data, bool $collapsible = false, bool $isProduction = false): string
-    {
-        $tableId = 'table_' . md5($title . random_bytes(8));
-
-        $html = '<div style="margin-bottom: 20px;">';
-        $html .= '<h4 style="color: #1976d2; margin-bottom: 10px; cursor: ' . ($collapsible ? 'pointer' : 'default') . ';" ';
-
-        if ($collapsible) {
-            $html .= 'onclick="document.getElementById(\'' . $tableId . '\').style.display = document.getElementById(\'' . $tableId . '\').style.display === \'none\' ? \'table\' : \'none\'"';
-        }
-
-        $html .= '>📋 ' . $title . ' <span style="color: #757575; font-size: 12px;">(' . count($data) . ')</span>';
-
-        if ($collapsible) {
-            $html .= ' <span style="font-size: 12px; color: #757575;">[click to toggle]</span>';
-        }
-
-        $html .= '</h4>';
-
-        // Предупреждение для production режима
-        if ($isProduction) {
-            $html .= '<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 10px; color: #856404;">';
-            $html .= '⚠️ <strong>Production Mode:</strong> All server variables are hidden for security reasons. ';
-            $html .= 'Server variables are only visible in development mode.';
-            $html .= '</div>';
-        }
-
-        $html .= '<table id="' . $tableId . '" style="width: 100%; border-collapse: collapse; background: white; ' . ($collapsible ? 'display: none;' : '') . '">';
-        $html .= '<thead>';
-        $html .= '<tr style="background: #e3f2fd;">';
-        $html .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd; font-weight: bold;">Key</th>';
-        $html .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd; font-weight: bold;">Value</th>';
-        $html .= '</tr>';
-        $html .= '</thead>';
-        $html .= '<tbody>';
-
-        foreach ($data as $key => $value) {
-            $html .= '<tr>';
-            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; vertical-align: top; width: 30%;">'
-                . htmlspecialchars($key) . '</td>';
-            $html .= '<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; word-break: break-all;">'
-                . htmlspecialchars($this->formatValue($value)) . '</td>';
-            $html .= '</tr>';
-        }
-
-        $html .= '</tbody>';
-        $html .= '</table>';
-        $html .= '</div>';
-
-        return $html;
-    }
 
     /**
      * Рендер таблицы файлов
@@ -367,28 +292,5 @@ class RequestCollector extends AbstractCollector
         };
     }
 
-    /**
-     * Форматировать значение для отображения
-     */
-    private function formatValue(mixed $value): string
-    {
-        if (is_array($value)) {
-            return json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_null($value)) {
-            return 'null';
-        }
-
-        if (is_object($value)) {
-            return get_class($value);
-        }
-
-        return (string)$value;
-    }
 }
 

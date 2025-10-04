@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 use Core\Logger;
 
 /**
@@ -55,7 +56,7 @@ class LogsCollector extends AbstractCollector
     public function render(): string
     {
         if (empty($this->data['logs'])) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No logs recorded</div>';
+            return $this->renderEmptyState('No logs recorded');
         }
 
         $html = '<div style="padding: 20px;">';
@@ -67,7 +68,7 @@ class LogsCollector extends AbstractCollector
         
         foreach ($this->data['by_level'] as $level => $count) {
             if ($count > 0) {
-                $color = $this->getLevelColor($level);
+                $color = ColorPalette::getLogLevelColor($level);
                 $html .= '<div style="text-align: center;">';
                 $html .= '<div style="font-size: 24px; font-weight: bold; color: ' . $color . ';">' . $count . '</div>';
                 $html .= '<div style="font-size: 12px; color: #666; text-transform: uppercase;">' . $level . '</div>';
@@ -93,7 +94,7 @@ class LogsCollector extends AbstractCollector
 
         foreach ($this->data['logs'] as $index => $log) {
             $bgColor = $index % 2 === 0 ? '#ffffff' : '#f9f9f9';
-            $levelColor = $this->getLevelColor($log['level']);
+            $levelColor = ColorPalette::getLogLevelColor($log['level']);
             
             $html .= '<tr style="background: ' . $bgColor . '; border-bottom: 1px solid #e0e0e0;">';
             
@@ -165,17 +166,17 @@ class LogsCollector extends AbstractCollector
         $total = $this->data['total'];
 
         // Определяем цвет по важности
-        $color = '#66bb6a'; // Зеленый по умолчанию
+        $color = ColorPalette::SUCCESS; // Зеленый по умолчанию
         $value = $total . ' logs';
 
         if ($critical > 0) {
-            $color = '#ef5350'; // Красный
+            $color = ColorPalette::ERROR; // Красный
             $value = $critical . ' critical';
         } elseif ($errors > 0) {
-            $color = '#ef5350'; // Красный
+            $color = ColorPalette::ERROR; // Красный
             $value = $errors . ' errors';
         } elseif ($warnings > 0) {
-            $color = '#ffa726'; // Оранжевый
+            $color = ColorPalette::WARNING; // Оранжевый
             $value = $warnings . ' warnings';
         }
 
@@ -188,19 +189,5 @@ class LogsCollector extends AbstractCollector
         ];
     }
 
-    /**
-     * Получает цвет для уровня лога
-     */
-    private function getLevelColor(string $level): string
-    {
-        return match($level) {
-            'debug' => '#78909c',     // Серо-синий
-            'info' => '#42a5f5',      // Синий
-            'warning' => '#ffa726',   // Оранжевый
-            'error' => '#ef5350',     // Красный
-            'critical' => '#c62828',  // Темно-красный
-            default => '#999999',
-        };
-    }
 }
 

@@ -46,14 +46,13 @@ class DumpsCollector extends AbstractCollector
 
     public function getBadge(): ?string
     {
-        $count = count($this->data['dumps'] ?? []);
-        return $count > 0 ? (string)$count : null;
+        return $this->countBadge('dumps');
     }
 
     public function render(): string
     {
         if (empty($this->data['dumps'])) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No dumps collected</div>';
+            return $this->renderEmptyState('No dumps collected');
         }
 
         $html = '<div style="padding: 10px; max-height: 400px; overflow-y: auto;">';

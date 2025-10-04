@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 
 /**
  * Коллектор таймеров
@@ -64,7 +65,7 @@ class TimersCollector extends AbstractCollector
         }
 
         $time = $this->data['execution_time'];
-        $timeColor = $time > 1000 ? '#ef5350' : '#66bb6a';
+        $timeColor = $this->getTimeColor($time, 500, 1000);
 
         return [
             [

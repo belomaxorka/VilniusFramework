@@ -4,6 +4,7 @@ namespace Core;
 
 use Core\DebugToolbar\CollectorInterface;
 use Core\DebugToolbar\Collectors\CacheCollector;
+use Core\DebugToolbar\Collectors\EmailCollector;
 use Core\DebugToolbar\Collectors\RequestCollector;
 use Core\DebugToolbar\Collectors\ResponseCollector;
 use Core\DebugToolbar\Collectors\RoutesCollector;
@@ -37,6 +38,7 @@ class DebugToolbar
         self::addCollector(new RequestCollector());
         self::addCollector(new ResponseCollector());
         self::addCollector(new RoutesCollector());
+        self::addCollector(new EmailCollector());
         self::addCollector(new DumpsCollector());
         self::addCollector(new QueriesCollector());
         self::addCollector(new CacheCollector());

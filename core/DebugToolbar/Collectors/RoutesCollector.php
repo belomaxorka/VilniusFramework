@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 use Core\Router;
 
 /**
@@ -185,7 +186,7 @@ class RoutesCollector extends AbstractCollector
                 [
                     'icon' => '🛣️',
                     'value' => $this->data['current']['method'] . ' ' . $this->data['current']['uri'],
-                    'color' => '#9c27b0',
+                    'color' => ColorPalette::SECONDARY,
                 ],
             ];
         }
@@ -275,21 +276,5 @@ class RoutesCollector extends AbstractCollector
         return 'Unknown';
     }
 
-    /**
-     * Получить цвет для HTTP метода
-     */
-    private function getMethodColor(string $method): string
-    {
-        return match ($method) {
-            'GET' => '#4caf50',
-            'POST' => '#2196f3',
-            'PUT' => '#ff9800',
-            'PATCH' => '#9c27b0',
-            'DELETE' => '#f44336',
-            'OPTIONS' => '#607d8b',
-            'HEAD' => '#795548',
-            default => '#757575',
-        };
-    }
 }
 

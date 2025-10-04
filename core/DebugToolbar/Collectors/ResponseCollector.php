@@ -3,6 +3,8 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
+use Core\DebugToolbar\HtmlRenderer;
 use Core\Http\HttpStatus;
 
 /**
@@ -121,7 +123,7 @@ class ResponseCollector extends AbstractCollector
 
         // Response Time
         if ($this->data['response_time'] !== null) {
-            $html .= $this->renderStatCard(
+            $html .= HtmlRenderer::renderStatCard(
                 '⏱️ Response Time',
                 $this->formatTime($this->data['response_time']),
                 $this->getTimeColor($this->data['response_time'])
@@ -130,27 +132,27 @@ class ResponseCollector extends AbstractCollector
 
         // Content-Type
         if ($this->data['content_type']) {
-            $html .= $this->renderStatCard(
+            $html .= HtmlRenderer::renderStatCard(
                 '📄 Content-Type',
                 htmlspecialchars($this->data['content_type']),
-                '#2196f3'
+                ColorPalette::INFO
             );
         }
 
         // Content-Length
         if ($this->data['content_length']) {
-            $html .= $this->renderStatCard(
+            $html .= HtmlRenderer::renderStatCard(
                 '📦 Content-Length',
                 $this->formatBytes($this->data['content_length']),
-                '#9c27b0'
+                ColorPalette::SECONDARY
             );
         }
 
         // Headers Count
-        $html .= $this->renderStatCard(
+        $html .= HtmlRenderer::renderStatCard(
             '📋 Headers',
             count($this->data['headers']) . ' sent',
-            '#ff9800'
+            ColorPalette::ACCENT
         );
 
         $html .= '</div>';
@@ -211,26 +213,5 @@ class ResponseCollector extends AbstractCollector
         return $stats;
     }
 
-    /**
-     * Рендер stat card
-     */
-    private function renderStatCard(string $title, string $value, string $color): string
-    {
-        $html = '<div style="background: white; padding: 15px; border-radius: 5px; border-left: 4px solid ' . $color . ';">';
-        $html .= '<div style="font-size: 12px; color: #666; margin-bottom: 5px;">' . $title . '</div>';
-        $html .= '<div style="font-size: 18px; font-weight: bold; color: ' . $color . ';">' . $value . '</div>';
-        $html .= '</div>';
-        return $html;
-    }
-
-    /**
-     * Получить цвет для времени ответа
-     */
-    private function getTimeColor(float $time): string
-    {
-        if ($time < 100) return '#4caf50'; // Fast - Green
-        if ($time < 500) return '#ff9800'; // Medium - Orange
-        return '#f44336'; // Slow - Red
-    }
 }
 

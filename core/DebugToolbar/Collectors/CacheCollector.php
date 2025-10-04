@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 
 /**
  * Коллектор операций с кэшем
@@ -67,8 +68,7 @@ class CacheCollector extends AbstractCollector
 
     public function getBadge(): ?string
     {
-        $count = count(self::$operations);
-        return $count > 0 ? (string)$count : null;
+        return $this->countBadge('operations');
     }
 
     public function render(): string
@@ -95,13 +95,13 @@ class CacheCollector extends AbstractCollector
         $html .= '<div style="background: #f5f5f5; padding: 10px; margin-bottom: 10px; border-radius: 4px;">';
         $html .= '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 12px;">';
         $html .= '<div><strong>Total:</strong> ' . $stats['total'] . '</div>';
-        $html .= '<div><strong>Hits:</strong> <span style="color: #66bb6a;">' . $stats['hits'] . '</span></div>';
-        $html .= '<div><strong>Misses:</strong> <span style="color: #ffa726;">' . $stats['misses'] . '</span></div>';
+        $html .= '<div><strong>Hits:</strong> <span style="color: ' . ColorPalette::SUCCESS . ';">' . $stats['hits'] . '</span></div>';
+        $html .= '<div><strong>Misses:</strong> <span style="color: ' . ColorPalette::WARNING . ';">' . $stats['misses'] . '</span></div>';
         $html .= '<div><strong>Writes:</strong> ' . $stats['writes'] . '</div>';
         $html .= '<div><strong>Deletes:</strong> ' . $stats['deletes'] . '</div>';
         if (($stats['hits'] + $stats['misses']) > 0) {
             $hitRate = ($stats['hits'] / ($stats['hits'] + $stats['misses'])) * 100;
-            $hitRateColor = $hitRate >= 80 ? '#66bb6a' : ($hitRate >= 50 ? '#ffa726' : '#ef5350');
+            $hitRateColor = ColorPalette::getThresholdColor($hitRate, 50, 80);
             $html .= '<div><strong>Hit Rate:</strong> <span style="color: ' . $hitRateColor . ';">' . number_format($hitRate, 1) . '%</span></div>';
         }
         $html .= '</div>';
@@ -110,7 +110,7 @@ class CacheCollector extends AbstractCollector
         // Список операций
         $html .= '<div style="max-height: 350px; overflow-y: auto;">';
         foreach (self::$operations as $index => $op) {
-            $bgColor = $this->getOperationColor($op['type']);
+            $bgColor = ColorPalette::getCacheOperationColor($op['type']);
 
             $html .= '<div style="background: white; border-left: 4px solid ' . $bgColor . '; padding: 8px; margin-bottom: 6px; border-radius: 4px; font-size: 12px;">';
 
@@ -150,7 +150,7 @@ class CacheCollector extends AbstractCollector
             $hitRate = ($stats['hits'] / ($stats['hits'] + $stats['misses'])) * 100;
         }
         
-        $color = $hitRate >= 80 ? '#66bb6a' : ($hitRate >= 50 ? '#ffa726' : '#ef5350');
+        $color = ColorPalette::getThresholdColor($hitRate, 50, 80);
 
         return [[
             'icon' => '🗃️',
@@ -235,29 +235,4 @@ class CacheCollector extends AbstractCollector
         return $stats;
     }
 
-    private function getOperationColor(string $type): string
-    {
-        return match ($type) {
-            'hit' => '#66bb6a',
-            'miss' => '#ffa726',
-            'write' => '#42a5f5',
-            'delete' => '#ef5350',
-            default => '#757575',
-        };
-    }
-
-    private function formatValue(mixed $value): string
-    {
-        if (is_string($value)) {
-            $preview = mb_substr($value, 0, 50);
-            return htmlspecialchars($preview) . (mb_strlen($value) > 50 ? '...' : '');
-        }
-        if (is_array($value)) {
-            return 'Array (' . count($value) . ' items)';
-        }
-        if (is_object($value)) {
-            return 'Object (' . get_class($value) . ')';
-        }
-        return var_export($value, true);
-    }
 }

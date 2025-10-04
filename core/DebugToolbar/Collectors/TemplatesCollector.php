@@ -3,6 +3,7 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
 use Core\TemplateEngine;
 
 /**
@@ -56,7 +57,7 @@ class TemplatesCollector extends AbstractCollector
     public function render(): string
     {
         if (empty($this->data['templates'])) {
-            return '<div style="padding: 20px; text-align: center; color: #757575;">No templates rendered</div>';
+            return $this->renderEmptyState('No templates rendered');
         }
 
         $html = '<div style="padding: 20px;">';
@@ -223,7 +224,7 @@ class TemplatesCollector extends AbstractCollector
 
         // Иначе показываем общую статистику
         $totalTime = $stats['total_time'];
-        $timeColor = $totalTime > 100 ? '#ef5350' : ($totalTime > 50 ? '#ffa726' : '#66bb6a');
+        $timeColor = $this->getTimeColor($totalTime, 50, 100);
 
         return [
             [

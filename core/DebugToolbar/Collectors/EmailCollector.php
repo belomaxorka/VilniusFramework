@@ -3,6 +3,8 @@
 namespace Core\DebugToolbar\Collectors;
 
 use Core\DebugToolbar\AbstractCollector;
+use Core\DebugToolbar\ColorPalette;
+use Core\DebugToolbar\HtmlRenderer;
 use Core\Emailer;
 
 /**
@@ -12,6 +14,11 @@ use Core\Emailer;
  */
 class EmailCollector extends AbstractCollector
 {
+    public function __construct()
+    {
+        $this->priority = 85;
+    }
+
     public function getName(): string
     {
         return 'emails';
@@ -22,89 +29,144 @@ class EmailCollector extends AbstractCollector
         return 'Emails';
     }
 
-    public function collect(): array
+    public function getIcon(): string
     {
+        return '✉️';
+    }
+
+    public function isEnabled(): bool
+    {
+        return class_exists('\Core\Emailer');
+    }
+
+    public function collect(): void
+    {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $emails = Emailer::getSentEmails();
         $stats = Emailer::getStats();
 
-        return [
+        $this->data = [
             'emails' => $emails,
             'stats' => $stats,
             'count' => count($emails),
         ];
     }
 
-    public function getIcon(): string
-    {
-        return '✉️';
-    }
-
     public function getBadge(): ?string
     {
-        $count = count(Emailer::getSentEmails());
-        return $count > 0 ? (string)$count : null;
+        return $this->countBadge('emails');
     }
 
-    public function getPanelContent(): string
+    public function render(): string
     {
-        $data = $this->collect();
-        $emails = $data['emails'];
-        $stats = $data['stats'];
-
-        if (empty($emails)) {
-            return '<p class="text-gray-500 p-4">No emails sent</p>';
+        if (empty($this->data['emails'])) {
+            return $this->renderEmptyState('No emails sent');
         }
 
-        $html = '<div class="p-4">';
+        $emails = $this->data['emails'];
+        $stats = $this->data['stats'];
+
+        $html = '<div style="padding: 20px;">';
+        $html .= '<h3 style="margin-top: 0;">✉️ Sent Emails</h3>';
         
-        // Stats
-        $html .= '<div class="mb-4 grid grid-cols-4 gap-4">';
-        $html .= '<div class="bg-blue-50 p-3 rounded">';
-        $html .= '<div class="text-xs text-gray-600">Total</div>';
-        $html .= '<div class="text-xl font-bold">' . $stats['total'] . '</div>';
-        $html .= '</div>';
-        $html .= '<div class="bg-green-50 p-3 rounded">';
-        $html .= '<div class="text-xs text-gray-600">Successful</div>';
-        $html .= '<div class="text-xl font-bold text-green-600">' . $stats['successful'] . '</div>';
-        $html .= '</div>';
-        $html .= '<div class="bg-red-50 p-3 rounded">';
-        $html .= '<div class="text-xs text-gray-600">Failed</div>';
-        $html .= '<div class="text-xl font-bold text-red-600">' . $stats['failed'] . '</div>';
-        $html .= '</div>';
-        $html .= '<div class="bg-purple-50 p-3 rounded">';
-        $html .= '<div class="text-xs text-gray-600">Total Time</div>';
-        $html .= '<div class="text-xl font-bold">' . number_format($stats['total_time'] * 1000, 2) . ' ms</div>';
-        $html .= '</div>';
+        // Статистика
+        $html .= '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">';
+        
+        $html .= HtmlRenderer::renderStatCard(
+            '📊 Total',
+            (string)$stats['total'],
+            ColorPalette::INFO
+        );
+        
+        $html .= HtmlRenderer::renderStatCard(
+            '✅ Successful',
+            (string)$stats['successful'],
+            ColorPalette::SUCCESS
+        );
+        
+        $html .= HtmlRenderer::renderStatCard(
+            '❌ Failed',
+            (string)$stats['failed'],
+            ColorPalette::ERROR
+        );
+        
+        $html .= HtmlRenderer::renderStatCard(
+            '⏱️ Total Time',
+            $this->formatTime($stats['total_time']),
+            ColorPalette::SECONDARY
+        );
+        
         $html .= '</div>';
 
-        // Email list
-        $html .= '<div class="space-y-2">';
-        foreach ($emails as $email) {
-            $statusClass = $email['success'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-            $statusText = $email['success'] ? 'Sent' : 'Failed';
+        // Список писем
+        $html .= '<div style="max-height: 400px; overflow-y: auto;">';
+        
+        foreach ($emails as $index => $email) {
+            $isSuccess = $email['success'];
+            $bgColor = $isSuccess ? '#e8f5e9' : '#ffebee';
+            $borderColor = $isSuccess ? ColorPalette::SUCCESS : ColorPalette::ERROR;
 
-            $html .= '<div class="border rounded p-3">';
-            $html .= '<div class="flex items-center justify-between mb-2">';
-            $html .= '<span class="font-medium">' . htmlspecialchars($email['subject']) . '</span>';
-            $html .= '<span class="px-2 py-1 text-xs rounded ' . $statusClass . '">' . $statusText . '</span>';
-            $html .= '</div>';
-            $html .= '<div class="text-sm text-gray-600">';
-            $html .= '<div>To: ' . htmlspecialchars(implode(', ', $email['to'])) . '</div>';
-            $html .= '<div>Driver: ' . htmlspecialchars($email['driver']) . '</div>';
-            $html .= '<div>Time: ' . number_format($email['time'] * 1000, 2) . ' ms</div>';
+            $html .= '<div style="background: ' . $bgColor . '; border-left: 4px solid ' . $borderColor . '; padding: 15px; margin-bottom: 10px; border-radius: 4px;">';
             
-            if (!$email['success'] && isset($email['error'])) {
-                $html .= '<div class="text-red-600 mt-1">Error: ' . htmlspecialchars($email['error']) . '</div>';
+            // Заголовок письма
+            $html .= '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+            $html .= '<div style="font-weight: bold; font-size: 14px;">' . htmlspecialchars($email['subject']) . '</div>';
+            
+            // Статус badge
+            $statusColor = $isSuccess ? ColorPalette::SUCCESS : ColorPalette::ERROR;
+            $statusText = $isSuccess ? 'Sent' : 'Failed';
+            $html .= HtmlRenderer::renderBadge($statusText, $statusColor);
+            
+            $html .= '</div>';
+            
+            // Детали
+            $html .= '<div style="font-size: 12px; color: #666;">';
+            $html .= '<div style="margin-bottom: 5px;"><strong>To:</strong> ' . htmlspecialchars(implode(', ', $email['to'])) . '</div>';
+            $html .= '<div style="margin-bottom: 5px;"><strong>Driver:</strong> ' . htmlspecialchars($email['driver']) . '</div>';
+            $html .= '<div style="margin-bottom: 5px;"><strong>Time:</strong> ' . $this->formatTime($email['time']) . '</div>';
+            
+            // Ошибка (если есть)
+            if (!$isSuccess && isset($email['error'])) {
+                $html .= '<div style="margin-top: 8px; padding: 8px; background: white; border-radius: 3px; color: ' . ColorPalette::ERROR . ';">';
+                $html .= '<strong>Error:</strong> ' . htmlspecialchars($email['error']);
+                $html .= '</div>';
             }
             
             $html .= '</div>';
             $html .= '</div>';
         }
+        
         $html .= '</div>';
-
         $html .= '</div>';
 
         return $html;
+    }
+
+    public function getHeaderStats(): array
+    {
+        $count = $this->data['count'] ?? 0;
+        
+        if ($count === 0) {
+            return [];
+        }
+
+        $stats = $this->data['stats'];
+        $failed = $stats['failed'] ?? 0;
+        
+        // Определяем цвет: если есть ошибки - красный, иначе зелёный
+        $color = $failed > 0 ? ColorPalette::ERROR : ColorPalette::SUCCESS;
+        $value = $count . ' emails' . ($failed > 0 ? ' (' . $failed . ' failed)' : '');
+
+        return [
+            [
+                'icon' => '✉️',
+                'value' => $value,
+                'color' => $color,
+            ]
+        ];
     }
 }
 
