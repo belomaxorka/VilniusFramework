@@ -33,15 +33,93 @@ class Output
     private int $progressCurrent = 0;
 
     /**
+     * Кэш проверки поддержки цветов
+     */
+    private static ?bool $colorsSupported = null;
+
+    /**
+     * Конструктор
+     */
+    public function __construct()
+    {
+        // Включаем поддержку ANSI на Windows
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $this->enableWindowsAnsiSupport();
+        }
+    }
+
+    /**
+     * Включить поддержку ANSI на Windows
+     */
+    private function enableWindowsAnsiSupport(): void
+    {
+        // Начиная с Windows 10, можно включить режим виртуального терминала
+        // через escape-последовательность
+        if (PHP_VERSION_ID >= 70200) {
+            // Попытка включить ANSI через stream
+            @stream_set_blocking(STDOUT, false);
+            @stream_set_blocking(STDOUT, true);
+        }
+        
+        // Отправляем специальную последовательность для активации ANSI
+        // Это работает в Windows 10+
+        @fwrite(STDOUT, "\x1b[0m");
+    }
+
+    /**
      * Проверить, поддерживаются ли цвета
      */
     private function supportsColors(): bool
     {
-        if (DIRECTORY_SEPARATOR === '\\') {
-            return getenv('ANSICON') !== false || getenv('ConEmuANSI') === 'ON';
+        // Используем кэш, чтобы не проверять каждый раз
+        if (self::$colorsSupported !== null) {
+            return self::$colorsSupported;
         }
 
-        return function_exists('posix_isatty') && @posix_isatty(STDOUT);
+        // Форсированное отключение через переменную окружения
+        if (getenv('NO_COLOR') !== false) {
+            return self::$colorsSupported = false;
+        }
+
+        // Форсированное включение через переменную окружения
+        if (getenv('FORCE_COLOR') !== false) {
+            return self::$colorsSupported = true;
+        }
+
+        if (DIRECTORY_SEPARATOR === '\\') {
+            // Windows
+            // Проверяем старые эмуляторы терминала
+            if (getenv('ANSICON') !== false || getenv('ConEmuANSI') === 'ON') {
+                return self::$colorsSupported = true;
+            }
+
+            // Windows 10+ с поддержкой ANSI (начиная с версии 1511)
+            // Проверяем версию Windows
+            $version = php_uname('v');
+            if (preg_match('/build (\d+)/', $version, $matches)) {
+                $build = (int)$matches[1];
+                // Build 10586 = Windows 10 версия 1511 (TH2) с поддержкой ANSI
+                if ($build >= 10586) {
+                    return self::$colorsSupported = true;
+                }
+            }
+
+            // Проверяем современные терминалы
+            $term = getenv('TERM');
+            if ($term && strpos($term, 'xterm') !== false) {
+                return self::$colorsSupported = true;
+            }
+
+            // Windows Terminal, VS Code Terminal
+            if (getenv('WT_SESSION') !== false || getenv('TERM_PROGRAM') === 'vscode') {
+                return self::$colorsSupported = true;
+            }
+
+            return self::$colorsSupported = false;
+        }
+
+        // Unix-подобные системы
+        return self::$colorsSupported = (function_exists('posix_isatty') && @posix_isatty(STDOUT));
     }
 
     /**
@@ -156,7 +234,7 @@ class Output
         foreach ($headers as $i => $header) {
             $headerLine .= str_pad($header, $columnWidths[$i]) . ' | ';
         }
-        $this->line($this->colorize($headerLine, 'cyan'));
+        $this->line($this->color($headerLine, 'cyan'));
 
         // Выводим разделитель
         $separator = '+-';

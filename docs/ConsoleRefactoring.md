@@ -171,6 +171,41 @@ protected function deleteFiles(string $pattern): int
 
 ---
 
+### 6. Поддержка цветов на Windows
+
+**Проблема**: Цвета не работали в PowerShell на Windows 10+ из-за устаревшей проверки поддержки ANSI.
+
+**Решение**: 
+- Добавлен конструктор в `Output` для автоматической активации ANSI на Windows
+- Улучшена проверка поддержки цветов для Windows 10+ (build 10586+)
+- Добавлена поддержка современных терминалов (Windows Terminal, VS Code)
+- Добавлены переменные окружения `NO_COLOR` и `FORCE_COLOR`
+- Добавлено кэширование результата проверки
+
+**Новые возможности**:
+```php
+// Конструктор автоматически включает ANSI на Windows
+public function __construct()
+
+// Улучшенная проверка с кэшированием
+private function supportsColors(): bool
+
+// Поддержка переменных окружения
+NO_COLOR=1 - отключить цвета
+FORCE_COLOR=1 - включить цвета
+```
+
+**Поддерживаемые терминалы**:
+- ✅ Windows 10 build 10586+ (PowerShell, cmd)
+- ✅ Windows Terminal
+- ✅ VS Code Terminal
+- ✅ ConEmu / Cmder
+- ✅ Unix терминалы
+
+Подробнее: `docs/ConsoleColors.md`
+
+---
+
 ## Общая статистика
 
 ### Удаленный дублирующийся код

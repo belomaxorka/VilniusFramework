@@ -133,8 +133,8 @@ class Application
     private function showVersion(): void
     {
         $this->output->line('');
-        $this->output->line($this->colorize(" 🚀 {$this->name}", 'cyan'));
-        $this->output->line($this->colorize(" 📦 Version: {$this->version}", 'cyan'));
+        $this->output->line($this->output->color(" 🚀 {$this->name}", 'cyan'));
+        $this->output->line($this->output->color(" 📦 Version: {$this->version}", 'cyan'));
         $this->output->line('');
     }
 
@@ -144,10 +144,10 @@ class Application
     private function showCommands(): void
     {
         $this->showVersion();
-        $this->output->line($this->colorize('Usage:', 'yellow'));
+        $this->output->line($this->output->color('Usage:', 'bright_yellow'));
         $this->output->line('  command [options] [arguments]');
         $this->output->line('');
-        $this->output->line($this->colorize('Available commands:', 'yellow'));
+        $this->output->line($this->output->color('Available commands:', 'bright_yellow'));
 
         // Группируем команды по префиксу
         $groupedCommands = [];
@@ -170,7 +170,7 @@ class Application
         if (isset($groupedCommands['general'])) {
             foreach ($groupedCommands['general'] as $commandInfo) {
                 $signature = str_pad($commandInfo['signature'], 24);
-                $this->output->line(" " . $this->colorize($signature, 'green') . $commandInfo['description']);
+                $this->output->line(" " . $this->output->color($signature, 'green') . $commandInfo['description']);
             }
         }
 
@@ -181,11 +181,11 @@ class Application
             }
 
             $this->output->line('');
-            $this->output->line($this->colorize(" {$group}", 'green'));
+            $this->output->line($this->output->color(" {$group}", 'green'));
 
             foreach ($commands as $commandInfo) {
                 $signature = str_pad($commandInfo['signature'], 25);
-                $this->output->line("  " . $this->colorize($commandInfo['signature'], 'green') . str_repeat(' ', 25 - strlen($commandInfo['signature'])) . $commandInfo['description']);
+                $this->output->line("  " . $this->output->color($commandInfo['signature'], 'green') . str_repeat(' ', 25 - strlen($commandInfo['signature'])) . $commandInfo['description']);
             }
         }
 
@@ -198,36 +198,18 @@ class Application
     private function showHelp(): void
     {
         $this->showVersion();
-        $this->output->line($this->colorize('Usage:', 'yellow'));
+        $this->output->line($this->output->color('Usage:', 'bright_yellow'));
         $this->output->line('  php vilnius <command> [options] [arguments]');
         $this->output->line('');
-        $this->output->line($this->colorize('Options:', 'yellow'));
+        $this->output->line($this->output->color('Options:', 'bright_yellow'));
         $this->output->line('  -h, --help     Display this help message');
         $this->output->line('  -V, --version  Display application version');
         $this->output->line('');
-        $this->output->line($this->colorize('Available commands:', 'yellow'));
+        $this->output->line($this->output->color('Available commands:', 'bright_yellow'));
         $this->output->line('  list           List all available commands');
         $this->output->line('');
         $this->output->line('Run "php vilnius list" to see all available commands.');
         $this->output->line('');
-    }
-
-    /**
-     * Применить цвет к тексту
-     */
-    private function colorize(string $text, string $color): string
-    {
-        $colors = [
-            'yellow' => "\033[1;33m",
-            'green' => "\033[0;32m",
-            'cyan' => "\033[1;36m",
-            'blue' => "\033[0;34m",
-            'red' => "\033[0;31m",
-            'reset' => "\033[0m",
-        ];
-
-        $colorCode = $colors[$color] ?? $colors['reset'];
-        return $colorCode . $text . $colors['reset'];
     }
 
     /**
